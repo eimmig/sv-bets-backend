@@ -1,0 +1,119 @@
+{
+  "features": [
+    {
+      "id": "feat-001",
+      "name": "Setup do projeto",
+      "description": "Inicializar projeto Spring Boot 4.x (Java 25) com Maven, pacotes domain/application/adapter/config (arquitetura hexagonal - ver docs/CONVENTIONS.md), conexao com banco Postgres proprio, schema-per-tenant (tenant_<slug>, resolvido a partir do header X-Tenant-Id - NAO mais X-User-Id, ver docs/DECISIONS-LOG.md 2026-08-02 e docs/API-CONTRACTS.md), Flyway configurado para migracao lazy por schema (verifica/roda migracoes pendentes do schema resolvido antes de atender a chamada - ver docs/CONVENTIONS.md secao 'Migrations'), JaCoCo com gate de 80% vinculado a fase verify. MessageSource/ResourceBundle configurado para i18n de erros (pt-BR/en-US/es, ver docs/CONVENTIONS.md secao 'Internacionalizacao'). Expor tambem uma rota administrativa que cria o schema tenant_<slug> deste servico quando um tenant novo e provisionado, autenticada por X-Admin-Api-Key (ver docs/API-CONTRACTS.md) - chamada manualmente pelo operador, NAO orquestrada por auth-service em codigo (decisao de 2026-08-02, ver docs/DECISIONS-LOG.md item 3: 3 chamadas manuais separadas).",
+      "dependencies": [],
+      "status": "not-started",
+      "plan_review": "",
+      "jira": "",
+      "subtasks": [],
+      "evidence": ""
+    },
+    {
+      "id": "feat-002",
+      "name": "Catalogos base",
+      "description": "Entidades e migrations de SPORT, LEAGUE, MARKET, TIPSTER - catalogos referenciados por BET.",
+      "dependencies": [
+        "feat-001"
+      ],
+      "status": "not-started",
+      "plan_review": "",
+      "jira": "",
+      "subtasks": [],
+      "evidence": ""
+    },
+    {
+      "id": "feat-003",
+      "name": "RF03/RF13 - Casas de apostas e movimentacoes",
+      "description": "Entidades BETTING_HOUSE e TRANSACTION. RN01 (consolidacao de saldo) e RN07 (stake nunca negativo) aplicaveis as movimentacoes de deposito/saque.",
+      "dependencies": [
+        "feat-002"
+      ],
+      "status": "not-started",
+      "plan_review": "",
+      "jira": "",
+      "subtasks": [],
+      "evidence": ""
+    },
+    {
+      "id": "feat-004",
+      "name": "RF04/RF12 - Registro e ciclo de vida da aposta",
+      "description": "Entidade BET (inclui createdByUserId, gravado a partir do header X-User-Id - trilha de auditoria de quem registrou, sem FK real entre bancos, ver docs/DECISIONS-LOG.md 2026-08-02) e endpoint POST /api/v1/bets (compartilhado com telegram-integration, via api-gateway). Validacoes RN07 (odd > 1.00, stake > 0). Endpoint/mecanismo para RF12 (atualizar status: pending/won/lost/void - ver docs/API-CONTRACTS.md).",
+      "dependencies": [
+        "feat-003"
+      ],
+      "status": "not-started",
+      "plan_review": "",
+      "jira": "",
+      "subtasks": [],
+      "evidence": ""
+    },
+    {
+      "id": "feat-005",
+      "name": "RF06/RF07 - Processamento de resultado e bankroll consolidado",
+      "description": "Entidade BET_RESULT (inclui settledByUserId, gravado a partir do header X-User-Id - pode ser diferente do createdByUserId de BET, ver docs/DECISIONS-LOG.md 2026-08-02). Ao liquidar uma aposta (RN06: status vira won/lost/void), calcular lucro (RN02) ou prejuizo (RN03) e atualizar o saldo consolidado imediatamente (RN05).",
+      "dependencies": [
+        "feat-004"
+      ],
+      "status": "not-started",
+      "plan_review": "",
+      "jira": "",
+      "subtasks": [],
+      "evidence": ""
+    },
+    {
+      "id": "feat-006",
+      "name": "Publicacao do evento BetCreated",
+      "description": "Publicar BetCreated no RabbitMQ logo apos persistir BET (registro inicial, status sempre pending), sem bloquear a resposta HTTP (201 Created) ao cliente. Envelope inclui userId (= BET.createdByUserId) alem de tenantId - ver docs/contracts/bet-created.schema.json (campo obrigatorio) e docs/DECISIONS-LOG.md 2026-08-02. Evento distinto de BetSettled (ver feat-008) - nao reaproveitar o mesmo evento para liquidacao.",
+      "dependencies": [
+        "feat-004"
+      ],
+      "status": "not-started",
+      "plan_review": "",
+      "jira": "",
+      "subtasks": [],
+      "evidence": ""
+    },
+    {
+      "id": "feat-007",
+      "name": "RF08 - Historico paginado de apostas e movimentacoes",
+      "description": "GET /api/v1/bets e GET /api/v1/transactions com paginacao (page/size) e filtros em ingles (sport, league, market, tipster, bettingHouse, from/to - RF11/RN08) seguindo o envelope e query params documentados em docs/API-CONTRACTS.md. Endpoint de leitura consumido tanto pela tela de historico (RF08 UI) quanto por auditoria.",
+      "dependencies": [
+        "feat-005"
+      ],
+      "status": "not-started",
+      "plan_review": "",
+      "jira": "",
+      "subtasks": [],
+      "evidence": ""
+    },
+    {
+      "id": "feat-008",
+      "name": "Publicacao do evento BetSettled",
+      "description": "Publicar BetSettled no RabbitMQ apos liquidar uma aposta (feat-005: status vira won/lost/void, profit calculado), sem bloquear a resposta HTTP ao cliente. Envelope inclui userId (= BET_RESULT.settledByUserId, pode ser diferente do userId do BetCreated correspondente) alem de tenantId - ver docs/contracts/bet-settled.schema.json (campo obrigatorio) e docs/DECISIONS-LOG.md 2026-08-02. Payload inclui profit/settledAt e repete os campos dimensionais (nao so betId) para o stats-service conseguir fazer upsert em FACT_BET independente de ja ter processado o BetCreated correspondente.",
+      "dependencies": [
+        "feat-005"
+      ],
+      "status": "not-started",
+      "plan_review": "",
+      "jira": "",
+      "subtasks": [],
+      "evidence": ""
+    },
+    {
+      "id": "feat-009",
+      "name": "Pipeline de CI (GitHub Actions + SonarCloud)",
+      "description": "Workflow ja versionado em .github/workflows/ci.yml (dentro deste repositorio - este servico e seu proprio repositorio Git, nao um monorepo, ver docs/CI-CD.md) com 5 passos: validacao de CHANGELOG.md atualizado, validacao de chaves de traducao (messages_pt_BR/en_US/es.properties), build (mvn package), testes unitarios + cobertura (mvn test jacoco:report), qualidade/cobertura no SonarCloud (mvn sonar:sonar, projectKey sv-bets-backend). Scripts de validacao em .github/scripts/ (duplicados neste repositorio, nao compartilhados). Repositorio GitHub: https://github.com/eimmig/sv-bets-backend.git. So funciona de fato apos este repositorio existir no GitHub e o setup do SonarCloud (org, projeto, SONAR_TOKEN, SONAR_ORGANIZATION) estar feito - ver docs/CI-CD.md secao 'Setup pendente'.",
+      "dependencies": [
+        "feat-001"
+      ],
+      "status": "not-started",
+      "plan_review": "",
+      "jira": "",
+      "subtasks": [],
+      "evidence": ""
+    }
+  ]
+}
