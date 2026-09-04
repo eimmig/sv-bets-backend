@@ -99,7 +99,7 @@
         {
           "id": "feat-001.7",
           "name": "Health checks do Actuator",
-          "status": "not-started",
+          "status": "done",
           "jira": "SV-67",
           "detail": "Necessario para o healthcheck do docker-compose e para confirmar que o servico sobe de fato.",
           "checklist": [
