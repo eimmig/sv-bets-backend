@@ -54,7 +54,7 @@
         {
           "id": "feat-001.4",
           "name": "Provisionamento de schema de tenant (Flyway lazy) + filtro X-Tenant-Id + rota admin X-Admin-Api-Key",
-          "status": "not-started",
+          "status": "done",
           "jira": "SV-64",
           "detail": "Mesmo padrao de auth-service feat-001.3 (ensureSchemaExists/migrateExistingOnly via Flyway.createSchemas, TenantSchemaName, filtro le X-Tenant-Id - aqui NAO X-User-Id) + a rota admin bundlada nesta feature (achado do Plan Reviewer): AdminApiKeyFilter reaproveita o padrao ja corrigido em auth-service (UriUtils.decode() antes de comparar prefixo de path - vulnerabilidade de percent-encoding ja conhecida, nao redescobrir). Sem multi-tenancy do Hibernate ainda (fica para feat-002, quando existirem entidades JPA) - só Flyway puro.",
           "checklist": [
