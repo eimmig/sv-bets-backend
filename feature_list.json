@@ -112,7 +112,7 @@
         {
           "id": "feat-001.8",
           "name": ".env.example e logging estruturado",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-68",
           "detail": ".env.example restrito ao que feat-001 realmente le - variavel de X-Admin-Api-Key (ADMIN_API_KEY) ja e consumida aqui (diferente de auth-service, onde entrou so em feat-003).",
           "checklist": [
