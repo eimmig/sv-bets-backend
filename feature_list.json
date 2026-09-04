@@ -84,7 +84,7 @@
         {
           "id": "feat-001.6",
           "name": "Scaffold de i18n (MessageSource) e teste smoke",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-66",
           "detail": "messages.properties SEM sufixo de locale e obrigatorio (gotcha critico de auth-service feat-003.6 - MessageSourceAutoConfiguration nunca ativa sem ele) - criar desde o inicio, nao esperar descobrir o bug de novo.",
           "checklist": [
