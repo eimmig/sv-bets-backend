@@ -71,7 +71,7 @@
         {
           "id": "feat-001.5",
           "name": "Gate de cobertura JaCoCo 80%",
-          "status": "not-started",
+          "status": "done",
           "jira": "SV-65",
           "detail": "mvn verify precisa falhar abaixo de 80% - o passo 4 do ci.yml (feat-001.1) ja assume isso.",
           "checklist": [
