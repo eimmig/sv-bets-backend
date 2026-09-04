@@ -41,7 +41,7 @@
         {
           "id": "feat-001.3",
           "name": "Conexao Postgres com profiles dev/test/prod",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-63",
           "detail": "Mesmo padrao de auth-service feat-001.2 - variavel de ambiente direta (${DB_HOST:localhost} etc.), sem spring-dotenv (dependencia sem atividade recente compativel com Spring Boot 4.1, ja descartada em auth-service).",
           "checklist": [
