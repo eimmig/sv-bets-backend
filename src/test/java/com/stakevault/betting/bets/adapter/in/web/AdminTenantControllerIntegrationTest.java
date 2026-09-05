@@ -126,6 +126,8 @@ class AdminTenantControllerIntegrationTest extends TenantSchemaIntegrationSuppor
 
 		assertThat(response.statusCode()).isEqualTo(401);
 		assertThat(response.body()).contains("Clave de administrador inválida");
+		assertThat(response.headers().firstValue("Content-Type"))
+				.hasValueSatisfying(contentType -> assertThat(contentType).containsIgnoringCase("charset=UTF-8"));
 	}
 
 	@Test
