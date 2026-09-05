@@ -557,13 +557,94 @@
       "id": "feat-005",
       "name": "RF06/RF07 - Processamento de resultado e bankroll consolidado",
       "description": "Entidade BET_RESULT (inclui settledByUserId, gravado a partir do header X-User-Id - pode ser diferente do createdByUserId de BET, ver docs/DECISIONS-LOG.md 2026-08-02). Ao liquidar uma aposta (RN06: status vira won/lost/void), calcular lucro (RN02) ou prejuizo (RN03) e atualizar o saldo consolidado imediatamente (RN05).",
+      "goal": "Ao mudar o status de uma aposta pending para won/lost/void via PATCH /api/v1/bets/{id}/status, gravar BET_RESULT (quem liquidou, lucro/prejuizo) e refletir esse resultado imediatamente no balance de GET /api/v1/betting-houses (RN01/RN05), sem endpoint novo.",
+      "scope": [
+        "Migration Flyway bet_result (id UUID PK, bet_id UUID UNIQUE NOT NULL REFERENCES bet(id) - 1:1 conforme ERD, settled_by_user_id UUID NOT NULL, profit NUMERIC(19,2) NOT NULL, settled_at TIMESTAMP NOT NULL)",
+        "Correcao do TOCTOU residual aceito em feat-004 (docs/services/bets-service.md): transicao de status passa a ser um UPDATE atomico condicional (WHERE status='pending'), nao mais findById+save separados - agora que a transicao tem efeito financeiro real, a corrida de duas liquidacoes concorrentes teria que ser impedida de verdade",
+        "PATCH /api/v1/bets/{id}/status passa a exigir X-User-Id (401 missing-caller-context, mesmo padrao de POST /api/v1/bets) - vira settledByUserId; calculo de profit (RN02 stake*odd-stake para won, RN03 -stake para lost, 0 para void) e persistencia de BET/BET_RESULT na mesma transacao (@Transactional, primeiro uso real deste mecanismo no servico)",
+        "GET /api/v1/betting-houses: balance passa a somar tambem o profit das apostas liquidadas daquela casa (RN01 'atualizado pelo resultado das apostas liquidadas'), numa unica query agregada nova (join implicito BET/BET_RESULT, mesmo padrao de TransactionRepository.sumNetAmountByBettingHouseIds) - sem endpoint novo de bankroll consolidado (nao documentado em nenhuma nota do vault; RF07 e satisfeito somando os balances retornados, front-end decide se soma no cliente)"
+      ],
       "dependencies": [
         "feat-004"
       ],
-      "status": "not-started",
-      "plan_review": "",
-      "jira": "",
-      "subtasks": [],
+      "status": "in-progress",
+      "plan_review": "2026-09-05, Plan Reviewer (review-suite:ln-11-plan-reviewer) rodado contra o plano antes de qualquer codigo. Veredito: READY WITH CONCERNS, 1 achado MAJOR corrigido no plano + 1 divida tecnica de feat-004 resolvida agora (nenhum exigia decisao do usuario). (MAJOR) O TOCTOU aceito como residual em feat-004 (BetService.updateStatus le status atual e so depois escreve, sem guarda atomica) deixa de ser um risco academico nesta feature: como agora a transicao cria BET_RESULT e afeta o balance de verdade, duas chamadas PATCH concorrentes para a mesma aposta pending poderiam ambas passar a validacao e ambas criar BET_RESULT (a UNIQUE(bet_id) da migration pegaria a segunda tentativa de INSERT, mas so DEPOIS de ja ter computado o profit errado e potencialmente ja ter mudado o status - dado inconsistente, nao so erro tratado). Corrigido no plano: BetRepository ganha um UPDATE atomico condicional (UPDATE ... SET status=? WHERE id=? AND status='pending', via @Modifying @Query, retornando linhas afetadas) - so a chamada que ganhar a corrida efetivamente muda o status; a perdedora recebe 422 invalid-status-transition de verdade, nao dado corrompido. Confirmado contra o repositorio real: nenhuma query @Modifying existe ainda neste servico (so SELECT/INSERT/UPDATE via save() do Spring Data) - primeira vez, mesmo padrao a documentar para os outros 2 servicos Java se precisarem de transicao de estado com efeito colateral financeiro. Decisoes resolvidas sem bloqueio (evidencia ja documentada): (a) RF07 'gerenciar bankroll' nao tem endpoint de saldo consolidado documentado em nenhuma nota do vault (docs/API-CONTRACTS.md so descreve o balance por casa, GET /api/v1/betting-houses) - nao criar endpoint novo, RN01 e satisfeito estendendo a MESMA query de balance (feat-003) para somar tambem o profit de BET_RESULT por casa, soma total fica a cargo do consumidor (front-end, feat-006 de apps/web); (b) PATCH /api/v1/bets/{id}/status passa a exigir X-User-Id (401 se ausente/invalido) - vira BET_RESULT.settledByUserId, mesmo padrao ja usado em POST /api/v1/bets (auth-service feat-004), so que agora tambem na rota de liquidacao; quebra os 5 testes de PATCH existentes de feat-004 (nao mandavam X-User-Id) - atualiza-los faz parte desta feature, mesmo arquivo/recurso, dentro do escopo; (c) BET_RESULT nao ganha endpoint proprio (GET /api/v1/bet-results) - nada no vault pede isso, o profit fica visivel via balance (esta feature) e futuramente via historico paginado (feat-007). Confirmado contra o codigo real: TransactionSpringDataRepository.sumNetAmountByBettingHouseIds (JPQL com join implicito por igualdade, sem @ManyToOne mapeado) e o precedente direto a espelhar para o novo profitByBettingHouseIds (join implicito BetResultJpaEntity/BetJpaEntity, já que bet_result nao tem betting_house_id direto - so via bet.bettingHouseId). Rodada de desafio independente executada como passe proprio (grounding contra ERD/schema de evento ja commitados e codigo real de feat-003/004), sem subagentes - independencia reduzida, declarada.",
+      "jira": "SV-87",
+      "subtasks": [
+        {
+          "id": "feat-005.1",
+          "name": "Migration Flyway da tabela bet_result",
+          "status": "done",
+          "jira": "SV-88",
+          "detail": "Primeira tabela 1:1 do servico (UNIQUE(bet_id), nao 1:N) - impede duas liquidacoes persistidas pra mesma aposta mesmo se a guarda atomica de feat-005.3 falhar por algum motivo (defesa em profundidade).",
+          "checklist": [
+            "V<timestamp>__create_bet_result_table.sql: bet_result (id UUID PK, bet_id UUID UNIQUE NOT NULL REFERENCES bet(id), settled_by_user_id UUID NOT NULL, profit NUMERIC(19,2) NOT NULL, settled_at TIMESTAMP NOT NULL)."
+          ],
+          "validation": "Migration aplicada com sucesso num schema de tenant novo via teste de integracao existente.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-005.2",
+          "name": "Dominio BetResult e persistencia",
+          "status": "not-started",
+          "jira": "SV-89",
+          "detail": "Mesmo padrao de Bet (feat-004): entidade JPA com construtor recebendo o record de dominio inteiro (evita reincidir no achado real de java:S107 do gate SonarCloud, ver docs/CONVENTIONS.md).",
+          "checklist": [
+            "domain/model/BetResult (record: id, betId, settledByUserId, profit, settledAt).",
+            "adapter/out/persistence/BetResultJpaEntity (extends AbstractJpaEntity, construtor BetResultJpaEntity(BetResult)) + BetResultSpringDataRepository + JpaBetResultRepository (domain/port/out/BetResultRepository: save, findByBetId).",
+            "Testes de integracao: persistencia basica, isolamento entre tenants, UNIQUE(bet_id) rejeita segunda liquidacao da mesma aposta (DataIntegrityViolationException)."
+          ],
+          "validation": "Testes de integracao de persistencia passam.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-005.3",
+          "name": "Liquidacao atomica: transicao condicional + BET_RESULT + X-User-Id no PATCH",
+          "status": "not-started",
+          "jira": "SV-90",
+          "detail": "Achado MAJOR do Plan Reviewer: corrige o TOCTOU residual de feat-004 com UPDATE atomico condicional, agora que a transicao tem efeito financeiro real.",
+          "checklist": [
+            "BetSpringDataRepository ganha @Modifying @Query('UPDATE BetJpaEntity b SET b.status = :to WHERE b.id = :id AND b.status = :from') int transitionStatus(...) - primeira query @Modifying do servico.",
+            "BetRepository/JpaBetRepository: metodo transitionStatus(UUID id, BetStatus from, BetStatus to) retornando boolean (linhas afetadas > 0).",
+            "BetService.updateStatus ganha parametro callerId (X-User-Id): tenta transitionStatus(id, PENDING, newStatus); se false, findById para distinguir 404 bet-not-found (nao existe) de 422 invalid-status-transition (existe mas nao estava pending); se true, calcula profit (RN02 stake*odd-stake/RN03 -stake/0 para void) e salva BetResult(settledByUserId=callerId) - tudo dentro de um unico @Transactional (primeiro uso real neste servico).",
+            "BetsController.updateStatus: adiciona @RequestHeader X-User-Id (required=false) + parseCallerId (mirror do de POST /api/v1/bets, extrair para metodo privado compartilhado no controller) - 401 missing-caller-context se ausente/invalido.",
+            "Atualizar os 5 testes de PATCH existentes (feat-004, BetsControllerIntegrationTest) para enviar X-User-Id.",
+            "Testes de integracao novos: PATCH sem X-User-Id (401), profit correto para won/lost/void (3 cenarios, valores RN02/RN03 conferidos), settledByUserId gravado corretamente, e teste de concorrencia (2 threads/ExecutorService chamando PATCH pending->won ao mesmo tempo pra mesma aposta - so uma sucede com 200, a outra recebe 422, nunca 2 BET_RESULT)."
+          ],
+          "validation": "Testes de integracao dos cenarios acima passam, incluindo o de concorrencia.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-005.4",
+          "name": "Balance de betting-houses passa a incluir profit de apostas liquidadas (RN01/RN05)",
+          "status": "not-started",
+          "jira": "SV-91",
+          "detail": "Mesmo padrao de TransactionRepository.sumNetAmountByBettingHouseIds (feat-003) - join implicito JPQL (bet_result nao tem betting_house_id direto, so via bet.bettingHouseId).",
+          "checklist": [
+            "BetResultRepository ganha sumProfitByBettingHouseIds(Collection<UUID>) -> Map<UUID, BigDecimal> (JPQL: SELECT b.bettingHouseId, SUM(r.profit) FROM BetResultJpaEntity r, BetJpaEntity b WHERE r.betId = b.id AND b.bettingHouseId IN :ids GROUP BY b.bettingHouseId).",
+            "BettingHouseService.list(): balance = initialBalance + netTransactionAmount + netBetProfit (uma query a mais por pagina, nao uma por casa).",
+            "Testes de integracao: casa com apostas liquidadas (won+lost+void misturados) tem balance correto somando as 3 fontes (initialBalance, transacoes, profit); casa sem apostas liquidadas nao quebra (profit ausente do mapa = tratado como zero)."
+          ],
+          "validation": "Testes de integracao do calculo de balance combinando as 3 fontes passam.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-005.5",
+          "name": "CHANGELOG e verificacao final",
+          "status": "not-started",
+          "jira": "SV-92",
+          "detail": "Fecha a feature com o gate real do harness, nao so com os testes isolados de cada subtask.",
+          "checklist": [
+            "Entrada em CHANGELOG.md [Unreleased] (automatica, via tools/jira_story.py).",
+            "./init.sh (mvn verify) verde com Docker ativo (Testcontainers).",
+            "Delivery Reviewer, Test Suite Auditor e Persistence Auditor rodados antes de done.",
+            "CLAUDE.md deste servico e docs/services/bets-service.md atualizados (BET_RESULT, X-User-Id agora exigido no PATCH, balance incluindo profit, TOCTOU corrigido - remover o residual de docs/services/bets-service.md).",
+            "Vault (docs/) revisado: alguma descoberta desta feature - mecanismo reaproveitavel, gotcha de lib/config, lacuna de especificacao, decisao que diverge do ja documentado - sem nota correspondente? Se sim, atualizar/criar a nota do assunto (nao docs/DECISIONS-LOG.md a menos que divirja do TCC 1) no mesmo commit."
+          ],
+          "validation": "./init.sh sai 0; feature_list.json (deste servico) atualizado com evidence.",
+          "owner": "agente"
+        }
+      ],
       "evidence": ""
     },
     {
