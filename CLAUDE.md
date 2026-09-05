@@ -37,8 +37,11 @@ antes de `feat-001`.
 - O endpoint `POST /api/v1/bets` é usado tanto pelo formulário web (`apps/web`) quanto pelo
   `services/telegram-integration` (via `api-gateway`) — não crie um endpoint separado para a
   captura automática. Aceita header `Idempotency-Key` (ver `../../docs/API-CONTRACTS.md`). Todas
-  as rotas deste serviço (`/api/v1/betting-houses`, `/api/v1/bets`, `/api/v1/transactions`) e
-  seus query params são sempre em inglês — ver `../../docs/API-CONTRACTS.md`.
+  as rotas deste serviço (`/api/v1/betting-houses`, `/api/v1/bets`, `/api/v1/transactions`,
+  `/api/v1/sports`, `/api/v1/leagues`, `/api/v1/markets`, `/api/v1/tipsters`) e seus query
+  params são sempre em inglês — ver `../../docs/API-CONTRACTS.md`. Os 4 catálogos (`feat-002`)
+  só têm `POST`/`GET` paginado (criação e listagem) — nasce vazio por tenant, cada organização
+  cadastra os próprios (ver `docs/DECISIONS-LOG.md` item 8), sem `PUT`/`DELETE`.
 - Campo `status` de `BET` (e nos eventos) usa valores em inglês: `pending`/`won`/`lost`/`void`
   (correspondem a pendente/ganha/perdida/devolvida em RF12/RN06 — a especificação em si, ver
   `../../docs/REQUIREMENTS.md`, continua em português; só a codificação técnica é inglês).

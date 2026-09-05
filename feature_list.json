@@ -238,7 +238,7 @@
         {
           "id": "feat-002.4",
           "name": "Endpoints REST (POST + GET paginado) dos 4 catalogos",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-74",
           "detail": "Achado MAJOR do Plan Reviewer: sem isto a feature nao entrega forma de popular os catalogos (docs/DECISIONS-LOG.md item 8 - cada organizacao cadastra os proprios).",
           "checklist": [
@@ -253,7 +253,7 @@
         {
           "id": "feat-002.5",
           "name": "CHANGELOG e verificacao final",
-          "status": "not-started",
+          "status": "in-progress",
           "jira": "SV-75",
           "detail": "Fecha a feature com o gate real do harness, nao so com os testes isolados de cada subtask.",
           "checklist": [
