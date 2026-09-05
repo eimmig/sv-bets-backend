@@ -350,7 +350,7 @@
         {
           "id": "feat-003.3",
           "name": "Endpoints REST (POST + GET paginado) de betting-houses e transactions",
-          "status": "not-started",
+          "status": "done",
           "jira": "SV-79",
           "detail": "GET /api/v1/betting-houses inclui o saldo calculado. POST /api/v1/transactions valida bettingHouseId existente (404 se nao existir) e amount > 0 (400 validation-failed, RN07 'bloquear movimentacoes inconsistentes').",
           "checklist": [
