@@ -27,7 +27,7 @@ public class LeagueCatalogService implements LeagueCatalogUseCase {
 		}
 		try {
 			return leagueRepository.save(new League(UUID.randomUUID(), name));
-		} catch (DataIntegrityViolationException raceLostToConcurrentInsert) {
+		} catch (DataIntegrityViolationException _) {
 			throw new CatalogAlreadyRegisteredException("league", name);
 		}
 	}

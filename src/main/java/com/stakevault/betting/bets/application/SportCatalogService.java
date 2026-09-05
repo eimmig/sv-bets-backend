@@ -27,7 +27,7 @@ public class SportCatalogService implements SportCatalogUseCase {
 		}
 		try {
 			return sportRepository.save(new Sport(UUID.randomUUID(), name));
-		} catch (DataIntegrityViolationException raceLostToConcurrentInsert) {
+		} catch (DataIntegrityViolationException _) {
 			throw new CatalogAlreadyRegisteredException("sport", name);
 		}
 	}

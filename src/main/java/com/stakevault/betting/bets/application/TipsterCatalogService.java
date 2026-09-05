@@ -27,7 +27,7 @@ public class TipsterCatalogService implements TipsterCatalogUseCase {
 		}
 		try {
 			return tipsterRepository.save(new Tipster(UUID.randomUUID(), name));
-		} catch (DataIntegrityViolationException raceLostToConcurrentInsert) {
+		} catch (DataIntegrityViolationException _) {
 			throw new CatalogAlreadyRegisteredException("tipster", name);
 		}
 	}

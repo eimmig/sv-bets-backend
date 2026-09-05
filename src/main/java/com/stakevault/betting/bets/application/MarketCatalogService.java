@@ -27,7 +27,7 @@ public class MarketCatalogService implements MarketCatalogUseCase {
 		}
 		try {
 			return marketRepository.save(new Market(UUID.randomUUID(), name));
-		} catch (DataIntegrityViolationException raceLostToConcurrentInsert) {
+		} catch (DataIntegrityViolationException _) {
 			throw new CatalogAlreadyRegisteredException("market", name);
 		}
 	}
