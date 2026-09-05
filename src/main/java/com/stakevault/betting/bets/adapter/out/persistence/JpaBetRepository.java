@@ -20,11 +20,7 @@ public class JpaBetRepository implements BetRepository {
 
 	@Override
 	public Bet save(Bet bet) {
-		BetJpaEntity saved = jpaRepository.save(new BetJpaEntity(bet.id(), bet.bettingHouseId(), bet.sportId(),
-				bet.leagueId(), bet.marketId(), bet.tipsterId(), bet.createdByUserId(), bet.ticketNumber(),
-				bet.team1(), bet.team2(), bet.description(), bet.betType(), bet.playType(), bet.stake(), bet.odd(),
-				bet.status(), bet.betDate(), bet.idempotencyKey()));
-		return toDomain(saved);
+		return toDomain(jpaRepository.save(new BetJpaEntity(bet)));
 	}
 
 	@Override

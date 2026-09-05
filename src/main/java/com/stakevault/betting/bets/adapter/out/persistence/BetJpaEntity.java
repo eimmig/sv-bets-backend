@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
+import com.stakevault.betting.bets.domain.model.Bet;
 import com.stakevault.betting.bets.domain.model.BetStatus;
 
 import jakarta.persistence.Column;
@@ -66,27 +67,25 @@ public class BetJpaEntity extends AbstractJpaEntity {
 	@Column(name = "idempotency_key")
 	private String idempotencyKey;
 
-	public BetJpaEntity(UUID id, UUID bettingHouseId, UUID sportId, UUID leagueId, UUID marketId, UUID tipsterId,
-			UUID createdByUserId, String ticketNumber, String team1, String team2, String description, String betType,
-			String playType, BigDecimal stake, BigDecimal odd, BetStatus status, Instant betDate, String idempotencyKey) {
-		super(id);
-		this.bettingHouseId = bettingHouseId;
-		this.sportId = sportId;
-		this.leagueId = leagueId;
-		this.marketId = marketId;
-		this.tipsterId = tipsterId;
-		this.createdByUserId = createdByUserId;
-		this.ticketNumber = ticketNumber;
-		this.team1 = team1;
-		this.team2 = team2;
-		this.description = description;
-		this.betType = betType;
-		this.playType = playType;
-		this.stake = stake;
-		this.odd = odd;
-		this.status = status;
-		this.betDate = betDate;
-		this.idempotencyKey = idempotencyKey;
+	public BetJpaEntity(Bet bet) {
+		super(bet.id());
+		this.bettingHouseId = bet.bettingHouseId();
+		this.sportId = bet.sportId();
+		this.leagueId = bet.leagueId();
+		this.marketId = bet.marketId();
+		this.tipsterId = bet.tipsterId();
+		this.createdByUserId = bet.createdByUserId();
+		this.ticketNumber = bet.ticketNumber();
+		this.team1 = bet.team1();
+		this.team2 = bet.team2();
+		this.description = bet.description();
+		this.betType = bet.betType();
+		this.playType = bet.playType();
+		this.stake = bet.stake();
+		this.odd = bet.odd();
+		this.status = bet.status();
+		this.betDate = bet.betDate();
+		this.idempotencyKey = bet.idempotencyKey();
 	}
 
 	void updateStatus(BetStatus status) {
