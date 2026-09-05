@@ -489,7 +489,7 @@
         {
           "id": "feat-004.4",
           "name": "Endpoints GET /api/v1/bets/{id} e PATCH /api/v1/bets/{id}/status (RF12)",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-85",
           "detail": "Decisao do Plan Reviewer: GET por id (nao paginado - isso e feat-007) entra nesta feature para provar o ciclo de vida completo via API. PATCH so muda status - sem BET_RESULT/profit (feat-005).",
           "checklist": [
