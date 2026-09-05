@@ -525,7 +525,7 @@
             "titulo": "Verificação real executada",
             "itens": [
               "./init.sh (mvn verify, JaCoCo 80% incluso) verde localmente com Docker ativo, em cada uma das 5 subtasks.",
-              "CI verde em todas as 5 PRs de subtask (subtask/SV-82..86 -> feature/SV-81), confirmado com gh pr checks a cada push.",
+              "CI verde em todas as 5 PRs de subtask (subtask/SV-82..86 -> feature/SV-81) e, apos 3 rodadas de correcao, na PR feature/SV-81 -> develop (gate completo, SonarCloud incluso) - PR #24.",
               "Delivery Reviewer, Test Suite Auditor e Persistence Auditor (claude-code-skills) rodados contra o diff completo de feat-004 (migration, dominio/JPA, existsById nos catalogos, POST/GET/PATCH) - PASS nos tres, com 1 achado CONCERNS (nao bloqueante) confirmado pelos tres: TOCTOU em BetService.updateStatus (ver risco residual abaixo)."
             ]
           },
@@ -539,14 +539,15 @@
             "titulo": "Defeitos encontrados antes de causar dano",
             "itens": [
               "Plan Reviewer (antes do codigo): READY WITH CONCERNS, 3 MAJOR + 1 MINOR corrigidos no plano - detalhe completo no campo plan_review desta feature.",
-              "Delivery/Test Suite/Persistence Auditor (feat-004.5): confirmaram o mecanismo de UPDATE (findById carrega entidade com isNew=false via @PostLoad, muta e salva a MESMA instancia - merge, nao persist) correto e provado pelos testes de PATCH passando; nenhum INSERT duplicado. Unico achado real, nao bloqueante: BetService.updateStatus le o status atual e so depois escreve, sem guarda atomica (WHERE status='pending' ou @Version) - duas chamadas PATCH concorrentes pra mesma aposta pending poderiam ambas passar a validacao (last-write-wins). Aceito como residual porque feat-005 (unica consumidora real desta transicao, via BET_RESULT/profit) ainda nao existe - revisitar quando ela for implementada. Documentado em docs/services/bets-service.md."
+              "Delivery/Test Suite/Persistence Auditor (feat-004.5): confirmaram o mecanismo de UPDATE (findById carrega entidade com isNew=false via @PostLoad, muta e salva a MESMA instancia - merge, nao persist) correto e provado pelos testes de PATCH passando; nenhum INSERT duplicado. Unico achado real, nao bloqueante: BetService.updateStatus le o status atual e so depois escreve, sem guarda atomica (WHERE status='pending' ou @Version) - duas chamadas PATCH concorrentes pra mesma aposta pending poderiam ambas passar a validacao (last-write-wins). Aceito como residual porque feat-005 (unica consumidora real desta transicao, via BET_RESULT/profit) ainda nao existe - revisitar quando ela for implementada. Documentado em docs/services/bets-service.md.",
+              "3 achados reais do SonarCloud so visiveis no gate feature->develop (PRs de subtask pulam SonarCloud de proposito, ver docs/CI-CD.md) - todos corrigidos antes do merge: (1) java:S107, BetJpaEntity.updateStatus/construtor com 18 parametros posicionais - substituido por um unico construtor BetJpaEntity(Bet bet) que le do record de dominio (padrao a reaproveitar em qualquer entidade JPA futura com muitas colunas); (2) gate new_coverage (80% so das linhas novas do PR, metrica separada da cobertura total do projeto) reprovado em 79.7% mesmo com JaCoCo do projeto em 97%+ - 3 ramos de excecao nunca exercitados (SportNotFoundException/LeagueNotFoundException/MarketNotFoundException, so betting-house e tipster tinham teste) e o catch de corrida do Idempotency-Key nunca coberto - corrigido com 3 testes de integracao novos (404 de cada FK) e um teste de unidade (BetServiceTest, Mockito) forcando DataIntegrityViolationException; (3) java:S5778 num teste novo (BetTest) - lambda de assertThatThrownBy com multiplas invocacoes (UUID.randomUUID() etc. dentro do lambda) - corrigido extraindo os argumentos para variaveis locais antes da asserção. As 3 armadilhas documentadas em docs/CI-CD.md para os outros 5 repositorios Java."
             ]
           },
           {
             "titulo": "Skills e ferramentas",
             "itens": [
               "Plan Reviewer (3 MAJOR + 1 MINOR corrigidos), Delivery Reviewer/Test Suite Auditor/Persistence Auditor (PASS nos tres, feat-004.5) rodados antes de done.",
-              "docs/CONVENTIONS.md (padrao de UPDATE via Persistable/isNew, primeira vez neste servico) e docs/services/bets-service.md (secao feat-004 + risco residual do TOCTOU) atualizados no mesmo commit/sessao (raiz, repositorio sv-harness)."
+              "docs/CONVENTIONS.md (padrao de UPDATE via Persistable/isNew e construtor de entidade JPA recebendo o record de dominio para entidades com muitas colunas), docs/services/bets-service.md (secao feat-004 + risco residual do TOCTOU) e docs/CI-CD.md (3 armadilhas novas do gate SonarCloud feature->develop) atualizados no mesmo commit/sessao (raiz, repositorio sv-harness)."
             ]
           }
         ]
