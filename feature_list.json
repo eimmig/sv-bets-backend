@@ -425,13 +425,99 @@
       "id": "feat-004",
       "name": "RF04/RF12 - Registro e ciclo de vida da aposta",
       "description": "Entidade BET (inclui createdByUserId, gravado a partir do header X-User-Id - trilha de auditoria de quem registrou, sem FK real entre bancos, ver docs/DECISIONS-LOG.md 2026-08-02) e endpoint POST /api/v1/bets (compartilhado com telegram-integration, via api-gateway). Validacoes RN07 (odd > 1.00, stake > 0). Endpoint/mecanismo para RF12 (atualizar status: pending/won/lost/void - ver docs/API-CONTRACTS.md).",
+      "goal": "Cada tenant registra (POST) uma aposta referenciando seus proprios catalogos/casa de apostas, e transiciona o status dela (PATCH) de pending para won/lost/void (RF12), preparando o gatilho que feat-005 usa para liquidar (BET_RESULT/profit) e feat-006 usa para publicar BetCreated.",
+      "scope": [
+        "Migration Flyway (schema-per-tenant) criando bet (FKs para betting_house/sport/league/market NOT NULL, tipster_id NULLABLE, campos descritivos ticket_number/team1/team2/description/bet_type/play_type NULLABLE, stake/odd/status/bet_date NOT NULL, idempotency_key UNIQUE NULLABLE) - sem coluna created_at (ausente no ERD confirmado de docs/DATA-MODEL.md e no payload de docs/contracts/bet-created.schema.json, ambos ja existentes no repositorio)",
+        "existsById(UUID) adicionado aos 4 repositorios de catalogo (Sport/League/Market/Tipster) - so BettingHouseRepository tem hoje (feat-003) - para a validacao de FK do POST",
+        "Dominio (Bet record, BetStatus enum com AttributeConverter+JsonProperty minusculo mirror de TransactionType), entidades JPA (BetJpaEntity extends AbstractJpaEntity) e repositorio (save, findById, existsByIdempotencyKey/findByIdempotencyKey)",
+        "POST /api/v1/bets: X-User-Id obrigatorio (401 error.missing-caller-context, mirror de auth-service UsersController/MissingCallerContextException), 404 <recurso>-not-found para bettingHouseId/sportId/leagueId/marketId/tipsterId (quando informado) inexistentes, 422 invalid-odd/invalid-stake (regra de dominio RN07, nao Bean Validation - segue o exemplo literal ja documentado em docs/API-CONTRACTS.md), status sempre pending na criacao (DTO de request nao tem campo status), Idempotency-Key opcional (reenvio da mesma chave retorna a MESMA aposta com 200, sem checar o corpo)",
+        "GET /api/v1/bets/{id} (recurso unico, sem paginacao/filtros - isso e feat-007) e PATCH /api/v1/bets/{id}/status (RF12: transicoes validas so pending -> won|lost|void, qualquer outra e 422 invalid-status-transition) - sem criar BET_RESULT/profit/settledByUserId (isso e feat-005, que reage a mesma mudanca de status)"
+      ],
       "dependencies": [
         "feat-003"
       ],
-      "status": "not-started",
-      "plan_review": "",
-      "jira": "",
-      "subtasks": [],
+      "status": "in-progress",
+      "plan_review": "2026-09-05, Plan Reviewer (review-suite:ln-11-plan-reviewer) rodado contra o plano antes de qualquer codigo. Veredito: READY WITH CONCERNS, 3 achados MAJOR + 1 MINOR corrigidos no plano (nenhum exigia decisao do usuario - todos resolvidos por evidencia ja existente no repositorio, nao por preferencia). (MAJOR) Rascunho original tornava tipsterId e os campos descritivos (ticketNumber/team1/team2/description/betType/playType) NOT NULL - contradiz docs/contracts/bet-created.schema.json (ja versionado no repositorio desde antes desta feature, preparado para feat-006): o payload so exige betId/bettingHouseId/sportId/leagueId/marketId/stake/odd/status/betDate; tipsterId e os 6 campos descritivos sao tipados [\"string\",\"null\"], ou seja, opcionais de verdade (ex.: mercados como \"over/under\" nao tem team1/team2). Corrigido: so as 4 FKs bettingHouseId/sportId/leagueId/marketId NOT NULL, tipsterId e os 6 campos descritivos NULLABLE. (MAJOR) Rascunho original adicionava coluna created_at em BET - ausente tanto no ERD confirmado (docs/DATA-MODEL.md, 'Confirmado ... sem divergencias', unica entidade do diagrama sem createdAt) quanto no payload do evento - corrigido, removida (betDate ja cobre a ordenacao temporal do dominio). (MAJOR) Confirmado contra o codigo real: nenhum dos 4 repositorios de catalogo (Sport/League/Market/Tipster) expoe existsById(UUID) - so BettingHouseRepository tem (introduzido em feat-003) - POST /api/v1/bets precisa validar as 4 FKs por id, nao por name; adicionado existsById aos 4 ports+adapters como parte desta feature (mesmo padrao ja usado, sem risco). (MINOR) X-User-Id nunca foi lido neste servico ainda - confirmado via grep, sem nenhum resultado; portar o padrao ja provado de auth-service (UsersController.parseCallerId + MissingCallerContextException, 401 error.missing-caller-context) em vez de inventar um novo. Decisoes de dominio resolvidas sem bloqueio (evidencia ja documentada, nao preferencia): (a) odd/stake validados como regra de dominio (422 invalid-odd/invalid-stake, mensagem citando '(RN07)') e nao Bean Validation (400) - segue o EXEMPLO LITERAL ja escrito em docs/API-CONTRACTS.md ('invalid-odd', status 422, detail com '(RN07)'), aplicado simetricamente a stake, mesma frase da RN07 no feature description; (b) o endpoint PATCH de status pertence a esta feature (o texto da propria feature ja diz 'endpoint/mecanismo para RF12'), sem criar BET_RESULT nem colunas settledAt/settledByUserId em BET - o modelo de dados (DATA-MODEL.md) coloca esses campos exclusivamente em BET_RESULT (feat-005); (c) GET /api/v1/bets/{id} (recurso unico) incluido nesta feature (nao so na feat-007 paginada) para o ciclo de vida completo (criar -> consultar -> mudar status -> consultar) ser provado via API nos testes de integracao, nao so via repositorio. Risco residual aceito: mecanismo de idempotencia (coluna idempotency_key UNIQUE nullable, ja isolada por schema de tenant) nao verifica se o corpo reenviado bate com o original (retorna a aposta ja criada de qualquer forma) nem expira - sem escala/latencia documentada que justifique mais complexidade agora; revisitar se telegram-integration (feat-005 daquele servico) expuser um padrao real de retry que precise disso. Confirmado contra o repositorio real: TransactionsController/TransactionService (feat-003) como precedente direto de FK-check+create, DomainExceptionHandler ja cobre HttpMessageNotReadableException (novos handlers de BET so precisam se registrar na mesma lista de LocalizedDomainException). Rodada de desafio independente executada como passe proprio (grounding contra ERD real, JSON Schema de evento ja commitado, e codigo-fonte atual), sem subagentes - independencia reduzida, declarada.",
+      "jira": "SV-81",
+      "subtasks": [
+        {
+          "id": "feat-004.1",
+          "name": "Migration Flyway da tabela bet",
+          "status": "not-started",
+          "jira": "SV-82",
+          "detail": "Primeira tabela do servico com 4 FKs simultaneas (3 NOT NULL + 1 nullable) - achados MAJOR do Plan Reviewer corrigem nullability para bater com docs/contracts/bet-created.schema.json.",
+          "checklist": [
+            "V<timestamp>__create_bet_table.sql: bet (id UUID PK, betting_house_id/sport_id/league_id/market_id UUID NOT NULL REFERENCES ..., tipster_id UUID NULL REFERENCES tipster(id), created_by_user_id UUID NOT NULL, ticket_number/team1/team2/description/bet_type/play_type varchar NULL, stake numeric(19,2) NOT NULL, odd numeric(19,2) NOT NULL, status varchar(10) NOT NULL CHECK (status IN ('pending','won','lost','void')) DEFAULT 'pending', bet_date timestamp NOT NULL, idempotency_key varchar UNIQUE NULL).",
+            "Sem coluna created_at (ausente no ERD e no payload do evento, achado do Plan Reviewer).",
+            "Nomenclatura de arquivo com timestamp real, mesmo padrao de feat-001/002/003."
+          ],
+          "validation": "Migration aplicada com sucesso num schema de tenant novo via teste de integracao existente.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-004.2",
+          "name": "Dominio, BetStatus, entidades JPA e persistencia (+ existsById nos catalogos)",
+          "status": "not-started",
+          "jira": "SV-83",
+          "detail": "Achado MAJOR do Plan Reviewer: Sport/League/Market/TipsterRepository ainda nao tem existsById(UUID) (so BettingHouseRepository tem, feat-003) - necessario para o POST validar as FKs por id.",
+          "checklist": [
+            "existsById(UUID) adicionado aos ports SportRepository/LeagueRepository/MarketRepository/TipsterRepository + implementacao nos 4 adapters Jpa*Repository (mesmo padrao de JpaBettingHouseRepository).",
+            "domain/model/Bet (record, todos os campos do ERD confirmado - ver DATA-MODEL.md - exceto created_at), BetStatus enum (PENDING/WON/LOST/VOID) com @JsonProperty minusculo por constante (mirror exato de TransactionType).",
+            "adapter/out/persistence/BetStatusAttributeConverter (mirror exato de TransactionTypeAttributeConverter) + BetJpaEntity (extends AbstractJpaEntity, colunas nullable conforme feat-004.1) + BetSpringDataRepository + JpaBetRepository (save, findById, findByIdempotencyKey).",
+            "Testes de integracao (Testcontainers): persistencia de BET com e sem tipsterId/campos descritivos nulos, isolamento entre tenants."
+          ],
+          "validation": "Testes de integracao de persistencia (com e sem campos opcionais nulos) passam.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-004.3",
+          "name": "Endpoint POST /api/v1/bets",
+          "status": "not-started",
+          "jira": "SV-84",
+          "detail": "Achado MINOR do Plan Reviewer: X-User-Id nunca foi lido neste servico - portar MissingCallerContextException/parseCallerId de auth-service UsersController. RN07 validado como regra de dominio (422), nao Bean Validation - mesmo exemplo literal ja documentado em docs/API-CONTRACTS.md.",
+          "checklist": [
+            "MissingCallerContextException (mirror de auth-service, error.missing-caller-context, 401) + extracao de X-User-Id no controller (RequestHeader required=false + parse, nao um filtro novo).",
+            "InvalidOddException/InvalidStakeException (LocalizedDomainException, 422, messageArgs com o valor invalido) - detail usa a mesma frase ja documentada em docs/API-CONTRACTS.md ('...deve ser estritamente maior que 1.00 (RN07)' / equivalente para stake > 0).",
+            "SportNotFoundException/LeagueNotFoundException/MarketNotFoundException/TipsterNotFoundException (404, mirror de BettingHouseNotFoundException) - tipster so validado quando tipsterId informado (nullable).",
+            "CreateBetUseCase/BetService.create: valida as 4 FKs (tipster so se presente) antes de checar RN07, cria Bet com status=PENDING e createdByUserId=X-User-Id; se Idempotency-Key presente e ja existir bet com essa chave no schema, retorna a aposta existente (200) em vez de criar outra (201 caso contrario).",
+            "CreateBetRequest (sem campo status - impossivel enviar status na criacao) + BetResponse (status minusculo). Registrar as novas LocalizedDomainException em DomainExceptionHandler.",
+            "Testes de integracao: criar com todos os campos, criar so com os obrigatorios (tipsterId/descritivos nulos), 401 sem X-User-Id, 404 por FK inexistente (cada uma das 4), 422 odd invalida, 422 stake invalida, replay de Idempotency-Key retorna a mesma aposta, isolamento entre tenants."
+          ],
+          "validation": "Testes de integracao dos cenarios acima passam.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-004.4",
+          "name": "Endpoints GET /api/v1/bets/{id} e PATCH /api/v1/bets/{id}/status (RF12)",
+          "status": "not-started",
+          "jira": "SV-85",
+          "detail": "Decisao do Plan Reviewer: GET por id (nao paginado - isso e feat-007) entra nesta feature para provar o ciclo de vida completo via API. PATCH so muda status - sem BET_RESULT/profit (feat-005).",
+          "checklist": [
+            "BetNotFoundException (404, mirror de BettingHouseNotFoundException) para GET/PATCH com id inexistente.",
+            "InvalidStatusTransitionException (422 invalid-status-transition) - unica transicao valida e pending -> won|lost|void; qualquer outra (incluindo won/lost/void -> qualquer coisa, ou pending -> pending) e invalida.",
+            "GetBetUseCase/UpdateBetStatusUseCase + BetsController: GET /api/v1/bets/{id}, PATCH /api/v1/bets/{id}/status (corpo {\"status\": \"won\"|\"lost\"|\"void\"}, 400 se corpo malformado/status desconhecido - HttpMessageNotReadableException ja tratado globalmente).",
+            "Testes de integracao: GET existente/inexistente (404), PATCH pending->won/lost/void (3 cenarios), PATCH de aposta ja liquidada (422), PATCH tentando voltar para pending (422), isolamento entre tenants."
+          ],
+          "validation": "Testes de integracao dos cenarios acima passam.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-004.5",
+          "name": "CHANGELOG e verificacao final",
+          "status": "not-started",
+          "jira": "SV-86",
+          "detail": "Fecha a feature com o gate real do harness, nao so com os testes isolados de cada subtask.",
+          "checklist": [
+            "Entrada em CHANGELOG.md [Unreleased] (automatica, via tools/jira_story.py).",
+            "./init.sh (mvn verify) verde com Docker ativo (Testcontainers).",
+            "Delivery Reviewer, Test Suite Auditor e Persistence Auditor rodados antes de done.",
+            "CLAUDE.md deste servico (lista de rotas HTTP) e docs/services/bets-service.md atualizados com as novas rotas de BET.",
+            "Vault (docs/) revisado: alguma descoberta desta feature - mecanismo reaproveitavel, gotcha de lib/config, lacuna de especificacao, decisao que diverge do ja documentado - sem nota correspondente? Se sim, atualizar/criar a nota do assunto (nao docs/DECISIONS-LOG.md a menos que divirja do TCC 1) no mesmo commit."
+          ],
+          "validation": "./init.sh sai 0; feature_list.json (deste servico) atualizado com evidence.",
+          "owner": "agente"
+        }
+      ],
       "evidence": ""
     },
     {
