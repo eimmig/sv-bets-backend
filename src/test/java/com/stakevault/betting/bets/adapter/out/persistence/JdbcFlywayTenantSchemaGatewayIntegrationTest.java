@@ -31,7 +31,7 @@ class JdbcFlywayTenantSchemaGatewayIntegrationTest extends TenantSchemaIntegrati
 
 	@Test
 	void ensureSchemaExistsShouldCreateCatalogTables() {
-		for (String table : new String[] { "sport", "league", "market", "tipster" }) {
+		for (String table : new String[] { "sport", "league", "market", "tipster", "betting_house", "transaction" }) {
 			Integer count = jdbcTemplate.queryForObject(
 					"SELECT count(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?",
 					Integer.class, schema.value(), table);
