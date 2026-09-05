@@ -334,7 +334,7 @@
         {
           "id": "feat-003.2",
           "name": "Dominio, TransactionType, entidades JPA e persistencia",
-          "status": "not-started",
+          "status": "done",
           "jira": "SV-78",
           "detail": "TransactionType com AttributeConverter mirror de RoleAttributeConverter (auth-service). Saldo por casa calculado em uma unica query agregada (achado do Plan Reviewer, evita dobrar queries por casa na listagem paginada).",
           "checklist": [
