@@ -307,14 +307,14 @@
       "goal": "Cada tenant cadastra (POST) e lista (GET paginado) suas casas de apostas e movimentacoes (deposito/saque), com o saldo de cada casa (RN01: saldo inicial + depositos - saques; a parcela de liquidacao de aposta entra em feat-005) calculado e exposto na listagem.",
       "scope": [
         "Migration Flyway (schema-per-tenant) criando betting_house e transaction (id UUID, name/initial_balance/created_at; id/betting_house_id FK/type/amount/created_at), CHECK (type IN ('deposit','withdrawal')), UNIQUE(name) em betting_house",
-        "TransactionType (DEPOSIT/WITHDRAWAL) com AttributeConverter dedicado (mesmo padrao de auth-service Role - persistido lowercase pro CHECK, exposto no JSON como enum Java puro, mesmo padrao de CreateUserResponse.role)",
+        "TransactionType (DEPOSIT/WITHDRAWAL) com AttributeConverter dedicado (mesmo padrao de auth-service Role - persistido lowercase pro CHECK); no JSON, minusculo via @JsonProperty por constante (desvio do plano original, que copiava o padrao maiusculo de CreateUserResponse.role - corrigido na implementacao, ver evidence)",
         "Entidades JPA e repositorios (domain port/out + adapter), saldo por casa calculado em uma unica query agregada (SUM condicional, nao 2 queries separadas)",
         "Endpoints POST/GET para betting-houses (GET inclui balance calculado) e transactions (valida bettingHouseId existente, amount > 0) - RFC 7807 + i18n 3 locales, 409 em nome duplicado de casa"
       ],
       "dependencies": [
         "feat-002"
       ],
-      "status": "in-progress",
+      "status": "done",
       "plan_review": "2026-09-05, Plan Reviewer (review-suite:ln-11-plan-reviewer) rodado contra o plano antes de qualquer codigo. Veredito: READY WITH CONCERNS, 2 amendments aplicadas ao plano (nenhuma exigia decisao do usuario - ambas resolvidas por precedente real ja existente no repositorio, nao por preferencia). (1) Draft original propunha serializar TransactionType em JSON como valor minusculo (mesmo estilo de BET.status) - nao existe essa convencao geral para todo enum: auth-service ja expoe Role cru em CreateUserResponse (Jackson serializa pelo nome Java, 'ADMIN'/'MEMBER' maiusculo), sem AttributeConverter refletido no JSON. Corrigido: TransactionType exposto como enum Java puro no JSON (DEPOSIT/WITHDRAWAL), AttributeConverter (mirror exato de RoleAttributeConverter) so na fronteira JPA, gravando 'deposit'/'withdrawal' pro CHECK da migration (mesmo padrao de auth-service V20260903190901, coluna role). (2) Draft original calculava o saldo de uma casa com 2 queries de soma separadas (depositos, saques) - dobra o numero de queries por casa numa listagem paginada (ate 100 casas x 2 = 200 queries extras por pagina, no MAX_PAGE_SIZE). Corrigido: uma unica query agregada por casa com SUM(CASE WHEN type='deposit' THEN amount ELSE -amount END). Confirmado contra o repositorio real: 'transaction' nao e palavra reservada no PostgreSQL (Appendix C da doc oficial - 'non-reserved'), seguro como nome de tabela sem novo risco. Decisoes aceitas sem bloqueio, mesma classe de chamada ja validada em feat-002 (catalogos): (a) saque que deixaria o saldo da casa negativo NAO e bloqueado - so amount<=0 e rejeitado como 'inconsistente' (RN07 fala de stake/odd de BET, RN01 descreve saldo como total corrente, nao piso rigido); revisitar se o usuario quiser proteção contra saldo negativo. (b) sem PUT/DELETE de casa de apostas nesta feature (so POST+GET, mesmo escopo minimo de feat-002 catalogos, RF03 'gerenciamento' nao especifica update/delete em nenhum artefato do TCC1 disponivel). Sugestao MINOR nao bloqueante: extrair um AbstractJpaEntity (id+isNew+@PostLoad, sem name) reaproveitado por CatalogJpaEntity/BettingHouseJpaEntity/TransactionJpaEntity, já que o mesmo boilerplate passa a se repetir em 3 pontos - deixado a criterio da subtask de persistencia, nao obrigatorio. Rodada de desafio independente executada como passe proprio (simulacao de execucao + analise adversarial), sem subagentes - independencia reduzida, declarada.",
       "jira": "SV-76",
       "subtasks": [
@@ -380,7 +380,46 @@
           "owner": "agente"
         }
       ],
-      "evidence": ""
+      "evidence": {
+        "resumo": "Entregue em 2026-09-05 (branch feature/SV-76, story SV-76 com 4 subtasks SV-77..80). BETTING_HOUSE e TRANSACTION: migration com FK e CHECK constraint, TransactionType (AttributeConverter mirror de auth-service RoleAttributeConverter para persistencia, @JsonProperty por constante para o JSON minusculo - desvio deliberado do plano original), saldo por casa calculado em uma unica query agregada por pagina (nao 2xN), endpoints POST/GET para os 2 recursos com RFC 7807 + i18n 3 locales (409 nome duplicado, 404 casa inexistente, 400 validacao incluindo corpo malformado/enum desconhecido). AbstractJpaEntity extraida (CatalogJpaEntity refatorada para estende-la) - boilerplate id/isNew/@PostLoad agora compartilhado por 6 entidades.",
+        "secoes": [
+          {
+            "titulo": "Verificação real executada",
+            "itens": [
+              "./init.sh (mvn verify, JaCoCo 80% incluso) verde localmente com Docker ativo, em cada uma das 4 subtasks.",
+              "CI verde em todas as 4 PRs de subtask (subtask/SV-77..80 -> feature/SV-76) e na PR feature/SV-76 -> develop (gate completo, SonarCloud incluso).",
+              "Delivery Reviewer, Test Suite Auditor e Persistence Auditor rodados contra o diff completo da feature (migration + dominio/JPA + endpoints) - PASS nos tres, sem achado."
+            ]
+          },
+          {
+            "titulo": "Divergência do plano original",
+            "itens": [
+              "TransactionType no JSON: o plano original (plan_review) copiava o precedente de auth-service Role (enum Java puro, maiusculo) sem checar se esse precedente era uma convencao deliberada ou so o default do Jackson nunca desafiado. Durante a implementacao (feat-003.3), o teste que enviava 'deposit' minusculo no corpo (seguindo a convencao ja documentada de BET.status) falhou com 400 (Jackson e case-sensitive por default) - investigado e corrigido: TransactionType ganhou @JsonProperty minusculo por constante, consistente com o BET.status ainda nao implementado, e o precedente de Role foi documentado como nao-deliberado (docs/CONVENTIONS.md) para nao ser copiado de novo.",
+              "Achado adicional durante a implementacao, fora do escopo do plan_review original: DomainExceptionHandler nao tinha handler para HttpMessageNotReadableException (corpo malformado/enum desconhecido) - toda requisicao com JSON invalido caia no erro default do Spring Boot, quebrando o contrato RFC 7807. Handler adicionado, mapeado para o mesmo validation-failed."
+            ]
+          },
+          {
+            "titulo": "Defeitos encontrados antes de causar dano",
+            "itens": [
+              "Plan Reviewer (antes do codigo): READY WITH CONCERNS, 2 achados (JSON de enum e query duplicada) corrigidos no plano - detalhe completo no campo plan_review.",
+              "Gotcha real descoberto escrevendo os testes de persistencia (feat-003.2): BigDecimal.equals() (usado no equals() de record gerado) distingue escala - BigDecimal.valueOf(100) (escala 0) != valor persistido e recuperado de coluna NUMERIC(19,2) (sempre escala 2, '100.00'). Testes corrigidos para comparar com isEqualByComparingTo; documentado em docs/TESTING.md para qualquer entidade futura com campo BigDecimal (BET.stake/odd em feat-004)."
+            ]
+          },
+          {
+            "titulo": "Skills e ferramentas",
+            "itens": [
+              "Plan Reviewer (2 achados corrigidos), Delivery Reviewer/Test Suite Auditor/Persistence Auditor (PASS nos tres, feat-003.4) rodados antes de done.",
+              "docs/CONVENTIONS.md (AbstractJpaEntity, convencao de enum no JSON via @JsonProperty superando o precedente nao-deliberado de Role, gap do HttpMessageNotReadableException), docs/TESTING.md (gotcha de BigDecimal/NUMERIC) e docs/services/bets-service.md (secao feat-003) atualizados no mesmo commit/sessao."
+            ]
+          },
+          {
+            "titulo": "Achado de processo (nao de codigo)",
+            "itens": [
+              "feature/SV-70 (feat-002) e as subtasks SV-71..74 nunca haviam sido empurradas para o GitHub - merges anteriores feitos so localmente, sem PR/CI. Corrigido a partir de feat-002.5 e seguido corretamente durante toda feat-003 (push de feature/SV-76 e de cada subtask antes do PR, CI verde antes de cada merge)."
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "feat-004",
