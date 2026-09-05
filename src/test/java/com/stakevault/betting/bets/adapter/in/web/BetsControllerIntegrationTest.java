@@ -137,6 +137,55 @@ class BetsControllerIntegrationTest extends TenantSchemaIntegrationSupport {
 	}
 
 	@Test
+	void shouldReturn401WhenCallerHeaderIsMalformed() throws Exception {
+		References refs = newReferences();
+
+		HttpResponse<String> response = post(bodyFor(refs, null, "1.5", "100"), "not-a-uuid", null);
+
+		assertThat(response.statusCode()).isEqualTo(401);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/missing-caller-context\"");
+	}
+
+	@Test
+	void shouldReturn404WhenSportDoesNotExist() throws Exception {
+		References refs = newReferences();
+		String body = "{\"bettingHouseId\":\"" + refs.bettingHouseId() + "\",\"sportId\":\"" + UUID.randomUUID()
+				+ "\",\"leagueId\":\"" + refs.leagueId() + "\",\"marketId\":\"" + refs.marketId()
+				+ "\",\"stake\":100,\"odd\":1.5,\"betDate\":\"2026-09-05T12:00:00Z\"}";
+
+		HttpResponse<String> response = post(body, UUID.randomUUID().toString(), null);
+
+		assertThat(response.statusCode()).isEqualTo(404);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/sport-not-found\"");
+	}
+
+	@Test
+	void shouldReturn404WhenLeagueDoesNotExist() throws Exception {
+		References refs = newReferences();
+		String body = "{\"bettingHouseId\":\"" + refs.bettingHouseId() + "\",\"sportId\":\"" + refs.sportId()
+				+ "\",\"leagueId\":\"" + UUID.randomUUID() + "\",\"marketId\":\"" + refs.marketId()
+				+ "\",\"stake\":100,\"odd\":1.5,\"betDate\":\"2026-09-05T12:00:00Z\"}";
+
+		HttpResponse<String> response = post(body, UUID.randomUUID().toString(), null);
+
+		assertThat(response.statusCode()).isEqualTo(404);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/league-not-found\"");
+	}
+
+	@Test
+	void shouldReturn404WhenMarketDoesNotExist() throws Exception {
+		References refs = newReferences();
+		String body = "{\"bettingHouseId\":\"" + refs.bettingHouseId() + "\",\"sportId\":\"" + refs.sportId()
+				+ "\",\"leagueId\":\"" + refs.leagueId() + "\",\"marketId\":\"" + UUID.randomUUID()
+				+ "\",\"stake\":100,\"odd\":1.5,\"betDate\":\"2026-09-05T12:00:00Z\"}";
+
+		HttpResponse<String> response = post(body, UUID.randomUUID().toString(), null);
+
+		assertThat(response.statusCode()).isEqualTo(404);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/market-not-found\"");
+	}
+
+	@Test
 	void shouldReturn404WhenBettingHouseDoesNotExist() throws Exception {
 		References refs = newReferences();
 		String body = "{\"bettingHouseId\":\"" + UUID.randomUUID() + "\",\"sportId\":\"" + refs.sportId()
