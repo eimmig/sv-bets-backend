@@ -2,8 +2,8 @@
 
 ## Estado Atual (Current State)
 
-**Última atualização:** 2026-09-04
-**Feature ativa:** nenhuma (`feat-001` `done`, `feat-002` liberada)
+**Última atualização:** 2026-09-05
+**Feature ativa:** nenhuma (`feat-002` `done`, `feat-003` liberada)
 
 ## Status
 
@@ -36,16 +36,32 @@
         `auth-service` SV-20): teste sem assertion (`S2699`) e `isEqualTo(0)` em vez de
         `isZero()` (`S5838`) — corrigidos.
 
+- [x] **`feat-002` (Catálogos base) — `done` em 2026-09-05.** 4 catálogos (`SPORT`/`LEAGUE`/
+      `MARKET`/`TIPSTER`), POST + GET paginado, primeira multi-tenancy do Hibernate do serviço,
+      `TenantSchemaFilter` passou a exigir `X-Tenant-Id` em rotas de negócio (fecha o residual de
+      `feat-001`). Ver `feature_list.json` (campo `evidence`) para o detalhe completo, incluindo:
+      - Bug real corrigido em `feat-002.5`: `PageRequest.of()` lança `IllegalArgumentException`
+        (500 não tratado) para `page` negativo ou `size` não positivo — controllers passaram a
+        clampar antes de chamar o repositório. Documentado como convenção normativa em
+        `docs/API-CONTRACTS.md` (reaproveitável por `feat-007` e `stats-service`).
+      - **Achado de processo, não de código**: `feature/SV-70` e as subtasks SV-71..74 nunca
+        haviam sido empurradas para o GitHub — os merges de `feat-002.1..4` (sessão anterior)
+        foram feitos só localmente (`git merge --no-ff`), sem PR nem gate de CI, violando a regra
+        do `CLAUDE.md` raiz ("merge subtask → story exige pipeline de CI do GitHub passando").
+        Não reescrito (histórico já mesclado, sem valor em refazer) — só sinalizado. A partir de
+        `feat-002.5`, o fluxo correto (push + PR + CI verde + merge `--no-ff`) foi seguido, e
+        `feature/SV-70` foi empurrada retroativamente antes do merge de SV-75.
+
 ### Em andamento
 
 - Nenhuma feature iniciada.
 
 ### Próximos passos (Next Steps)
 
-1. `feat-002` (Catálogos base — `SPORT`/`LEAGUE`/`MARKET`/`TIPSTER`) é a próxima feature
-   liberada — primeira a introduzir entidades JPA reais e, portanto, a multi-tenancy do
-   Hibernate (`CurrentTenantIdentifierResolver`/`MultiTenantConnectionProvider`, mecanismo já
-   documentado em `docs/CONVENTIONS.md` a partir de `auth-service feat-002.5`).
+1. `feat-003` (RF03/RF13 — Casas de apostas e movimentações) é a próxima feature liberada.
+2. `feature/SV-70` ainda precisa do merge final `develop` (gate completo: SonarCloud, evidence
+   como comentário na story via `--sync-status`) antes de `feat-003` poder assumir `develop`
+   como base limpa — ver seção "Bloqueios" abaixo.
 
 ## Bloqueios / Riscos
 
