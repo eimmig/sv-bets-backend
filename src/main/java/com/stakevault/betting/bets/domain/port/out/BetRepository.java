@@ -4,6 +4,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import com.stakevault.betting.bets.domain.model.Bet;
+import com.stakevault.betting.bets.domain.model.BetStatus;
 
 public interface BetRepository {
 
@@ -12,4 +13,6 @@ public interface BetRepository {
 	Optional<Bet> findById(UUID id);
 
 	Optional<Bet> findByIdempotencyKey(String idempotencyKey);
+
+	Bet updateStatus(UUID id, BetStatus status);
 }

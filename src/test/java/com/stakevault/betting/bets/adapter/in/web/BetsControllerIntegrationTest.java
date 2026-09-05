@@ -81,6 +81,31 @@ class BetsControllerIntegrationTest extends TenantSchemaIntegrationSupport {
 		return httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
 	}
 
+	private HttpResponse<String> get(String id, String tenantSlugHeader) throws Exception {
+		HttpRequest.Builder builder = HttpRequest
+				.newBuilder(URI.create("http://localhost:" + port + "/api/v1/bets/" + id)).GET();
+		if (tenantSlugHeader != null) {
+			builder.header("X-Tenant-Id", tenantSlugHeader);
+		}
+		return httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+	}
+
+	private HttpResponse<String> patchStatus(String id, String status) throws Exception {
+		HttpRequest request = HttpRequest
+				.newBuilder(URI.create("http://localhost:" + port + "/api/v1/bets/" + id + "/status"))
+				.header("Content-Type", "application/json")
+				.header("X-Tenant-Id", tenantSlug)
+				.method("PATCH", HttpRequest.BodyPublishers.ofString("{\"status\":\"" + status + "\"}"))
+				.build();
+		return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+	}
+
+	private String createBetId() throws Exception {
+		References refs = newReferences();
+		HttpResponse<String> response = post(bodyFor(refs, null, "1.5", "100"), UUID.randomUUID().toString(), null);
+		return extractId(response.body());
+	}
+
 	@Test
 	void shouldCreateBetWithAllFields() throws Exception {
 		References refs = newReferences();
@@ -167,5 +192,60 @@ class BetsControllerIntegrationTest extends TenantSchemaIntegrationSupport {
 		assertThat(first.statusCode()).isEqualTo(201);
 		assertThat(second.statusCode()).isEqualTo(200);
 		assertThat(extractId(first.body())).isEqualTo(extractId(second.body()));
+	}
+
+	@Test
+	void shouldGetBetById() throws Exception {
+		String betId = createBetId();
+
+		HttpResponse<String> response = get(betId, tenantSlug);
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body()).contains("\"id\":\"" + betId + "\"");
+	}
+
+	@Test
+	void shouldReturn404WhenGettingUnknownBet() throws Exception {
+		HttpResponse<String> response = get(UUID.randomUUID().toString(), tenantSlug);
+
+		assertThat(response.statusCode()).isEqualTo(404);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/bet-not-found\"");
+	}
+
+	@Test
+	void shouldTransitionPendingToWon() throws Exception {
+		String betId = createBetId();
+
+		HttpResponse<String> response = patchStatus(betId, "won");
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body()).contains("\"status\":\"won\"");
+	}
+
+	@Test
+	void shouldTransitionPendingToLostAndVoid() throws Exception {
+		assertThat(patchStatus(createBetId(), "lost").statusCode()).isEqualTo(200);
+		assertThat(patchStatus(createBetId(), "void").statusCode()).isEqualTo(200);
+	}
+
+	@Test
+	void shouldRejectTransitionFromAlreadySettledBet() throws Exception {
+		String betId = createBetId();
+		patchStatus(betId, "won");
+
+		HttpResponse<String> response = patchStatus(betId, "lost");
+
+		assertThat(response.statusCode()).isEqualTo(422);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/invalid-status-transition\"");
+	}
+
+	@Test
+	void shouldRejectTransitionBackToPending() throws Exception {
+		String betId = createBetId();
+
+		HttpResponse<String> response = patchStatus(betId, "pending");
+
+		assertThat(response.statusCode()).isEqualTo(422);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/invalid-status-transition\"");
 	}
 }
