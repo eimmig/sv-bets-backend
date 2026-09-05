@@ -89,6 +89,17 @@ class SportsControllerIntegrationTest extends TenantSchemaIntegrationSupport {
 	}
 
 	@Test
+	void shouldClampNegativePageAndNonPositiveSizeInsteadOfFailing() throws Exception {
+		post("{\"name\":\"Rugby\"}", tenantSlug);
+
+		HttpResponse<String> response = get("?page=-5&size=0", tenantSlug);
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body()).contains("\"page\":0");
+		assertThat(response.body()).contains("\"name\":\"Rugby\"");
+	}
+
+	@Test
 	void shouldIsolateCatalogsBetweenTenantSchemas() throws Exception {
 		String otherSlug = "test-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
 		TenantSchemaName otherSchema = TenantSchemaName.fromSlug(otherSlug);
