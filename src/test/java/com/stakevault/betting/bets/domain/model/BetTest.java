@@ -12,9 +12,18 @@ class BetTest {
 
 	@Test
 	void shouldRejectNonPositiveStake() {
-		assertThatThrownBy(() -> new Bet(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-				UUID.randomUUID(), null, UUID.randomUUID(), null, null, null, null, null, null, BigDecimal.ZERO,
-				BigDecimal.valueOf(1.5), BetStatus.PENDING, Instant.now(), null))
+		UUID id = UUID.randomUUID();
+		UUID bettingHouseId = UUID.randomUUID();
+		UUID sportId = UUID.randomUUID();
+		UUID leagueId = UUID.randomUUID();
+		UUID marketId = UUID.randomUUID();
+		UUID createdByUserId = UUID.randomUUID();
+		BigDecimal nonPositiveStake = BigDecimal.ZERO;
+		BigDecimal validOdd = BigDecimal.valueOf(1.5);
+		Instant betDate = Instant.now();
+
+		assertThatThrownBy(() -> new Bet(id, bettingHouseId, sportId, leagueId, marketId, null, createdByUserId, null,
+				null, null, null, null, null, nonPositiveStake, validOdd, BetStatus.PENDING, betDate, null))
 				.isInstanceOf(IllegalArgumentException.class);
 	}
 }
