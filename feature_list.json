@@ -600,7 +600,7 @@
         {
           "id": "feat-005.3",
           "name": "Liquidacao atomica: transicao condicional + BET_RESULT + X-User-Id no PATCH",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-90",
           "detail": "Achado MAJOR do Plan Reviewer: corrige o TOCTOU residual de feat-004 com UPDATE atomico condicional, agora que a transicao tem efeito financeiro real.",
           "checklist": [
