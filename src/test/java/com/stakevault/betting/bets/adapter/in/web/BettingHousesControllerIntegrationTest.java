@@ -150,6 +150,7 @@ class BettingHousesControllerIntegrationTest extends TenantSchemaIntegrationSupp
 	}
 
 	private static String extractId(String responseBody) {
-		return responseBody.replaceFirst(".*\"id\":\"([0-9a-f-]+)\".*", "$1");
+		int start = responseBody.indexOf("\"id\":\"") + 6;
+		return responseBody.substring(start, responseBody.indexOf('"', start));
 	}
 }

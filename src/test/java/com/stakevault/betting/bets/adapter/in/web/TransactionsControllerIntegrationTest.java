@@ -40,7 +40,9 @@ class TransactionsControllerIntegrationTest extends TenantSchemaIntegrationSuppo
 
 	private String newBettingHouseId(String tenantSlugHeader) throws Exception {
 		HttpResponse<String> response = postBettingHouse("House-" + UUID.randomUUID(), tenantSlugHeader);
-		return response.body().replaceFirst(".*\"id\":\"([0-9a-f-]+)\".*", "$1");
+		String body = response.body();
+		int start = body.indexOf("\"id\":\"") + 6;
+		return body.substring(start, body.indexOf('"', start));
 	}
 
 	private HttpResponse<String> post(String body, String tenantSlugHeader) throws Exception {

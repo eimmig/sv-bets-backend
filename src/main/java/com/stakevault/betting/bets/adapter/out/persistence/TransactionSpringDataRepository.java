@@ -14,12 +14,8 @@ interface TransactionSpringDataRepository extends JpaRepository<TransactionJpaEn
 
 	Page<TransactionJpaEntity> findByBettingHouseId(UUID bettingHouseId, Pageable pageable);
 
-	@Query("""
-			SELECT t.bettingHouseId, SUM(CASE WHEN t.type = com.stakevault.betting.bets.domain.model.TransactionType.DEPOSIT
-					THEN t.amount ELSE -t.amount END)
-			FROM TransactionJpaEntity t
-			WHERE t.bettingHouseId IN :bettingHouseIds
-			GROUP BY t.bettingHouseId
-			""")
+	@Query("SELECT t.bettingHouseId, SUM(CASE WHEN t.type = com.stakevault.betting.bets.domain.model.TransactionType.DEPOSIT "
+			+ "THEN t.amount ELSE -t.amount END) FROM TransactionJpaEntity t "
+			+ "WHERE t.bettingHouseId IN :bettingHouseIds GROUP BY t.bettingHouseId")
 	List<Object[]> sumNetAmountByBettingHouseIds(@Param("bettingHouseIds") Collection<UUID> bettingHouseIds);
 }
