@@ -196,7 +196,7 @@
         {
           "id": "feat-002.1",
           "name": "Migration Flyway dos 4 catalogos",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-71",
           "detail": "Primeira migration real do servico (feat-001 nao precisou de nenhuma) - cria as 4 tabelas no schema lazy por tenant ja existente.",
           "checklist": [
@@ -209,7 +209,7 @@
         {
           "id": "feat-002.2",
           "name": "Multi-tenancy do Hibernate + enforcement de X-Tenant-Id",
-          "status": "not-started",
+          "status": "in-progress",
           "jira": "SV-72",
           "detail": "Achado MAJOR do Plan Reviewer: primeira introducao de JPA/Hibernate multi-tenant neste servico (portar padrao de auth-service), e correcao do residual de feat-001 (TenantSchemaFilter precisa exigir X-Tenant-Id agora que existe escrita real de dados por tenant).",
           "checklist": [
