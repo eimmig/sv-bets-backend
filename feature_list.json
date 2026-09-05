@@ -574,7 +574,7 @@
         {
           "id": "feat-005.1",
           "name": "Migration Flyway da tabela bet_result",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-88",
           "detail": "Primeira tabela 1:1 do servico (UNIQUE(bet_id), nao 1:N) - impede duas liquidacoes persistidas pra mesma aposta mesmo se a guarda atomica de feat-005.3 falhar por algum motivo (defesa em profundidade).",
           "checklist": [
