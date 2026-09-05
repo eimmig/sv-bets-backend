@@ -1,6 +1,7 @@
 package com.stakevault.betting.bets.adapter.out.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.UUID;
@@ -40,7 +41,7 @@ class JdbcFlywayTenantSchemaGatewayIntegrationTest extends TenantSchemaIntegrati
 
 	@Test
 	void migrateIfPendingShouldRunWithoutFailingWhenSchemaAlreadyExists() {
-		provisionTenantSchema.migrateIfPending(tenantSlug);
+		assertThatCode(() -> provisionTenantSchema.migrateIfPending(tenantSlug)).doesNotThrowAnyException();
 	}
 
 	@Test
@@ -54,6 +55,6 @@ class JdbcFlywayTenantSchemaGatewayIntegrationTest extends TenantSchemaIntegrati
 		Integer count = jdbcTemplate.queryForObject(
 				"SELECT count(*) FROM information_schema.schemata WHERE schema_name = ?",
 				Integer.class, missingSchema.value());
-		assertThat(count).isEqualTo(0);
+		assertThat(count).isZero();
 	}
 }
