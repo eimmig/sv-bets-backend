@@ -5,11 +5,175 @@
       "name": "Setup do projeto",
       "description": "Inicializar projeto Spring Boot 4.x (Java 25) com Maven, pacotes domain/application/adapter/config (arquitetura hexagonal - ver docs/CONVENTIONS.md), conexao com banco Postgres proprio, schema-per-tenant (tenant_<slug>, resolvido a partir do header X-Tenant-Id - NAO mais X-User-Id, ver docs/DECISIONS-LOG.md 2026-08-02 e docs/API-CONTRACTS.md), Flyway configurado para migracao lazy por schema (verifica/roda migracoes pendentes do schema resolvido antes de atender a chamada - ver docs/CONVENTIONS.md secao 'Migrations'), JaCoCo com gate de 80% vinculado a fase verify. MessageSource/ResourceBundle configurado para i18n de erros (pt-BR/en-US/es, ver docs/CONVENTIONS.md secao 'Internacionalizacao'). Expor tambem uma rota administrativa que cria o schema tenant_<slug> deste servico quando um tenant novo e provisionado, autenticada por X-Admin-Api-Key (ver docs/API-CONTRACTS.md) - chamada manualmente pelo operador, NAO orquestrada por auth-service em codigo (decisao de 2026-08-02, ver docs/DECISIONS-LOG.md item 3: 3 chamadas manuais separadas).",
       "dependencies": [],
-      "status": "not-started",
-      "plan_review": "",
-      "jira": "",
-      "subtasks": [],
-      "evidence": ""
+      "status": "done",
+      "plan_review": "2026-09-04, Plan Reviewer (review-suite:ln-11-plan-reviewer) rodado contra o plano antes de qualquer codigo. Veredito: REVISE, 1 achado MAJOR corrigido no plano (nenhum exigia decisao do usuario). (MAJOR) .github/workflows/ci.yml e CHANGELOG.md deste repositorio sao o scaffold antigo do epic-009 (bootstrap), com os mesmos 3 gotchas de goal/guarda ja documentados e corrigidos em auth-service (docs/CI-CD.md 'Guarda por arquivo-marcador'): passo de testes chama 'mvn test jacoco:report' (goal solto, falha ate o plugin JaCoCo existir), passo Sonar usa o atalho 'mvn sonar:sonar' (nunca resolve sem pluginGroups/pom), guarda do passo de i18n so por hashFiles('pom.xml') (quebra por sequenciamento se feat-001 for dividida em subtasks incrementais, como foi em auth-service) - mais falta o 6o passo (gate de zero issue/hotspot, validate-sonar-issues.py) e o sonar.qualitygate.wait incondicional (quebra em push direto pra develop). CHANGELOG.md ainda no formato Keep a Changelog com prosa, anterior a decisao de 2026-09-03 (uma linha por issue do Jira). Corrigido no plano: feat-001.1 (nova, primeira subtask) porta o ci.yml/validate-sonar-issues.py ja endurecidos de auth-service (ajustando projectKey pra eimmig_sv-bets-backend) e reescreve CHANGELOG.md pro novo formato ANTES do bootstrap do pom.xml - evita nascer com os mesmos 3 gotchas e ter que corrigir reativamente depois, como aconteceu em auth-service. A entrada prosa pre-existente do CHANGELOG.md (fix de sonar.projectKey) e coberta pela mesma Jira SV-9 ja usada por auth-service para o mesmo fix (infra/feat-003.8 tocou os 6 repositorios numa unica subtask/commit) - reaproveitar a linha [SV-9], nao criar issue nova. Achado MINOR analisado, sem correcao (nao e defeito): a description desta feature bundla a rota administrativa (X-Admin-Api-Key, cria schema tenant_<slug>) na MESMA feature de setup, diferente de auth-service (feature separada, feat-003) - aceito como simplificacao legitima, pois aqui a rota admin so cria schema (sem criacao de usuario/senha) e reaproveita a mesma ProvisionTenantSchemaUseCase/gateway do filtro por requisicao; quebrar em 2 features seria separacao artificial sem beneficio real. Confirmado contra o padrao real de auth-service: multi-tenancy do Hibernate (CurrentTenantIdentifierResolver/MultiTenantConnectionProvider) fica para feat-002 (Catalogos base), nao entra em feat-001 - so existe Flyway puro (sem JPA ainda) nesta feature, mesma sequencia que auth-service seguiu (feat-001 so Flyway/filtro, multi-tenancy Hibernate chegou em feat-002.5 quando as primeiras entidades JPA existiram). Rodada de desafio independente executada como passe proprio, sem subagentes - independencia reduzida, declarada.",
+      "jira": "SV-60",
+      "subtasks": [
+        {
+          "id": "feat-001.1",
+          "name": "Endurecer pipeline de CI antes do bootstrap (porta o padrao ja validado de auth-service)",
+          "status": "done",
+          "jira": "SV-61",
+          "detail": "Achado do Plan Reviewer: ci.yml/CHANGELOG.md deste repositorio ainda tem os 3 gotchas de goal/guarda + falta o 6o passo, ja corrigidos reativamente em auth-service - portar a versao endurecida agora evita repetir o mesmo ciclo de descoberta.",
+          "checklist": [
+            "Portar services/auth-service/.github/workflows/ci.yml para ca, ajustando sonar.projectKey/-Dsonar.projectKey para eimmig_sv-bets-backend (6 passos: changelog so PR story->develop/main, i18n guardado por messages_pt_BR.properties proprio, build mvn -DskipTests package, testes mvn verify, Sonar com coordenadas completas do plugin + qualitygate.wait condicional, gate de zero issue/hotspot).",
+            "Copiar services/auth-service/.github/scripts/validate-sonar-issues.py verbatim (script generico, sem chave de projeto hardcoded).",
+            "Reescrever CHANGELOG.md deste servico pro formato 'uma linha por issue do Jira' (mesmo cabecalho de auth-service) - linha pre-existente do fix de sonar.projectKey vira [SV-9](https://stakevault.atlassian.net/browse/SV-9) - Alinhar as chaves de projeto ao padrao do SonarCloud (mesma issue ja usada por auth-service para o mesmo fix)."
+          ],
+          "validation": "yaml.safe_load(ci.yml) valido; CHANGELOG.md so tem o cabecalho novo + a linha SV-9; nenhum codigo de aplicacao ainda.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-001.2",
+          "name": "Bootstrap do pom.xml e esqueleto hexagonal",
+          "status": "done",
+          "jira": "SV-62",
+          "detail": "Mesmo padrao de auth-service feat-001.1 - Spring Boot 4.1.1, Java 25, Maven, groupId com.stakevault.betting, artifactId bets-service.",
+          "checklist": [
+            "curl para start.spring.io: Spring Boot 4.1.1 (pinado - Initializr as vezes retorna metadata com sufixo .RELEASE nao publicado), Java 25, Maven.",
+            "Dependencias: web, data-jpa, postgresql, validation, actuator, flyway-core, spring-boot-starter-test, org.testcontainers:postgresql (17-alpine, igual ao compose de infra), org.testcontainers:junit-jupiter.",
+            "Layout hexagonal: domain/{model,port/in,port/out}, application/, adapter/{in/web,out/persistence}, config/ - domain/ nunca importa org.springframework.* nem jakarta.persistence.*.",
+            "src/test/resources/junit-platform.properties (spring.test.constructor.autowire.mode=all) - injecao por construtor em teste desde o inicio, sem @Autowired em lugar nenhum (convencao ja endurecida em auth-service feat-002)."
+          ],
+          "validation": "mvn compile passa; estrutura de pacotes confere com docs/CONVENTIONS.md.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-001.3",
+          "name": "Conexao Postgres com profiles dev/test/prod",
+          "status": "done",
+          "jira": "SV-63",
+          "detail": "Mesmo padrao de auth-service feat-001.2 - variavel de ambiente direta (${DB_HOST:localhost} etc.), sem spring-dotenv (dependencia sem atividade recente compativel com Spring Boot 4.1, ja descartada em auth-service).",
+          "checklist": [
+            "application.yml por profile: dev le variaveis de ambiente/.env, test usa valores fixos consumidos pelo Testcontainers.",
+            "Banco proprio (nome sugerido bets), sem lista fixa de schemas migrados no boot (flyway.enabled=false)."
+          ],
+          "validation": "Aplicacao sobe em profile dev/test sem erro de conexao (com Postgres disponivel).",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-001.4",
+          "name": "Provisionamento de schema de tenant (Flyway lazy) + filtro X-Tenant-Id + rota admin X-Admin-Api-Key",
+          "status": "done",
+          "jira": "SV-64",
+          "detail": "Mesmo padrao de auth-service feat-001.3 (ensureSchemaExists/migrateExistingOnly via Flyway.createSchemas, TenantSchemaName, filtro le X-Tenant-Id - aqui NAO X-User-Id) + a rota admin bundlada nesta feature (achado do Plan Reviewer): AdminApiKeyFilter reaproveita o padrao ja corrigido em auth-service (UriUtils.decode() antes de comparar prefixo de path - vulnerabilidade de percent-encoding ja conhecida, nao redescobrir). Sem multi-tenancy do Hibernate ainda (fica para feat-002, quando existirem entidades JPA) - só Flyway puro.",
+          "checklist": [
+            "domain/model/TenantSchemaName (mesma validacao de slug de auth-service) e excecoes (TenantSchemaNotFoundException, InvalidAdminApiKeyException, InvalidTenantSlugException) com chave de mensagem (nao texto final) desde o inicio - nao repetir o gotcha de auth-service (chaves genericas so entraram depois).",
+            "domain/port/out/TenantSchemaGateway (createAndMigrate, migrateExistingOnly, exists) + adapter/out/persistence/JdbcFlywayTenantSchemaGateway (Flyway.configure().schemas(schema).createSchemas(true/false)... - sem SQL de DDL escrito a mao, mesmo padrao corrigido em auth-service feat-001.11).",
+            "application/ProvisionTenantSchemaService: ensureSchemaExists(slug) (idempotente check via gateway.exists antes de escrever, mesmo BLOCKER corrigido em auth-service feat-003 - reprovisionar em silencio ou estourar excecao crua nao e aceitavel), migrateIfPending(slug) (erro se schema nao existir, nunca cria).",
+            "TenantSchemaFilter (adapter/in/web): le X-Tenant-Id (ausente = 400, contexto de negocio - ver docs/API-CONTRACTS.md), deriva tenant_<slug>, chama migrateIfPending antes do controller, RFC 7807 direto (sem @RestControllerAdvice ainda - i18n real so na subtask seguinte, mesmo padrao de auth-service feat-001.3).",
+            "AdminApiKeyFilter (X-Admin-Api-Key ausente/invalido = 401, identidade do chamador) + AdminTenantController (POST /api/v1/admin/tenants, so chama ensureSchemaExists, resposta minima - sem criacao de usuario/senha, diferente de auth-service).",
+            "Classe base de teste (Testcontainers Postgres) + testes de integracao: schema provisionado roda o filtro sem migracao pendente; X-Tenant-Id pra schema inexistente rejeitado sem criar; rota admin idempotente (segunda chamada com mesmo slug retorna 409, nao reprovisiona em silencio); AdminApiKeyFilter rejeita path com percent-encoding tentando burlar o prefixo /api/v1/admin/**."
+          ],
+          "validation": "Testes de integracao cobrindo os 4 cenarios acima passam; nenhum SQL de DDL escrito a mao.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-001.5",
+          "name": "Gate de cobertura JaCoCo 80%",
+          "status": "done",
+          "jira": "SV-65",
+          "detail": "mvn verify precisa falhar abaixo de 80% - o passo 4 do ci.yml (feat-001.1) ja assume isso.",
+          "checklist": [
+            "Plugin JaCoCo Maven vinculado a fase verify (execucoes, nao goal solto).",
+            "Regra de cobertura de linha 80%."
+          ],
+          "validation": "mvn verify falha propositalmente com cobertura artificialmente baixa, depois passa com os testes reais das outras subtasks.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-001.6",
+          "name": "Scaffold de i18n (MessageSource) e teste smoke",
+          "status": "done",
+          "jira": "SV-66",
+          "detail": "messages.properties SEM sufixo de locale e obrigatorio (gotcha critico de auth-service feat-003.6 - MessageSourceAutoConfiguration nunca ativa sem ele) - criar desde o inicio, nao esperar descobrir o bug de novo.",
+          "checklist": [
+            "messages.properties (base, sem locale - obrigatorio pra MessageSourceAutoConfiguration ativar), messages_pt_BR.properties, messages_en_US.properties, messages_es.properties - chaves de TenantSchemaNotFoundException/InvalidAdminApiKeyException/InvalidTenantSlugException (feat-001.4) inclusas.",
+            "LocaleResolver a partir de Accept-Language, default pt-BR sem header reconhecido.",
+            "setDefaultEncoding(\"UTF-8\") explicito (gotcha de auth-service: default do JVM difere entre SOs, mensagem com acento corrompe em teste rodando em outro SO).",
+            "Teste unitario: MessageSource.getMessage das chaves reais de feat-001.4 nos tres locales."
+          ],
+          "validation": "Teste unitario passa nos tres locales; validate-i18n-keys.py (rodado localmente) confirma sincronia.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-001.7",
+          "name": "Health checks do Actuator",
+          "status": "done",
+          "jira": "SV-67",
+          "detail": "Necessario para o healthcheck do docker-compose e para confirmar que o servico sobe de fato.",
+          "checklist": [
+            "/actuator/health (liveness).",
+            "/actuator/health/readiness incluindo checagem de conexao Postgres."
+          ],
+          "validation": "Ambos os endpoints respondem 200 com Postgres disponivel.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-001.8",
+          "name": ".env.example e logging estruturado",
+          "status": "done",
+          "jira": "SV-68",
+          "detail": ".env.example restrito ao que feat-001 realmente le - variavel de X-Admin-Api-Key (ADMIN_API_KEY) ja e consumida aqui (diferente de auth-service, onde entrou so em feat-003).",
+          "checklist": [
+            ".env.example com credenciais de conexao Postgres + ADMIN_API_KEY=CHANGE_ME (placeholder sem formato de senha real - gotcha do GitGuardian ja conhecido de auth-service feat-001.9).",
+            "logback-spring.xml com encoder JSON.",
+            "Chaves de MDC reservadas para X-Correlation-Id/X-Tenant-Id (propagacao real comeca quando existir chamador real - api-gateway/epic-008)."
+          ],
+          "validation": "Aplicacao sobe e loga em JSON estruturado.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-001.9",
+          "name": "CHANGELOG e verificacao final",
+          "status": "done",
+          "jira": "SV-69",
+          "detail": "Fecha a feature com o gate real do harness, nao so com os testes isolados de cada subtask.",
+          "checklist": [
+            "Entrada em CHANGELOG.md [Unreleased] (automatica, via tools/jira_story.py).",
+            "./init.sh (mvn verify) verde com Docker ativo (Testcontainers).",
+            "Delivery Reviewer, Test Suite Auditor e Persistence Auditor rodados antes de done.",
+            "Vault (docs/) revisado: alguma descoberta desta feature sem nota correspondente? (mecanismo de rota admin bundlada com setup, se reaproveitavel por stats-service, e candidato)."
+          ],
+          "validation": "./init.sh sai 0; feature_list.json (deste servico) e ../../feature_list.json (raiz) atualizados com evidence.",
+          "owner": "agente"
+        }
+      ],
+      "evidence": {
+        "resumo": "Entregue em 2026-09-04 (branch feature/SV-60, story SV-60 com 9 subtasks SV-61..69, 8 PRs de subtask - uma por subtask, sem bundling). Primeiro código de aplicação de bets-service: bootstrap Spring Boot 4.1.1/Java 25/Maven hexagonal, conexão Postgres dev/test/prod, provisionamento de schema de tenant (Flyway lazy) + filtro X-Tenant-Id + rota admin POST /api/v1/admin/tenants (X-Admin-Api-Key, cria só o schema - sem usuário/senha, diferente de auth-service, bundlada nesta mesma feature por decisão do Plan Reviewer), gate JaCoCo 80% (real 97%+), i18n completo (MessageSource, 3 locales, LocalizedDomainException, retrofit dos 2 erros do filtro para localizados de verdade - indo além do residual permanente aceito em auth-service), health checks do Actuator, .env.example + logging JSON estruturado, pipeline de CI já endurecido desde a primeira subtask (portado do padrão validado em auth-service, antes do bootstrap do pom.xml - evita o ciclo de descoberta reativa que auth-service passou).",
+        "secoes": [
+          {
+            "titulo": "Verificação real executada",
+            "itens": [
+              "./init.sh (mvn verify, JaCoCo 80% incluso) verde localmente com Docker ativo - 34 testes, 0 falhas, 97%+ cobertura de linha real.",
+              "CI verde em todos os 8 PRs de subtask (subtask/SV-61..68 -> feature/SV-60), confirmado com gh pr checks a cada push - guarda por arquivo-marcador nunca quebrou por sequenciamento (diferente de auth-service, que descobriu isso reativamente), porque o ci.yml já nasceu correto na primeira subtask.",
+              "Gate de cobertura confirmado de verdade, não só por estar alto: elevado temporariamente para 0.99 para observar falha real ('lines covered ratio is 0.97, but expected minimum is 0.99'), revertido para 0.80."
+            ]
+          },
+          {
+            "titulo": "Divergência do plano original",
+            "itens": [
+              "Nenhuma nas 9 subtasks planejadas - todas implementadas como descrito no plan_review. Única mudança foi de escopo interno: retrofit de i18n real nos 2 erros de TenantSchemaFilter/AdminApiKeyFilter (feat-001.6) foi além do que o checklist original pedia (só as chaves de feat-001.4), decisão tomada durante a implementação para não deixar um residual permanente como o de auth-service."
+            ]
+          },
+          {
+            "titulo": "Defeitos encontrados antes de causar dano",
+            "itens": [
+              "Plan Reviewer (antes do código): REVISE, 1 MAJOR corrigido no plano - detalhe completo no campo plan_review desta feature.",
+              "/code-review rodado antes de cada uma das 8 PRs de subtask - achados reais corrigidos em 3 das 8 rodadas: (feat-001.4) MDC 'tenantId' vazava em qualquer exceção diferente de TenantSchemaNotFoundException (sem try/finally cobrindo tudo) - corrigido; AdminApiKeyFilter e TenantSchemaFilter duplicavam construção de corpo RFC 7807 - extraído FilterProblemWriter; InvalidAdminApiKeyException morta (nunca lançada) - removida (depois reintroduzida de verdade em feat-001.6). (feat-001.6) só 1 dos 5 caminhos de erro localizados tinha prova ponta a ponta via MessageSource real - adicionado teste para o caminho de filtro (AdminApiKeyFilter, mecanismo diferente do @RestControllerAdvice); TenantSchemaFilter duplicava a montagem de chave/type-slug em vez de reusar LocalizedDomainException - corrigido com uma implementação não-exception dedicada.",
+              "Achado real na revisão final (feat-001.9, não pego pelo /code-review de feat-001.6): FilterProblemWriter (extraído em feat-001.4) nunca chamava response.setCharacterEncoding('UTF-8') - exatamente o gotcha já documentado em docs/CONVENTIONS.md (auth-service feat-003), quase regredido ao extrair o helper compartilhado. Só ficou latente porque TenantSchemaFilterTest mocka MessageSource (não prova encoding real) e o cliente HTTP de teste (java.net.http.HttpClient) é permissivo (assume UTF-8 quando o charset não é declarado) - um cliente mais estrito teria corrompido texto acentuado. Confirmado via teste que falha sem a correção (reproduzido: 'Expecting application/problem+json to contain charset=UTF-8') e passa com ela. docs/CONVENTIONS.md atualizado com o quase-regressão para a extração de helper futuro não repetir.",
+              "Delivery Reviewer, Test Suite Auditor e Persistence Auditor: PASS nos três - confirmaram os 9 subtasks batendo com o plan_review, nenhuma regressão (repositório começou vazio), e os 2 riscos residuais aceitos (TOCTOU do admin route, TenantSchemaFilter sem enforcement de X-Tenant-Id) corretamente analisados sem terceiro problema oculto."
+            ]
+          },
+          {
+            "titulo": "Skills e ferramentas",
+            "itens": [
+              "Plan Reviewer (1 MAJOR corrigido), /code-review (8 rodadas, achados reais em 3), Delivery Reviewer, Test Suite Auditor e Persistence Auditor (PASS nos três) rodados antes de done.",
+              "docs/CI-CD.md (ci.yml de sv-bets-backend agora é o template a portar para sv-api-gateway/sv-stats-backend, não mais sv-auth-backend), docs/CONVENTIONS.md (quase-regressão do encoding UTF-8 em filtro documentada) e docs/services/bets-service.md + docs/API-CONTRACTS.md (contrato da rota admin) atualizados no mesmo commit/sessão."
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "feat-002",
