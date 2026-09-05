@@ -504,7 +504,7 @@
         {
           "id": "feat-004.5",
           "name": "CHANGELOG e verificacao final",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-86",
           "detail": "Fecha a feature com o gate real do harness, nao so com os testes isolados de cada subtask.",
           "checklist": [
@@ -518,7 +518,39 @@
           "owner": "agente"
         }
       ],
-      "evidence": ""
+      "evidence": {
+        "resumo": "Entregue em 2026-09-05 (branch feature/SV-81, story SV-81 com 5 subtasks SV-82..86). Primeira entidade BET do servico: migration com 4 FKs (bettingHouse/sport/league/market obrigatorias, tipster nullable) + campos descritivos nullable (corrigido no plan_review contra docs/contracts/bet-created.schema.json ja existente), POST /api/v1/bets (X-User-Id obrigatorio, RN07 odd/stake como regra de dominio 422 seguindo o exemplo literal de docs/API-CONTRACTS.md, Idempotency-Key opcional com replay 200/201), GET /api/v1/bets/{id} e PATCH /api/v1/bets/{id}/status (RF12, so pending->won|lost|void valido). Primeira vez que o servico faz UPDATE em linha existente (nao so INSERT) - padrao Persistable/isNew documentado em docs/CONVENTIONS.md para auth-service/stats-service reaproveitarem.",
+        "secoes": [
+          {
+            "titulo": "Verificação real executada",
+            "itens": [
+              "./init.sh (mvn verify, JaCoCo 80% incluso) verde localmente com Docker ativo, em cada uma das 5 subtasks.",
+              "CI verde em todas as 5 PRs de subtask (subtask/SV-82..86 -> feature/SV-81), confirmado com gh pr checks a cada push.",
+              "Delivery Reviewer, Test Suite Auditor e Persistence Auditor (claude-code-skills) rodados contra o diff completo de feat-004 (migration, dominio/JPA, existsById nos catalogos, POST/GET/PATCH) - PASS nos tres, com 1 achado CONCERNS (nao bloqueante) confirmado pelos tres: TOCTOU em BetService.updateStatus (ver risco residual abaixo)."
+            ]
+          },
+          {
+            "titulo": "Divergência do plano original",
+            "itens": [
+              "Nenhuma nas 5 subtasks - as 3 correcoes MAJOR + 1 MINOR do plan_review (nullability de tipsterId/campos descritivos, remocao de created_at, existsById nos 4 catalogos, mirror de MissingCallerContextException) ja foram aplicadas antes do codigo, entao a implementacao seguiu o plano corrigido sem desvio novo."
+            ]
+          },
+          {
+            "titulo": "Defeitos encontrados antes de causar dano",
+            "itens": [
+              "Plan Reviewer (antes do codigo): READY WITH CONCERNS, 3 MAJOR + 1 MINOR corrigidos no plano - detalhe completo no campo plan_review desta feature.",
+              "Delivery/Test Suite/Persistence Auditor (feat-004.5): confirmaram o mecanismo de UPDATE (findById carrega entidade com isNew=false via @PostLoad, muta e salva a MESMA instancia - merge, nao persist) correto e provado pelos testes de PATCH passando; nenhum INSERT duplicado. Unico achado real, nao bloqueante: BetService.updateStatus le o status atual e so depois escreve, sem guarda atomica (WHERE status='pending' ou @Version) - duas chamadas PATCH concorrentes pra mesma aposta pending poderiam ambas passar a validacao (last-write-wins). Aceito como residual porque feat-005 (unica consumidora real desta transicao, via BET_RESULT/profit) ainda nao existe - revisitar quando ela for implementada. Documentado em docs/services/bets-service.md."
+            ]
+          },
+          {
+            "titulo": "Skills e ferramentas",
+            "itens": [
+              "Plan Reviewer (3 MAJOR + 1 MINOR corrigidos), Delivery Reviewer/Test Suite Auditor/Persistence Auditor (PASS nos tres, feat-004.5) rodados antes de done.",
+              "docs/CONVENTIONS.md (padrao de UPDATE via Persistable/isNew, primeira vez neste servico) e docs/services/bets-service.md (secao feat-004 + risco residual do TOCTOU) atualizados no mesmo commit/sessao (raiz, repositorio sv-harness)."
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "feat-005",
