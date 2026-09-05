@@ -189,7 +189,7 @@
       "dependencies": [
         "feat-001"
       ],
-      "status": "in-progress",
+      "status": "done",
       "plan_review": "2026-09-05, Plan Reviewer (review-suite:ln-11-plan-reviewer) rodado contra o plano antes de qualquer codigo. Veredito: REVISE, 2 achados MAJOR + 2 MINOR corrigidos no plano (nenhum exigia decisao do usuario - a lacuna principal ja tinha resposta registrada no vault). (MAJOR) Plano original (so entidades/migrations/repositorios JPA, sem endpoint REST) deixava a feature sem forma de popular os catalogos antes de feat-004 precisar referencia-los por FK - docs/DECISIONS-LOG.md item 8 ('Catalogos continuam por tenant, sem seed compartilhado') ja registra decisao explicita do usuario ('cada organizacao cadastra seus proprios catalogos'), so nao estava refletida na description da feature nem no CLAUDE.md do servico. Corrigido: escopo passa a incluir POST (criacao) + GET paginado (listagem) para os 4 catalogos, convencao REST/paginacao/erro de docs/API-CONTRACTS.md, 409 <catalog>-already-registered em nome duplicado no mesmo schema. (MAJOR) TenantSchemaFilter (feat-001.4) ainda passa direto (chain.doFilter) quando X-Tenant-Id esta ausente, sem abrir TenantContextScope - residual aceito em feat-001 sob a premissa de 'nenhuma rota de negocio existe ainda'; como os endpoints de catalogo desta feature sao a PRIMEIRA escrita real via Hibernate multi-tenant do servico, uma chamada sem o header gravaria/leria silenciosamente no schema 'public' (TenantIdentifierResolver default), violando isolamento por tenant sem nenhum sinal de erro. Corrigido: TenantSchemaFilter passa a responder 400 missing-tenant-id para rotas fora de /api/v1/admin/**; residual removido de docs/CONVENTIONS.md/progress.md no mesmo commit da correcao. (MINOR) Nomenclatura de migration do rascunho original usava V2__ (Flyway sequencial) - convencao real confirmada em auth-service e docs/CONVENTIONS.md e V<timestamp>__descricao.sql; corrigido no plano. (MINOR, sugestao nao bloqueante) 4 entidades JPA identicas (id+name, Persistable<UUID>) repetiriam o mesmo boilerplate de isNew/@PostLoad 4 vezes - diferente do caso de '3 linhas parecidas' do CLAUDE.md raiz (mesmo mecanismo tecnico, certeza de reuso, nao abstracao para hipotese futura); adotado CatalogJpaEntity (@MappedSuperclass) com as 4 subclasses so declarando @Entity/@Table, mantendo FKs tipadas por tabela (rejeitado: tipo generico unico para os 4 catalogos, misturaria sportId/leagueId no mesmo tipo Java). Confirmado contra o repositorio real: ausencia de qualquer db/migration/*.sql ou entidade JPA em bets-service ate agora (feat-001 foi so Flyway puro), padrao de auth-service (SchemaMultiTenantConnectionProvider/TenantIdentifierResolver/TenantHibernatePropertiesCustomizer, UserJpaEntity com Persistable<UUID>) confirmado como fonte de porte direto. Rodada de desafio independente executada como passe proprio (execucao simulada + analise adversarial), sem subagentes - independencia reduzida, declarada. Risco residual aceito: UNIQUE(name) por schema assume que o mesmo nome nao deveria coexistir duas vezes no mesmo tenant - revisitar se o usuario quiser permitir duplicatas.",
       "jira": "SV-70",
       "subtasks": [
@@ -267,7 +267,38 @@
           "owner": "agente"
         }
       ],
-      "evidence": ""
+      "evidence": {
+        "resumo": "Entregue em 2026-09-05 (branch feature/SV-70, story SV-70 com 5 subtasks SV-71..75). Primeiras entidades JPA e primeira multi-tenancy do Hibernate (CurrentTenantIdentifierResolver/MultiTenantConnectionProvider) do servico: 4 catalogos (SPORT/LEAGUE/MARKET/TIPSTER) com POST (criacao) + GET (listagem paginada), isolados por schema de tenant, 409 <catalog>-already-registered em nome duplicado (existsByName + fallback em DataIntegrityViolationException para a corrida real), i18n 3 locales, RFC 7807. TenantSchemaFilter passou a exigir X-Tenant-Id (400 missing-tenant-id) em rotas de negocio, fechando o residual aceito em feat-001. feat-002.5 corrigiu um bug real descoberto na verificacao final: PageRequest.of() lanca IllegalArgumentException (500 nao tratado) para page negativo ou size nao positivo - controllers passaram a clampar (page=max(0,page), size=min(max(1,size),100)) antes de chamar o repositorio.",
+        "secoes": [
+          {
+            "titulo": "Verificação real executada",
+            "itens": [
+              "./init.sh (mvn verify, JaCoCo 80% incluso) verde localmente com Docker ativo.",
+              "CI verde na PR subtask/SV-75 -> feature/SV-70 (#11, GitHub Actions + GitGuardian).",
+              "Delivery Reviewer, Test Suite Auditor e Persistence Auditor (claude-code-skills) rodados contra o diff completo de feat-002 (migration, multi-tenancy Hibernate, entidades/repositorios JPA, endpoints REST, fix de clamp) - PASS nos tres, sem achado."
+            ]
+          },
+          {
+            "titulo": "Divergência do plano original",
+            "itens": [
+              "Nenhuma nas 5 subtasks - implementadas como descrito no plan_review (2 MAJOR + 2 MINOR ja corrigidos no plano antes do codigo)."
+            ]
+          },
+          {
+            "titulo": "Achado de processo (nao de codigo), corrigido nesta sessão",
+            "itens": [
+              "feature/SV-70 e as subtasks SV-71..74 nunca haviam sido empurradas para o GitHub - os merges de feat-002.1..4 (sessao anterior) foram feitos so localmente (git merge --no-ff), sem PR nem gate de CI, violando a regra 'merge subtask -> story exige pipeline de CI do GitHub passando'. Nao reescrito (historico ja mesclado, sem valor em refazer) - sinalizado aqui e em progress.md. A partir de feat-002.5 (esta subtask), o fluxo correto (push + PR + CI verde + merge --no-ff) foi seguido; feature/SV-70 foi empurrada retroativamente antes do merge de SV-75."
+            ]
+          },
+          {
+            "titulo": "Skills e ferramentas",
+            "itens": [
+              "Plan Reviewer (2 MAJOR + 2 MINOR corrigidos no plano), Delivery Reviewer/Test Suite Auditor/Persistence Auditor (PASS nos tres, feat-002.5) rodados antes de done.",
+              "docs/API-CONTRACTS.md atualizado no mesmo commit (raiz): clamp de page/size documentado como convencao normativa para qualquer endpoint paginado novo (bets-service feat-007, stats-service), a partir do bug real encontrado aqui."
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "feat-003",
