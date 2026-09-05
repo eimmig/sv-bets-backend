@@ -36,7 +36,7 @@ public class SportsController {
 	public PagedResponse<CatalogResponse> list(
 			@RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "20") int size) {
-		return PagedResponse.from(sportCatalog.list(page, Math.min(size, MAX_PAGE_SIZE)),
+		return PagedResponse.from(sportCatalog.list(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE)),
 				sport -> new CatalogResponse(sport.id(), sport.name()));
 	}
 }
