@@ -4,6 +4,9 @@ import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -45,6 +48,16 @@ public class BetsController {
 		BetCreationResult result = bets.create(command);
 		HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
 		return ResponseEntity.status(status).body(BetResponse.from(result.bet()));
+	}
+
+	@GetMapping("/{id}")
+	public BetResponse get(@PathVariable UUID id) {
+		return BetResponse.from(bets.findById(id));
+	}
+
+	@PatchMapping("/{id}/status")
+	public BetResponse updateStatus(@PathVariable UUID id, @Valid @RequestBody UpdateBetStatusRequest request) {
+		return BetResponse.from(bets.updateStatus(id, request.status()));
 	}
 
 	private UUID parseCallerId(String callerIdHeader) {

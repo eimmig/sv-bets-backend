@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Repository;
 
 import com.stakevault.betting.bets.domain.model.Bet;
+import com.stakevault.betting.bets.domain.model.BetStatus;
 import com.stakevault.betting.bets.domain.port.out.BetRepository;
 
 @Repository
@@ -34,6 +35,13 @@ public class JpaBetRepository implements BetRepository {
 	@Override
 	public Optional<Bet> findByIdempotencyKey(String idempotencyKey) {
 		return jpaRepository.findByIdempotencyKey(idempotencyKey).map(JpaBetRepository::toDomain);
+	}
+
+	@Override
+	public Bet updateStatus(UUID id, BetStatus status) {
+		BetJpaEntity entity = jpaRepository.findById(id).orElseThrow(() -> new IllegalStateException("bet vanished: " + id));
+		entity.updateStatus(status);
+		return toDomain(jpaRepository.save(entity));
 	}
 
 	private static Bet toDomain(BetJpaEntity entity) {

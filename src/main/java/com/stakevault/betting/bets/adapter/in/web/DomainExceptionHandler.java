@@ -13,11 +13,13 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.stakevault.betting.bets.domain.model.BetNotFoundException;
 import com.stakevault.betting.bets.domain.model.BettingHouseAlreadyRegisteredException;
 import com.stakevault.betting.bets.domain.model.BettingHouseNotFoundException;
 import com.stakevault.betting.bets.domain.model.CatalogAlreadyRegisteredException;
 import com.stakevault.betting.bets.domain.model.InvalidOddException;
 import com.stakevault.betting.bets.domain.model.InvalidStakeException;
+import com.stakevault.betting.bets.domain.model.InvalidStatusTransitionException;
 import com.stakevault.betting.bets.domain.model.InvalidTenantSlugException;
 import com.stakevault.betting.bets.domain.model.LeagueNotFoundException;
 import com.stakevault.betting.bets.domain.model.LocalizedDomainException;
@@ -42,7 +44,8 @@ public class DomainExceptionHandler {
 			CatalogAlreadyRegisteredException.class, BettingHouseAlreadyRegisteredException.class,
 			BettingHouseNotFoundException.class, InvalidOddException.class, InvalidStakeException.class,
 			LeagueNotFoundException.class, MarketNotFoundException.class, MissingCallerContextException.class,
-			SportNotFoundException.class, TipsterNotFoundException.class })
+			SportNotFoundException.class, TipsterNotFoundException.class, BetNotFoundException.class,
+			InvalidStatusTransitionException.class })
 	public ProblemDetail handle(LocalizedDomainException exception, Locale locale, HttpServletRequest request) {
 		ProblemDetail problem = ProblemDetail.forStatusAndDetail(
 				HttpStatus.valueOf(exception.httpStatusCode()),

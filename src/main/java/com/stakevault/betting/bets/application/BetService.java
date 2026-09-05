@@ -8,10 +8,12 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import com.stakevault.betting.bets.domain.model.Bet;
+import com.stakevault.betting.bets.domain.model.BetNotFoundException;
 import com.stakevault.betting.bets.domain.model.BetStatus;
 import com.stakevault.betting.bets.domain.model.BettingHouseNotFoundException;
 import com.stakevault.betting.bets.domain.model.InvalidOddException;
 import com.stakevault.betting.bets.domain.model.InvalidStakeException;
+import com.stakevault.betting.bets.domain.model.InvalidStatusTransitionException;
 import com.stakevault.betting.bets.domain.model.LeagueNotFoundException;
 import com.stakevault.betting.bets.domain.model.MarketNotFoundException;
 import com.stakevault.betting.bets.domain.model.SportNotFoundException;
@@ -73,6 +75,20 @@ public class BetService implements BetUseCase {
 					.map(found -> new BetCreationResult(found, false))
 					.orElseThrow();
 		}
+	}
+
+	@Override
+	public Bet findById(UUID id) {
+		return betRepository.findById(id).orElseThrow(() -> new BetNotFoundException(id));
+	}
+
+	@Override
+	public Bet updateStatus(UUID id, BetStatus newStatus) {
+		Bet current = findById(id);
+		if (current.status() != BetStatus.PENDING || newStatus == BetStatus.PENDING) {
+			throw new InvalidStatusTransitionException(current.status(), newStatus);
+		}
+		return betRepository.updateStatus(id, newStatus);
 	}
 
 	private void validateReferences(CreateBetCommand command) {
