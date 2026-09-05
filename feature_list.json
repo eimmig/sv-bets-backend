@@ -472,7 +472,7 @@
         {
           "id": "feat-004.3",
           "name": "Endpoint POST /api/v1/bets",
-          "status": "not-started",
+          "status": "done",
           "jira": "SV-84",
           "detail": "Achado MINOR do Plan Reviewer: X-User-Id nunca foi lido neste servico - portar MissingCallerContextException/parseCallerId de auth-service UsersController. RN07 validado como regra de dominio (422), nao Bean Validation - mesmo exemplo literal ja documentado em docs/API-CONTRACTS.md.",
           "checklist": [
