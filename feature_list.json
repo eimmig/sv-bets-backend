@@ -178,14 +178,95 @@
     {
       "id": "feat-002",
       "name": "Catalogos base",
-      "description": "Entidades e migrations de SPORT, LEAGUE, MARKET, TIPSTER - catalogos referenciados por BET.",
+      "description": "Entidades, migrations e CRUD minimo (POST + GET paginado) de SPORT, LEAGUE, MARKET, TIPSTER - catalogos referenciados por BET. Primeira introducao de multi-tenancy do Hibernate neste servico (CurrentTenantIdentifierResolver/MultiTenantConnectionProvider, mesmo padrao de auth-service).",
+      "goal": "Cada tenant cadastra (POST) e lista (GET paginado) seus proprios catalogos de SPORT/LEAGUE/MARKET/TIPSTER, isolados por schema, servindo de FK para BET em feat-004.",
+      "scope": [
+        "Migration Flyway (schema-per-tenant) criando as 4 tabelas (id UUID, name varchar UNIQUE not null)",
+        "Multi-tenancy do Hibernate (primeira vez neste servico) + enforcement de X-Tenant-Id obrigatorio em rotas de negocio (remove residual aceito em feat-001)",
+        "Entidades JPA (CatalogJpaEntity @MappedSuperclass + 4 subclasses) e repositorios (domain port/out + adapter)",
+        "Endpoints POST/GET para os 4 catalogos (RFC 7807 + i18n 3 locales, 409 em nome duplicado no schema)"
+      ],
       "dependencies": [
         "feat-001"
       ],
-      "status": "not-started",
-      "plan_review": "",
-      "jira": "",
-      "subtasks": [],
+      "status": "in-progress",
+      "plan_review": "2026-09-05, Plan Reviewer (review-suite:ln-11-plan-reviewer) rodado contra o plano antes de qualquer codigo. Veredito: REVISE, 2 achados MAJOR + 2 MINOR corrigidos no plano (nenhum exigia decisao do usuario - a lacuna principal ja tinha resposta registrada no vault). (MAJOR) Plano original (so entidades/migrations/repositorios JPA, sem endpoint REST) deixava a feature sem forma de popular os catalogos antes de feat-004 precisar referencia-los por FK - docs/DECISIONS-LOG.md item 8 ('Catalogos continuam por tenant, sem seed compartilhado') ja registra decisao explicita do usuario ('cada organizacao cadastra seus proprios catalogos'), so nao estava refletida na description da feature nem no CLAUDE.md do servico. Corrigido: escopo passa a incluir POST (criacao) + GET paginado (listagem) para os 4 catalogos, convencao REST/paginacao/erro de docs/API-CONTRACTS.md, 409 <catalog>-already-registered em nome duplicado no mesmo schema. (MAJOR) TenantSchemaFilter (feat-001.4) ainda passa direto (chain.doFilter) quando X-Tenant-Id esta ausente, sem abrir TenantContextScope - residual aceito em feat-001 sob a premissa de 'nenhuma rota de negocio existe ainda'; como os endpoints de catalogo desta feature sao a PRIMEIRA escrita real via Hibernate multi-tenant do servico, uma chamada sem o header gravaria/leria silenciosamente no schema 'public' (TenantIdentifierResolver default), violando isolamento por tenant sem nenhum sinal de erro. Corrigido: TenantSchemaFilter passa a responder 400 missing-tenant-id para rotas fora de /api/v1/admin/**; residual removido de docs/CONVENTIONS.md/progress.md no mesmo commit da correcao. (MINOR) Nomenclatura de migration do rascunho original usava V2__ (Flyway sequencial) - convencao real confirmada em auth-service e docs/CONVENTIONS.md e V<timestamp>__descricao.sql; corrigido no plano. (MINOR, sugestao nao bloqueante) 4 entidades JPA identicas (id+name, Persistable<UUID>) repetiriam o mesmo boilerplate de isNew/@PostLoad 4 vezes - diferente do caso de '3 linhas parecidas' do CLAUDE.md raiz (mesmo mecanismo tecnico, certeza de reuso, nao abstracao para hipotese futura); adotado CatalogJpaEntity (@MappedSuperclass) com as 4 subclasses so declarando @Entity/@Table, mantendo FKs tipadas por tabela (rejeitado: tipo generico unico para os 4 catalogos, misturaria sportId/leagueId no mesmo tipo Java). Confirmado contra o repositorio real: ausencia de qualquer db/migration/*.sql ou entidade JPA em bets-service ate agora (feat-001 foi so Flyway puro), padrao de auth-service (SchemaMultiTenantConnectionProvider/TenantIdentifierResolver/TenantHibernatePropertiesCustomizer, UserJpaEntity com Persistable<UUID>) confirmado como fonte de porte direto. Rodada de desafio independente executada como passe proprio (execucao simulada + analise adversarial), sem subagentes - independencia reduzida, declarada. Risco residual aceito: UNIQUE(name) por schema assume que o mesmo nome nao deveria coexistir duas vezes no mesmo tenant - revisitar se o usuario quiser permitir duplicatas.",
+      "jira": "SV-70",
+      "subtasks": [
+        {
+          "id": "feat-002.1",
+          "name": "Migration Flyway dos 4 catalogos",
+          "status": "in-progress",
+          "jira": "SV-71",
+          "detail": "Primeira migration real do servico (feat-001 nao precisou de nenhuma) - cria as 4 tabelas no schema lazy por tenant ja existente.",
+          "checklist": [
+            "V<timestamp>__create_catalog_tables.sql em src/main/resources/db/migration/: sport/league/market/tipster (id UUID PK, name varchar NOT NULL, UNIQUE(name) por tabela).",
+            "Nomenclatura de arquivo com timestamp real (nao V2__ sequencial) - mesmo padrao de auth-service."
+          ],
+          "validation": "Migration aplicada com sucesso num schema de tenant novo via teste de integracao existente (JdbcFlywayTenantSchemaGatewayIntegrationTest ou equivalente).",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-002.2",
+          "name": "Multi-tenancy do Hibernate + enforcement de X-Tenant-Id",
+          "status": "not-started",
+          "jira": "SV-72",
+          "detail": "Achado MAJOR do Plan Reviewer: primeira introducao de JPA/Hibernate multi-tenant neste servico (portar padrao de auth-service), e correcao do residual de feat-001 (TenantSchemaFilter precisa exigir X-Tenant-Id agora que existe escrita real de dados por tenant).",
+          "checklist": [
+            "Portar SchemaMultiTenantConnectionProvider/TenantIdentifierResolver/TenantHibernatePropertiesCustomizer de auth-service, reaproveitando TenantContextHolder/TenantContextScope ja existentes aqui.",
+            "Confirmar por javap contra o jar Hibernate 7.x instalado neste servico as chaves MultiTenancySettings.MULTI_TENANT_CONNECTION_PROVIDER/MULTI_TENANT_IDENTIFIER_RESOLVER antes de codificar (podem ter mudado de versao).",
+            "TenantSchemaFilter: responder 400 missing-tenant-id (chave de mensagem, i18n 3 locales) quando X-Tenant-Id ausente em rotas fora de /api/v1/admin/** - remove o chain.doFilter direto.",
+            "Remover o residual correspondente de docs/CONVENTIONS.md e progress.md deste servico no mesmo commit."
+          ],
+          "validation": "Teste de integracao: dois tenants diferentes nao vazam dado entre schemas (mesma entidade logica); chamada sem X-Tenant-Id em rota de negocio recebe 400.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-002.3",
+          "name": "Entidades JPA e persistencia (domain + adapter)",
+          "status": "not-started",
+          "jira": "SV-73",
+          "detail": "Achado MINOR do Plan Reviewer: CatalogJpaEntity (@MappedSuperclass) evita repetir Persistable<UUID>/isNew/@PostLoad 4 vezes identico.",
+          "checklist": [
+            "domain/model/{Sport,League,Market,Tipster} (id UUID, name String).",
+            "domain/port/out/{Sport,League,Market,Tipster}Repository (save, findAll paginado, existsByName).",
+            "adapter/out/persistence/CatalogJpaEntity (@MappedSuperclass, Persistable<UUID>, isNew/@PostLoad) + as 4 *JpaEntity (so @Entity/@Table(name=...) + campo name) + *SpringDataRepository + Jpa*Repository (adapter que converte domain <-> entity, mesmo padrao de JpaUserRepository de auth-service)."
+          ],
+          "validation": "Testes de integracao (Testcontainers) de persistencia basica das 4 entidades passam.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-002.4",
+          "name": "Endpoints REST (POST + GET paginado) dos 4 catalogos",
+          "status": "not-started",
+          "jira": "SV-74",
+          "detail": "Achado MAJOR do Plan Reviewer: sem isto a feature nao entrega forma de popular os catalogos (docs/DECISIONS-LOG.md item 8 - cada organizacao cadastra os proprios).",
+          "checklist": [
+            "Casos de uso Create<Catalog>UseCase/List<Catalog>sUseCase para os 4.",
+            "Controllers POST /api/v1/{sports,leagues,markets,tipsters} (Bean Validation @NotBlank name) e GET .../{...} paginado (envelope content/page/size/totalElements/totalPages de docs/API-CONTRACTS.md).",
+            "Erro 409 <catalog>-already-registered (nome duplicado no schema) - i18n 3 locales, RFC 7807.",
+            "Testes de integracao: criar, listar paginado, conflito de nome duplicado, isolamento entre tenants (catalogo criado no tenant A nao aparece na listagem do tenant B)."
+          ],
+          "validation": "Testes de integracao dos 4 endpoints x2 (POST/GET) + cenario de conflito passam.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-002.5",
+          "name": "CHANGELOG e verificacao final",
+          "status": "not-started",
+          "jira": "SV-75",
+          "detail": "Fecha a feature com o gate real do harness, nao so com os testes isolados de cada subtask.",
+          "checklist": [
+            "Entrada em CHANGELOG.md [Unreleased] (automatica, via tools/jira_story.py).",
+            "./init.sh (mvn verify) verde com Docker ativo (Testcontainers).",
+            "Delivery Reviewer, Test Suite Auditor e Persistence Auditor rodados antes de done.",
+            "CLAUDE.md deste servico (lista de rotas HTTP) e docs/services/bets-service.md atualizados com as novas rotas de catalogo.",
+            "Vault (docs/) revisado: alguma descoberta desta feature - mecanismo reaproveitavel, gotcha de lib/config, lacuna de especificacao, decisao que diverge do ja documentado - sem nota correspondente? Se sim, atualizar/criar a nota do assunto (nao docs/DECISIONS-LOG.md a menos que divirja do TCC 1) no mesmo commit."
+          ],
+          "validation": "./init.sh sai 0; feature_list.json (deste servico) e ../../feature_list.json (raiz, se fechar epic-003) atualizados com evidence.",
+          "owner": "agente"
+        }
+      ],
       "evidence": ""
     },
     {
