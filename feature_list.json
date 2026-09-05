@@ -321,7 +321,7 @@
         {
           "id": "feat-003.1",
           "name": "Migration Flyway de betting_house e transaction",
-          "status": "not-started",
+          "status": "done",
           "jira": "SV-77",
           "detail": "Primeiras tabelas do servico com FK entre si (transaction.betting_house_id -> betting_house.id) e CHECK constraint (mesmo padrao de auth-service, coluna role).",
           "checklist": [
