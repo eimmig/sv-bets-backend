@@ -443,7 +443,7 @@
         {
           "id": "feat-004.1",
           "name": "Migration Flyway da tabela bet",
-          "status": "not-started",
+          "status": "done",
           "jira": "SV-82",
           "detail": "Primeira tabela do servico com 4 FKs simultaneas (3 NOT NULL + 1 nullable) - achados MAJOR do Plan Reviewer corrigem nullability para bater com docs/contracts/bet-created.schema.json.",
           "checklist": [
