@@ -36,7 +36,11 @@ antes de `feat-001`.
   implemente exatamente os cálculos e validações descritos, não aproxime.
 - O endpoint `POST /api/v1/bets` é usado tanto pelo formulário web (`apps/web`) quanto pelo
   `services/telegram-integration` (via `api-gateway`) — não crie um endpoint separado para a
-  captura automática. Aceita header `Idempotency-Key` (ver `../../docs/API-CONTRACTS.md`). Todas
+  captura automática. Aceita header `Idempotency-Key` (ver `../../docs/API-CONTRACTS.md`).
+  `GET /api/v1/bets/{id}` (recurso único, sem paginação — histórico paginado é `feat-007`) e
+  `PATCH /api/v1/bets/{id}/status` (RF12, `feat-004` — só `pending -> won|lost|void` é transição
+  válida; não cria `BET_RESULT` nem calcula `profit`, isso é `feat-005`) completam o ciclo de
+  vida mínimo da aposta. Todas
   as rotas deste serviço (`/api/v1/betting-houses`, `/api/v1/bets`, `/api/v1/transactions`,
   `/api/v1/sports`, `/api/v1/leagues`, `/api/v1/markets`, `/api/v1/tipsters`) e seus query
   params são sempre em inglês — ver `../../docs/API-CONTRACTS.md`. Os 4 catálogos (`feat-002`)

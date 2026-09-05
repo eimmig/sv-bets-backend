@@ -1,0 +1,21 @@
+CREATE TABLE bet (
+    id UUID PRIMARY KEY,
+    betting_house_id UUID NOT NULL REFERENCES betting_house(id),
+    sport_id UUID NOT NULL REFERENCES sport(id),
+    league_id UUID NOT NULL REFERENCES league(id),
+    market_id UUID NOT NULL REFERENCES market(id),
+    tipster_id UUID NULL REFERENCES tipster(id),
+    created_by_user_id UUID NOT NULL,
+    ticket_number VARCHAR(255) NULL,
+    team1 VARCHAR(255) NULL,
+    team2 VARCHAR(255) NULL,
+    description VARCHAR(255) NULL,
+    bet_type VARCHAR(255) NULL,
+    play_type VARCHAR(255) NULL,
+    stake NUMERIC(19, 2) NOT NULL,
+    odd NUMERIC(19, 2) NOT NULL,
+    status VARCHAR(10) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'won', 'lost', 'void')),
+    bet_date TIMESTAMP NOT NULL,
+    idempotency_key VARCHAR(255) NULL,
+    CONSTRAINT uk_bet_idempotency_key UNIQUE (idempotency_key)
+);

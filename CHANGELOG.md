@@ -29,3 +29,9 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 - [SV-78](https://stakevault.atlassian.net/browse/SV-78) - Dominio, TransactionType, entidades JPA e persistencia
 - [SV-79](https://stakevault.atlassian.net/browse/SV-79) - Endpoints REST (POST + GET paginado) de betting-houses e transactions
 - [SV-80](https://stakevault.atlassian.net/browse/SV-80) - CHANGELOG e verificacao final
+- [SV-81](https://stakevault.atlassian.net/browse/SV-81) - RF04/RF12 - Registro e ciclo de vida da aposta
+- [SV-82](https://stakevault.atlassian.net/browse/SV-82) - Migration Flyway da tabela bet
+- [SV-83](https://stakevault.atlassian.net/browse/SV-83) - Dominio, BetStatus, entidades JPA e persistencia (+ existsById nos catalogos)
+- [SV-84](https://stakevault.atlassian.net/browse/SV-84) - Endpoint POST /api/v1/bets
+- [SV-85](https://stakevault.atlassian.net/browse/SV-85) - Endpoints GET /api/v1/bets/{id} e PATCH /api/v1/bets/{id}/status (RF12)
+- [SV-86](https://stakevault.atlassian.net/browse/SV-86) - CHANGELOG e verificacao final

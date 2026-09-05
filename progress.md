@@ -3,7 +3,7 @@
 ## Estado Atual (Current State)
 
 **Última atualização:** 2026-09-05
-**Feature ativa:** nenhuma (`feat-003` `done`, `feat-004` liberada)
+**Feature ativa:** nenhuma (`feat-004` `done`, `feat-005`/`feat-006` liberadas)
 
 ## Status
 
@@ -66,13 +66,29 @@
       - `AbstractJpaEntity` extraída (boilerplate `id`/`isNew`/`@PostLoad`, antes só em
         `CatalogJpaEntity`) — reaproveitável por `auth-service`/`stats-service`.
 
+- [x] **`feat-004` (RF04/RF12 — Registro e ciclo de vida da aposta) — `done` em 2026-09-05.**
+      Entidade `BET` (4 FKs: `bettingHouse`/`sport`/`league`/`market` obrigatórias, `tipster`
+      nullable — corrigido no `plan_review` contra `docs/contracts/bet-created.schema.json` já
+      existente), `POST /api/v1/bets` (X-User-Id obrigatório, RN07 odd/stake como regra de
+      domínio 422, `Idempotency-Key` opcional com replay 200/201), `GET /api/v1/bets/{id}` e
+      `PATCH /api/v1/bets/{id}/status` (RF12, só `pending -> won|lost|void` válido). Ver
+      `feature_list.json` (campo `evidence`) para o detalhe completo, incluindo:
+      - Primeira vez que o serviço faz `UPDATE` de uma linha já persistida (não só `INSERT`) —
+        padrão `Persistable`/`isNew` (carregar via `findById`, mutar por método da própria
+        entidade, salvar a mesma instância) documentado em `docs/CONVENTIONS.md` para
+        `auth-service`/`stats-service` reaproveitarem.
+      - Risco residual aceito (TOCTOU): `BetService.updateStatus` sem guarda atômica —
+        detalhe na seção "Bloqueios / Riscos" abaixo.
+
 ### Em andamento
 
 - Nenhuma feature iniciada.
 
 ### Próximos passos (Next Steps)
 
-1. `feat-004` (RF04/RF12 — Registro e ciclo de vida da aposta) é a próxima feature liberada.
+1. `feat-005` (RF06/RF07 — Processamento de resultado e bankroll consolidado) e `feat-006`
+   (Publicação do evento `BetCreated`) estão liberadas (dependem só de `feat-004`, `done`) — WIP
+   máximo 1 por serviço, escolher uma.
 
 ## Bloqueios / Riscos
 
@@ -92,6 +108,13 @@
 - Cache `migratedSchemas` (em `JdbcFlywayTenantSchemaGateway`) nunca expira — aceitável porque
   cresce por schema-de-tenant-visto-no-processo (cardinalidade = número de organizações
   clientes), não por entidade de alto volume.
+- **Residual aceito (TOCTOU, `feat-004`)**: `BetService.updateStatus` lê o status atual
+  (`findById`) e só depois escreve (`betRepository.updateStatus`), sem `WHERE status='pending'`
+  atômico nem `@Version` — duas chamadas `PATCH /api/v1/bets/{id}/status` concorrentes para a
+  mesma aposta `pending` poderiam ambas passar a validação e a segunda sobrescrever a primeira
+  (last-write-wins), sem nunca retornar `422`. Persistence Auditor confirmou sem consequência
+  hoje (não existe `BET_RESULT`/`profit` associado ainda) — revisitar em `feat-005`, quando essa
+  transição precisar ser exatamente-uma-vez para o cálculo de lucro/prejuízo ser confiável.
 
 ## Decisões tomadas
 
@@ -105,26 +128,30 @@
   (injetar `MessageSource`/`LocaleResolver` direto no filtro) já estava provado funcionando por
   `AdminApiKeyFilter` de `auth-service`.
 
-## Arquivos modificados nesta sessão
+## Arquivos modificados nesta sessão (`feat-004`)
 
-- Todo o esqueleto do serviço: `pom.xml`, `src/main/**`, `src/test/**`, `.env.example`,
-  `.github/workflows/ci.yml`, `.github/scripts/validate-sonar-issues.py`, `CHANGELOG.md`,
-  `feature_list.json`.
+- `src/main/resources/db/migration/V20260905224836__create_bet_table.sql`, domínio (`Bet`,
+  `BetStatus` + exceções), persistência (`BetJpaEntity`, `JpaBetRepository`,
+  `BetStatusAttributeConverter`, `existsById` nos 4 repositórios de catálogo), aplicação
+  (`BetService`), web (`BetsController`, DTOs), i18n (3 locales), testes de integração
+  (`JpaBetRepositoryIntegrationTest`, `BetsControllerIntegrationTest`), `CLAUDE.md`,
+  `feature_list.json`, `CHANGELOG.md`.
 
-## Evidência de conclusão
+## Evidência de conclusão (`feat-004`)
 
-- `./init.sh` (`mvn verify`, JaCoCo 80% incluso) verde localmente com Docker ativo — 34 testes,
-  0 falhas, 97%+ cobertura de linha real.
-- CI verde em todos os 9 PRs (8 de subtask + 1 de fechamento da story), incluindo o gate
-  completo (SonarCloud + GitGuardian) na PR `feature/SV-60` → `develop`.
-- Plan Reviewer, Delivery Reviewer, Test Suite Auditor e Persistence Auditor rodados — `PASS`
-  nos quatro (Plan Reviewer com 1 MAJOR corrigido no plano). Detalhe completo em
-  `feature_list.json` (campo `evidence` de `feat-001`).
+- `./init.sh` (`mvn verify`, JaCoCo 80% incluso) verde localmente com Docker ativo, em cada uma
+  das 5 subtasks.
+- CI verde em todas as 5 PRs de subtask (`subtask/SV-82..86` → `feature/SV-81`).
+- Plan Reviewer (3 MAJOR + 1 MINOR corrigidos no plano), Delivery Reviewer, Test Suite Auditor e
+  Persistence Auditor rodados — `PASS` nos três últimos, com 1 achado `CONCERNS` não bloqueante
+  (TOCTOU em `updateStatus`, ver "Bloqueios / Riscos"). Detalhe completo em `feature_list.json`
+  (campo `evidence` de `feat-004`).
 
 ## Notas para a próxima sessão
 
-`feat-002` (Catálogos base) é a próxima feature — `Plan Reviewer` antes de codificar, mesmo
-fluxo já validado ponta a ponta em `feat-001`. Primeira feature a introduzir JPA/Hibernate
-multi-tenancy — reaproveitar o mecanismo já documentado em `docs/CONVENTIONS.md`
-(`auth-service feat-002.5`), confirmando as chaves de configuração via `javap` contra o jar
-instalado antes de assumir de memória (podem ter mudado de versão).
+`feat-005` (RF06/RF07 — bankroll consolidado) e `feat-006` (evento `BetCreated`) estão
+liberadas — escolher uma (WIP máximo 1). `feat-005` reage à transição de status introduzida em
+`feat-004` (criação de `BET_RESULT`, cálculo de profit RN02/RN03, atualização imediata do saldo
+RN05) — ao planejá-la, decidir se o TOCTOU residual de `updateStatus` precisa de correção agora
+(guarda atômica `WHERE status='pending'` ou `@Version`) antes de acoplar lógica financeira a essa
+transição.
