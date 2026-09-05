@@ -304,13 +304,82 @@
       "id": "feat-003",
       "name": "RF03/RF13 - Casas de apostas e movimentacoes",
       "description": "Entidades BETTING_HOUSE e TRANSACTION. RN01 (consolidacao de saldo) e RN07 (stake nunca negativo) aplicaveis as movimentacoes de deposito/saque.",
+      "goal": "Cada tenant cadastra (POST) e lista (GET paginado) suas casas de apostas e movimentacoes (deposito/saque), com o saldo de cada casa (RN01: saldo inicial + depositos - saques; a parcela de liquidacao de aposta entra em feat-005) calculado e exposto na listagem.",
+      "scope": [
+        "Migration Flyway (schema-per-tenant) criando betting_house e transaction (id UUID, name/initial_balance/created_at; id/betting_house_id FK/type/amount/created_at), CHECK (type IN ('deposit','withdrawal')), UNIQUE(name) em betting_house",
+        "TransactionType (DEPOSIT/WITHDRAWAL) com AttributeConverter dedicado (mesmo padrao de auth-service Role - persistido lowercase pro CHECK, exposto no JSON como enum Java puro, mesmo padrao de CreateUserResponse.role)",
+        "Entidades JPA e repositorios (domain port/out + adapter), saldo por casa calculado em uma unica query agregada (SUM condicional, nao 2 queries separadas)",
+        "Endpoints POST/GET para betting-houses (GET inclui balance calculado) e transactions (valida bettingHouseId existente, amount > 0) - RFC 7807 + i18n 3 locales, 409 em nome duplicado de casa"
+      ],
       "dependencies": [
         "feat-002"
       ],
-      "status": "not-started",
-      "plan_review": "",
-      "jira": "",
-      "subtasks": [],
+      "status": "in-progress",
+      "plan_review": "2026-09-05, Plan Reviewer (review-suite:ln-11-plan-reviewer) rodado contra o plano antes de qualquer codigo. Veredito: READY WITH CONCERNS, 2 amendments aplicadas ao plano (nenhuma exigia decisao do usuario - ambas resolvidas por precedente real ja existente no repositorio, nao por preferencia). (1) Draft original propunha serializar TransactionType em JSON como valor minusculo (mesmo estilo de BET.status) - nao existe essa convencao geral para todo enum: auth-service ja expoe Role cru em CreateUserResponse (Jackson serializa pelo nome Java, 'ADMIN'/'MEMBER' maiusculo), sem AttributeConverter refletido no JSON. Corrigido: TransactionType exposto como enum Java puro no JSON (DEPOSIT/WITHDRAWAL), AttributeConverter (mirror exato de RoleAttributeConverter) so na fronteira JPA, gravando 'deposit'/'withdrawal' pro CHECK da migration (mesmo padrao de auth-service V20260903190901, coluna role). (2) Draft original calculava o saldo de uma casa com 2 queries de soma separadas (depositos, saques) - dobra o numero de queries por casa numa listagem paginada (ate 100 casas x 2 = 200 queries extras por pagina, no MAX_PAGE_SIZE). Corrigido: uma unica query agregada por casa com SUM(CASE WHEN type='deposit' THEN amount ELSE -amount END). Confirmado contra o repositorio real: 'transaction' nao e palavra reservada no PostgreSQL (Appendix C da doc oficial - 'non-reserved'), seguro como nome de tabela sem novo risco. Decisoes aceitas sem bloqueio, mesma classe de chamada ja validada em feat-002 (catalogos): (a) saque que deixaria o saldo da casa negativo NAO e bloqueado - so amount<=0 e rejeitado como 'inconsistente' (RN07 fala de stake/odd de BET, RN01 descreve saldo como total corrente, nao piso rigido); revisitar se o usuario quiser proteção contra saldo negativo. (b) sem PUT/DELETE de casa de apostas nesta feature (so POST+GET, mesmo escopo minimo de feat-002 catalogos, RF03 'gerenciamento' nao especifica update/delete em nenhum artefato do TCC1 disponivel). Sugestao MINOR nao bloqueante: extrair um AbstractJpaEntity (id+isNew+@PostLoad, sem name) reaproveitado por CatalogJpaEntity/BettingHouseJpaEntity/TransactionJpaEntity, já que o mesmo boilerplate passa a se repetir em 3 pontos - deixado a criterio da subtask de persistencia, nao obrigatorio. Rodada de desafio independente executada como passe proprio (simulacao de execucao + analise adversarial), sem subagentes - independencia reduzida, declarada.",
+      "jira": "SV-76",
+      "subtasks": [
+        {
+          "id": "feat-003.1",
+          "name": "Migration Flyway de betting_house e transaction",
+          "status": "not-started",
+          "jira": "SV-77",
+          "detail": "Primeiras tabelas do servico com FK entre si (transaction.betting_house_id -> betting_house.id) e CHECK constraint (mesmo padrao de auth-service, coluna role).",
+          "checklist": [
+            "V<timestamp>__create_betting_house_and_transaction_tables.sql: betting_house (id UUID PK, name varchar UNIQUE NOT NULL, initial_balance numeric NOT NULL, created_at timestamp NOT NULL); transaction (id UUID PK, betting_house_id UUID NOT NULL REFERENCES betting_house(id), type varchar(20) NOT NULL CHECK (type IN ('deposit','withdrawal')), amount numeric NOT NULL, created_at timestamp NOT NULL).",
+            "Nomenclatura de arquivo com timestamp real (nao sequencial), mesmo padrao de feat-001/feat-002."
+          ],
+          "validation": "Migration aplicada com sucesso num schema de tenant novo via teste de integracao existente.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-003.2",
+          "name": "Dominio, TransactionType, entidades JPA e persistencia",
+          "status": "not-started",
+          "jira": "SV-78",
+          "detail": "TransactionType com AttributeConverter mirror de RoleAttributeConverter (auth-service). Saldo por casa calculado em uma unica query agregada (achado do Plan Reviewer, evita dobrar queries por casa na listagem paginada).",
+          "checklist": [
+            "domain/model/{BettingHouse,Transaction} (records), TransactionType enum (DEPOSIT, WITHDRAWAL).",
+            "adapter/out/persistence/TransactionTypeAttributeConverter (@Converter(autoApply=true), convertToDatabaseColumn faz .name().toLowerCase(), convertToEntityAttribute faz TransactionType.valueOf(dbValue.toUpperCase()) - mirror exato de RoleAttributeConverter).",
+            "BettingHouseJpaEntity, TransactionJpaEntity (Persistable<UUID>, isNew/@PostLoad - opcionalmente via AbstractJpaEntity compartilhado com CatalogJpaEntity, sugestao MINOR do Plan Reviewer, nao obrigatorio) + Spring Data repositories + adapter Jpa*Repository.",
+            "Query de saldo: SUM(CASE WHEN type='deposit' THEN amount ELSE -amount END) agrupado por betting_house_id, uma unica query (nao 2 somas separadas).",
+            "Testes de integracao (Testcontainers): persistencia basica das 2 entidades, isolamento entre tenants, calculo de saldo com mix de depositos/saques."
+          ],
+          "validation": "Testes de integracao de persistencia e calculo de saldo passam.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-003.3",
+          "name": "Endpoints REST (POST + GET paginado) de betting-houses e transactions",
+          "status": "not-started",
+          "jira": "SV-79",
+          "detail": "GET /api/v1/betting-houses inclui o saldo calculado. POST /api/v1/transactions valida bettingHouseId existente (404 se nao existir) e amount > 0 (400 validation-failed, RN07 'bloquear movimentacoes inconsistentes').",
+          "checklist": [
+            "Casos de uso Create/ListBettingHouseUseCase, Create/ListTransactionUseCase.",
+            "Controllers POST/GET /api/v1/betting-houses (name @NotBlank, initialBalance >= 0; GET response inclui balance) e POST/GET /api/v1/transactions (bettingHouseId, type, amount @Positive; GET paginado, filtro opcional por bettingHouseId).",
+            "Page/size clampados com Math.clamp desde o inicio (achado real de feat-002.5, ja documentado em docs/API-CONTRACTS.md).",
+            "Erros: 409 betting-house-already-registered (nome duplicado), 404 betting-house-not-found (transaction para casa inexistente), 400 validation-failed - i18n 3 locales, RFC 7807.",
+            "Testes de integracao: criar casa, listar com saldo correto, conflito de nome, criar transacao valida/invalida (casa inexistente, amount<=0), isolamento entre tenants, paginacao (incluindo clamp)."
+          ],
+          "validation": "Testes de integracao dos 2 recursos x2 (POST/GET) + cenarios de erro passam.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-003.4",
+          "name": "CHANGELOG e verificacao final",
+          "status": "not-started",
+          "jira": "SV-80",
+          "detail": "Fecha a feature com o gate real do harness, nao so com os testes isolados de cada subtask.",
+          "checklist": [
+            "Entrada em CHANGELOG.md [Unreleased] (automatica, via tools/jira_story.py).",
+            "./init.sh (mvn verify) verde com Docker ativo (Testcontainers).",
+            "Delivery Reviewer, Test Suite Auditor e Persistence Auditor rodados antes de done.",
+            "CLAUDE.md deste servico (lista de rotas HTTP, se necessario) e docs/services/bets-service.md atualizados com as novas rotas/saldo.",
+            "Vault (docs/) revisado: alguma descoberta desta feature - mecanismo reaproveitavel, gotcha de lib/config, lacuna de especificacao, decisao que diverge do ja documentado - sem nota correspondente? Se sim, atualizar/criar a nota do assunto (nao docs/DECISIONS-LOG.md a menos que divirja do TCC 1) no mesmo commit."
+          ],
+          "validation": "./init.sh sai 0; feature_list.json (deste servico) atualizado com evidence.",
+          "owner": "agente"
+        }
+      ],
       "evidence": ""
     },
     {
