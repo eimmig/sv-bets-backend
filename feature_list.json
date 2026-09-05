@@ -224,7 +224,7 @@
         {
           "id": "feat-002.3",
           "name": "Entidades JPA e persistencia (domain + adapter)",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-73",
           "detail": "Achado MINOR do Plan Reviewer: CatalogJpaEntity (@MappedSuperclass) evita repetir Persistable<UUID>/isNew/@PostLoad 4 vezes identico.",
           "checklist": [
@@ -238,7 +238,7 @@
         {
           "id": "feat-002.4",
           "name": "Endpoints REST (POST + GET paginado) dos 4 catalogos",
-          "status": "not-started",
+          "status": "in-progress",
           "jira": "SV-74",
           "detail": "Achado MAJOR do Plan Reviewer: sem isto a feature nao entrega forma de popular os catalogos (docs/DECISIONS-LOG.md item 8 - cada organizacao cadastra os proprios).",
           "checklist": [
