@@ -87,8 +87,4 @@ public class BetJpaEntity extends AbstractJpaEntity {
 		this.betDate = bet.betDate();
 		this.idempotencyKey = bet.idempotencyKey();
 	}
-
-	void updateStatus(BetStatus status) {
-		this.status = status;
-	}
 }
