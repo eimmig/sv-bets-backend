@@ -457,7 +457,7 @@
         {
           "id": "feat-004.2",
           "name": "Dominio, BetStatus, entidades JPA e persistencia (+ existsById nos catalogos)",
-          "status": "not-started",
+          "status": "in-progress",
           "jira": "SV-83",
           "detail": "Achado MAJOR do Plan Reviewer: Sport/League/Market/TipsterRepository ainda nao tem existsById(UUID) (so BettingHouseRepository tem, feat-003) - necessario para o POST validar as FKs por id.",
           "checklist": [
