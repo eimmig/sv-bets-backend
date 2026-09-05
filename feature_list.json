@@ -126,7 +126,7 @@
         {
           "id": "feat-001.9",
           "name": "CHANGELOG e verificacao final",
-          "status": "not-started",
+          "status": "done",
           "jira": "SV-69",
           "detail": "Fecha a feature com o gate real do harness, nao so com os testes isolados de cada subtask.",
           "checklist": [
@@ -139,7 +139,41 @@
           "owner": "agente"
         }
       ],
-      "evidence": ""
+      "evidence": {
+        "resumo": "Entregue em 2026-09-04 (branch feature/SV-60, story SV-60 com 9 subtasks SV-61..69, 8 PRs de subtask - uma por subtask, sem bundling). Primeiro código de aplicação de bets-service: bootstrap Spring Boot 4.1.1/Java 25/Maven hexagonal, conexão Postgres dev/test/prod, provisionamento de schema de tenant (Flyway lazy) + filtro X-Tenant-Id + rota admin POST /api/v1/admin/tenants (X-Admin-Api-Key, cria só o schema - sem usuário/senha, diferente de auth-service, bundlada nesta mesma feature por decisão do Plan Reviewer), gate JaCoCo 80% (real 97%+), i18n completo (MessageSource, 3 locales, LocalizedDomainException, retrofit dos 2 erros do filtro para localizados de verdade - indo além do residual permanente aceito em auth-service), health checks do Actuator, .env.example + logging JSON estruturado, pipeline de CI já endurecido desde a primeira subtask (portado do padrão validado em auth-service, antes do bootstrap do pom.xml - evita o ciclo de descoberta reativa que auth-service passou).",
+        "secoes": [
+          {
+            "titulo": "Verificação real executada",
+            "itens": [
+              "./init.sh (mvn verify, JaCoCo 80% incluso) verde localmente com Docker ativo - 34 testes, 0 falhas, 97%+ cobertura de linha real.",
+              "CI verde em todos os 8 PRs de subtask (subtask/SV-61..68 -> feature/SV-60), confirmado com gh pr checks a cada push - guarda por arquivo-marcador nunca quebrou por sequenciamento (diferente de auth-service, que descobriu isso reativamente), porque o ci.yml já nasceu correto na primeira subtask.",
+              "Gate de cobertura confirmado de verdade, não só por estar alto: elevado temporariamente para 0.99 para observar falha real ('lines covered ratio is 0.97, but expected minimum is 0.99'), revertido para 0.80."
+            ]
+          },
+          {
+            "titulo": "Divergência do plano original",
+            "itens": [
+              "Nenhuma nas 9 subtasks planejadas - todas implementadas como descrito no plan_review. Única mudança foi de escopo interno: retrofit de i18n real nos 2 erros de TenantSchemaFilter/AdminApiKeyFilter (feat-001.6) foi além do que o checklist original pedia (só as chaves de feat-001.4), decisão tomada durante a implementação para não deixar um residual permanente como o de auth-service."
+            ]
+          },
+          {
+            "titulo": "Defeitos encontrados antes de causar dano",
+            "itens": [
+              "Plan Reviewer (antes do código): REVISE, 1 MAJOR corrigido no plano - detalhe completo no campo plan_review desta feature.",
+              "/code-review rodado antes de cada uma das 8 PRs de subtask - achados reais corrigidos em 3 das 8 rodadas: (feat-001.4) MDC 'tenantId' vazava em qualquer exceção diferente de TenantSchemaNotFoundException (sem try/finally cobrindo tudo) - corrigido; AdminApiKeyFilter e TenantSchemaFilter duplicavam construção de corpo RFC 7807 - extraído FilterProblemWriter; InvalidAdminApiKeyException morta (nunca lançada) - removida (depois reintroduzida de verdade em feat-001.6). (feat-001.6) só 1 dos 5 caminhos de erro localizados tinha prova ponta a ponta via MessageSource real - adicionado teste para o caminho de filtro (AdminApiKeyFilter, mecanismo diferente do @RestControllerAdvice); TenantSchemaFilter duplicava a montagem de chave/type-slug em vez de reusar LocalizedDomainException - corrigido com uma implementação não-exception dedicada.",
+              "Achado real na revisão final (feat-001.9, não pego pelo /code-review de feat-001.6): FilterProblemWriter (extraído em feat-001.4) nunca chamava response.setCharacterEncoding('UTF-8') - exatamente o gotcha já documentado em docs/CONVENTIONS.md (auth-service feat-003), quase regredido ao extrair o helper compartilhado. Só ficou latente porque TenantSchemaFilterTest mocka MessageSource (não prova encoding real) e o cliente HTTP de teste (java.net.http.HttpClient) é permissivo (assume UTF-8 quando o charset não é declarado) - um cliente mais estrito teria corrompido texto acentuado. Confirmado via teste que falha sem a correção (reproduzido: 'Expecting application/problem+json to contain charset=UTF-8') e passa com ela. docs/CONVENTIONS.md atualizado com o quase-regressão para a extração de helper futuro não repetir.",
+              "Delivery Reviewer, Test Suite Auditor e Persistence Auditor: PASS nos três - confirmaram os 9 subtasks batendo com o plan_review, nenhuma regressão (repositório começou vazio), e os 2 riscos residuais aceitos (TOCTOU do admin route, TenantSchemaFilter sem enforcement de X-Tenant-Id) corretamente analisados sem terceiro problema oculto."
+            ]
+          },
+          {
+            "titulo": "Skills e ferramentas",
+            "itens": [
+              "Plan Reviewer (1 MAJOR corrigido), /code-review (8 rodadas, achados reais em 3), Delivery Reviewer, Test Suite Auditor e Persistence Auditor (PASS nos três) rodados antes de done.",
+              "docs/CI-CD.md (ci.yml de sv-bets-backend agora é o template a portar para sv-api-gateway/sv-stats-backend, não mais sv-auth-backend), docs/CONVENTIONS.md (quase-regressão do encoding UTF-8 em filtro documentada) e docs/services/bets-service.md + docs/API-CONTRACTS.md (contrato da rota admin) atualizados no mesmo commit/sessão."
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "feat-002",

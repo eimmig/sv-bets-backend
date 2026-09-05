@@ -59,7 +59,7 @@ class TenantSchemaFilterTest {
 		filter.doFilter(request, response, chain);
 
 		assertThat(response.getStatus()).isEqualTo(400);
-		assertThat(response.getContentType()).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
+		assertThat(response.getContentType()).startsWith(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
 		assertThat(response.getContentAsString()).contains("\"type\":\"https://docs/errors/invalid-tenant-id\"");
 		verifyNoInteractions(provisionTenantSchema);
 	}
@@ -81,7 +81,7 @@ class TenantSchemaFilterTest {
 		filter.doFilter(request, response, chain);
 
 		assertThat(response.getStatus()).isEqualTo(404);
-		assertThat(response.getContentType()).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
+		assertThat(response.getContentType()).startsWith(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
 		assertThat(response.getContentAsString()).contains("\"type\":\"https://docs/errors/tenant-not-found\"");
 	}
 
