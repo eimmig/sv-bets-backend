@@ -504,7 +504,7 @@
         {
           "id": "feat-004.5",
           "name": "CHANGELOG e verificacao final",
-          "status": "not-started",
+          "status": "in-progress",
           "jira": "SV-86",
           "detail": "Fecha a feature com o gate real do harness, nao so com os testes isolados de cada subtask.",
           "checklist": [
