@@ -1,5 +1,7 @@
 package com.stakevault.betting.bets.adapter.out.persistence;
 
+import java.util.UUID;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
@@ -26,6 +28,11 @@ public class JpaSportRepository implements SportRepository {
 	@Override
 	public boolean existsByName(String name) {
 		return jpaRepository.existsByName(name);
+	}
+
+	@Override
+	public boolean existsById(UUID id) {
+		return jpaRepository.existsById(id);
 	}
 
 	@Override
