@@ -18,3 +18,9 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 - [SV-67](https://stakevault.atlassian.net/browse/SV-67) - Health checks do Actuator
 - [SV-68](https://stakevault.atlassian.net/browse/SV-68) - .env.example e logging estruturado
 - [SV-69](https://stakevault.atlassian.net/browse/SV-69) - CHANGELOG e verificacao final
+- [SV-70](https://stakevault.atlassian.net/browse/SV-70) - Catalogos base
+- [SV-71](https://stakevault.atlassian.net/browse/SV-71) - Migration Flyway dos 4 catalogos
+- [SV-72](https://stakevault.atlassian.net/browse/SV-72) - Multi-tenancy do Hibernate + enforcement de X-Tenant-Id
+- [SV-73](https://stakevault.atlassian.net/browse/SV-73) - Entidades JPA e persistencia (domain + adapter)
+- [SV-74](https://stakevault.atlassian.net/browse/SV-74) - Endpoints REST (POST + GET paginado) dos 4 catalogos
+- [SV-75](https://stakevault.atlassian.net/browse/SV-75) - CHANGELOG e verificacao final

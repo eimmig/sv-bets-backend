@@ -30,6 +30,16 @@ class JdbcFlywayTenantSchemaGatewayIntegrationTest extends TenantSchemaIntegrati
 	}
 
 	@Test
+	void ensureSchemaExistsShouldCreateCatalogTables() {
+		for (String table : new String[] { "sport", "league", "market", "tipster" }) {
+			Integer count = jdbcTemplate.queryForObject(
+					"SELECT count(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?",
+					Integer.class, schema.value(), table);
+			assertThat(count).as("table %s in schema %s", table, schema.value()).isEqualTo(1);
+		}
+	}
+
+	@Test
 	void ensureSchemaExistsShouldBeIdempotent() {
 		provisionTenantSchema.ensureSchemaExists(tenantSlug);
 

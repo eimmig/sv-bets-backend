@@ -58,10 +58,10 @@
   corrida. Aceito por ser endpoint de baixo volume, uso manual do operador — Persistence
   Auditor confirmou sem risco de corrupção (Flyway usa lock consultivo próprio sobre
   `flyway_schema_history`).
-- **Residual aceito**: `TenantSchemaFilter` passa direto (`chain.doFilter`) quando
-  `X-Tenant-Id` está ausente, sem enforcement — nenhuma rota de negócio desta feature exige o
-  header ainda. Revisitar quando `feat-004`/RF04 (registro de aposta) existir e realmente
-  precisar do header.
+- ~~Residual aceito: `TenantSchemaFilter` passa direto quando `X-Tenant-Id` está ausente~~ —
+  **corrigido em `feat-002.2`**: os endpoints de catálogo são a primeira escrita real via
+  Hibernate multi-tenant do serviço, então o filtro agora responde `400 missing-tenant-id` em
+  qualquer rota de negócio (fora de `/api/v1/admin/**` e `/actuator/**`) sem esperar `feat-004`.
 - Cache `migratedSchemas` (em `JdbcFlywayTenantSchemaGateway`) nunca expira — aceitável porque
   cresce por schema-de-tenant-visto-no-processo (cardinalidade = número de organizações
   clientes), não por entidade de alto volume.
