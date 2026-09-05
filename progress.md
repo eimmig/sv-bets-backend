@@ -3,7 +3,7 @@
 ## Estado Atual (Current State)
 
 **Última atualização:** 2026-09-05
-**Feature ativa:** nenhuma (`feat-002` `done`, `feat-003` liberada)
+**Feature ativa:** nenhuma (`feat-003` `done`, `feat-004` liberada)
 
 ## Status
 
@@ -52,16 +52,27 @@
         `feat-002.5`, o fluxo correto (push + PR + CI verde + merge `--no-ff`) foi seguido, e
         `feature/SV-70` foi empurrada retroativamente antes do merge de SV-75.
 
+- [x] **`feat-003` (RF03/RF13 — Casas de apostas e movimentações) — `done` em 2026-09-05.**
+      `BETTING_HOUSE`/`TRANSACTION`, POST + GET paginado, saldo por casa calculado (RN01, parcela
+      pré-liquidação) numa única query agregada por página. Ver `feature_list.json` (campo
+      `evidence`) para o detalhe completo, incluindo:
+      - Desvio real do plano: `TransactionType` no JSON acabou minúsculo (`@JsonProperty` por
+        constante), não maiúsculo como o plano original copiou de `auth-service Role` — o
+        precedente de `Role` nunca foi uma convenção deliberada, só o default do Jackson.
+        Documentado em `docs/CONVENTIONS.md` para não repetir o erro em `BET.status`.
+      - Gotcha real de teste: `BigDecimal.equals()` distingue escala — comparação direta de
+        `record` com valor recém-persistido em coluna `NUMERIC(19,2)` falha mesmo com o dado
+        correto. Documentado em `docs/TESTING.md`.
+      - `AbstractJpaEntity` extraída (boilerplate `id`/`isNew`/`@PostLoad`, antes só em
+        `CatalogJpaEntity`) — reaproveitável por `auth-service`/`stats-service`.
+
 ### Em andamento
 
 - Nenhuma feature iniciada.
 
 ### Próximos passos (Next Steps)
 
-1. `feat-003` (RF03/RF13 — Casas de apostas e movimentações) é a próxima feature liberada.
-2. `feature/SV-70` ainda precisa do merge final `develop` (gate completo: SonarCloud, evidence
-   como comentário na story via `--sync-status`) antes de `feat-003` poder assumir `develop`
-   como base limpa — ver seção "Bloqueios" abaixo.
+1. `feat-004` (RF04/RF12 — Registro e ciclo de vida da aposta) é a próxima feature liberada.
 
 ## Bloqueios / Riscos
 
