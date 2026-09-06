@@ -1,5 +1,9 @@
 package com.stakevault.betting.bets.adapter.out.persistence;
 
+import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -25,6 +29,18 @@ public class JpaBetResultRepository implements BetResultRepository {
 	@Override
 	public Optional<BetResult> findByBetId(UUID betId) {
 		return jpaRepository.findByBetId(betId).map(JpaBetResultRepository::toDomain);
+	}
+
+	@Override
+	public Map<UUID, BigDecimal> sumProfitByBettingHouseIds(Collection<UUID> bettingHouseIds) {
+		if (bettingHouseIds.isEmpty()) {
+			return Map.of();
+		}
+		Map<UUID, BigDecimal> profitById = new HashMap<>();
+		for (Object[] row : jpaRepository.sumProfitByBettingHouseIds(bettingHouseIds)) {
+			profitById.put((UUID) row[0], (BigDecimal) row[1]);
+		}
+		return profitById;
 	}
 
 	private static BetResult toDomain(BetResultJpaEntity entity) {
