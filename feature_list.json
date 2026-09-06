@@ -666,7 +666,8 @@
             "titulo": "Defeitos encontrados antes de causar dano",
             "itens": [
               "Plan Reviewer (antes do codigo): READY WITH CONCERNS, 1 MAJOR corrigido no plano (TOCTOU de feat-004 vira bug financeiro real nesta feature) - detalhe completo no campo plan_review.",
-              "Nenhum achado novo do Delivery/Test Suite/Persistence Auditor alem do que o plan_review ja havia previsto - a guarda atomica (@Modifying, linhas afetadas) e a defesa em profundidade (UNIQUE(bet_id) em BET_RESULT) confirmadas corretas pelo teste de concorrencia real, nao so por inspecao estatica."
+              "Nenhum achado novo do Delivery/Test Suite/Persistence Auditor alem do que o plan_review ja havia previsto - a guarda atomica (@Modifying, linhas afetadas) e a defesa em profundidade (UNIQUE(bet_id) em BET_RESULT) confirmadas corretas pelo teste de concorrencia real, nao so por inspecao estatica.",
+              "3 rodadas de correcao no gate feature->develop (SonarCloud), so java:S5778/S6068 - mesmo achado ja documentado em docs/CI-CD.md/docs/TESTING.md desde feat-004 reincidiu 3x antes de 'grudar': nao e so UUID.randomUUID()/BigDecimal.valueOf() dentro do lambda de assertThatThrownBy que conta como invocacao que pode lancar - um getter de record usado como argumento (bet.id()) tambem conta, mesmo com bet ja sendo variavel local. Nota do vault reforcada com esse detalhe especifico apos a 3a reincidencia."
             ]
           },
           {
