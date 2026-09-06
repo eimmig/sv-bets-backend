@@ -38,9 +38,10 @@ antes de `feat-001`.
   `services/telegram-integration` (via `api-gateway`) — não crie um endpoint separado para a
   captura automática. Aceita header `Idempotency-Key` (ver `../../docs/API-CONTRACTS.md`).
   `GET /api/v1/bets/{id}` (recurso único, sem paginação — histórico paginado é `feat-007`) e
-  `PATCH /api/v1/bets/{id}/status` (RF12, `feat-004` — só `pending -> won|lost|void` é transição
-  válida; não cria `BET_RESULT` nem calcula `profit`, isso é `feat-005`) completam o ciclo de
-  vida mínimo da aposta. Todas
+  `PATCH /api/v1/bets/{id}/status` (RF12 — só `pending -> won|lost|void` é transição válida,
+  transição atômica condicional, não `findById`+`save`; exige `X-User-Id` desde `feat-005`, vira
+  `BET_RESULT.settledByUserId`, calcula `profit` RN02/RN03 e reflete no `balance` de
+  `GET /api/v1/betting-houses` na mesma transação) completam o ciclo de vida mínimo da aposta. Todas
   as rotas deste serviço (`/api/v1/betting-houses`, `/api/v1/bets`, `/api/v1/transactions`,
   `/api/v1/sports`, `/api/v1/leagues`, `/api/v1/markets`, `/api/v1/tipsters`) e seus query
   params são sempre em inglês — ver `../../docs/API-CONTRACTS.md`. Os 4 catálogos (`feat-002`)

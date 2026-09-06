@@ -35,3 +35,9 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 - [SV-84](https://stakevault.atlassian.net/browse/SV-84) - Endpoint POST /api/v1/bets
 - [SV-85](https://stakevault.atlassian.net/browse/SV-85) - Endpoints GET /api/v1/bets/{id} e PATCH /api/v1/bets/{id}/status (RF12)
 - [SV-86](https://stakevault.atlassian.net/browse/SV-86) - CHANGELOG e verificacao final
+- [SV-87](https://stakevault.atlassian.net/browse/SV-87) - RF06/RF07 - Processamento de resultado e bankroll consolidado
+- [SV-88](https://stakevault.atlassian.net/browse/SV-88) - Migration Flyway da tabela bet_result
+- [SV-89](https://stakevault.atlassian.net/browse/SV-89) - Dominio BetResult e persistencia
+- [SV-90](https://stakevault.atlassian.net/browse/SV-90) - Liquidacao atomica: transicao condicional + BET_RESULT + X-User-Id no PATCH
+- [SV-91](https://stakevault.atlassian.net/browse/SV-91) - Balance de betting-houses passa a incluir profit de apostas liquidadas (RN01/RN05)
+- [SV-92](https://stakevault.atlassian.net/browse/SV-92) - CHANGELOG e verificacao final

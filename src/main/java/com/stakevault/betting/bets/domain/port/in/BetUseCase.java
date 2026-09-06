@@ -11,5 +11,5 @@ public interface BetUseCase {
 
 	Bet findById(UUID id);
 
-	Bet updateStatus(UUID id, BetStatus newStatus);
+	Bet updateStatus(UUID id, BetStatus newStatus, UUID settledByUserId);
 }

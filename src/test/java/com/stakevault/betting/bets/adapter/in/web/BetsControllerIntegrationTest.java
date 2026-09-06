@@ -91,13 +91,19 @@ class BetsControllerIntegrationTest extends TenantSchemaIntegrationSupport {
 	}
 
 	private HttpResponse<String> patchStatus(String id, String status) throws Exception {
-		HttpRequest request = HttpRequest
+		return patchStatus(id, status, UUID.randomUUID().toString());
+	}
+
+	private HttpResponse<String> patchStatus(String id, String status, String callerId) throws Exception {
+		HttpRequest.Builder builder = HttpRequest
 				.newBuilder(URI.create("http://localhost:" + port + "/api/v1/bets/" + id + "/status"))
 				.header("Content-Type", "application/json")
 				.header("X-Tenant-Id", tenantSlug)
-				.method("PATCH", HttpRequest.BodyPublishers.ofString("{\"status\":\"" + status + "\"}"))
-				.build();
-		return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+				.method("PATCH", HttpRequest.BodyPublishers.ofString("{\"status\":\"" + status + "\"}"));
+		if (callerId != null) {
+			builder.header("X-User-Id", callerId);
+		}
+		return httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
 	}
 
 	private String createBetId() throws Exception {
@@ -296,5 +302,33 @@ class BetsControllerIntegrationTest extends TenantSchemaIntegrationSupport {
 
 		assertThat(response.statusCode()).isEqualTo(422);
 		assertThat(response.body()).contains("\"type\":\"https://docs/errors/invalid-status-transition\"");
+	}
+
+	@Test
+	void shouldReturn401WhenSettlingWithoutCallerHeader() throws Exception {
+		String betId = createBetId();
+
+		HttpResponse<String> response = patchStatus(betId, "won", null);
+
+		assertThat(response.statusCode()).isEqualTo(401);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/missing-caller-context\"");
+	}
+
+	@Test
+	void shouldAllowOnlyOneOfTwoConcurrentSettlementsForTheSameBet() throws Exception {
+		String betId = createBetId();
+		var executor = java.util.concurrent.Executors.newFixedThreadPool(2);
+		try {
+			var callable = (java.util.concurrent.Callable<Integer>) () -> patchStatus(betId, "won").statusCode();
+			var future1 = executor.submit(callable);
+			var future2 = executor.submit(callable);
+
+			int status1 = future1.get();
+			int status2 = future2.get();
+
+			assertThat(java.util.List.of(status1, status2)).containsExactlyInAnyOrder(200, 422);
+		} finally {
+			executor.shutdown();
+		}
 	}
 }

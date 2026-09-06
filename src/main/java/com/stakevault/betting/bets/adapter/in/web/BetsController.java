@@ -56,8 +56,11 @@ public class BetsController {
 	}
 
 	@PatchMapping("/{id}/status")
-	public BetResponse updateStatus(@PathVariable UUID id, @Valid @RequestBody UpdateBetStatusRequest request) {
-		return BetResponse.from(bets.updateStatus(id, request.status()));
+	public BetResponse updateStatus(@PathVariable UUID id,
+			@RequestHeader(value = CALLER_HEADER, required = false) String callerIdHeader,
+			@Valid @RequestBody UpdateBetStatusRequest request) {
+		UUID callerId = parseCallerId(callerIdHeader);
+		return BetResponse.from(bets.updateStatus(id, request.status(), callerId));
 	}
 
 	private UUID parseCallerId(String callerIdHeader) {

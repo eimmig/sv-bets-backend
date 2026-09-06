@@ -153,4 +153,69 @@ class BettingHousesControllerIntegrationTest extends TenantSchemaIntegrationSupp
 		int start = responseBody.indexOf("\"id\":\"") + 6;
 		return responseBody.substring(start, responseBody.indexOf('"', start));
 	}
+
+	private String newCatalogId(String path, String name) throws Exception {
+		HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+				.header("Content-Type", "application/json")
+				.header("X-Tenant-Id", tenantSlug)
+				.POST(HttpRequest.BodyPublishers.ofString("{\"name\":\"" + name + "\"}"))
+				.build();
+		return extractId(httpClient.send(request, HttpResponse.BodyHandlers.ofString()).body());
+	}
+
+	private String newBet(String bettingHouseId, String stake, String odd) throws Exception {
+		String sportId = newCatalogId("/api/v1/sports", "Sport-" + UUID.randomUUID());
+		String leagueId = newCatalogId("/api/v1/leagues", "League-" + UUID.randomUUID());
+		String marketId = newCatalogId("/api/v1/markets", "Market-" + UUID.randomUUID());
+		String body = "{\"bettingHouseId\":\"" + bettingHouseId + "\",\"sportId\":\"" + sportId + "\",\"leagueId\":\""
+				+ leagueId + "\",\"marketId\":\"" + marketId + "\",\"stake\":" + stake + ",\"odd\":" + odd
+				+ ",\"betDate\":\"2026-09-05T12:00:00Z\"}";
+		HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/bets"))
+				.header("Content-Type", "application/json")
+				.header("X-Tenant-Id", tenantSlug)
+				.header("X-User-Id", UUID.randomUUID().toString())
+				.POST(HttpRequest.BodyPublishers.ofString(body))
+				.build();
+		return extractId(httpClient.send(request, HttpResponse.BodyHandlers.ofString()).body());
+	}
+
+	private void settleBet(String betId, String status) throws Exception {
+		HttpRequest request = HttpRequest
+				.newBuilder(URI.create("http://localhost:" + port + "/api/v1/bets/" + betId + "/status"))
+				.header("Content-Type", "application/json")
+				.header("X-Tenant-Id", tenantSlug)
+				.header("X-User-Id", UUID.randomUUID().toString())
+				.method("PATCH", HttpRequest.BodyPublishers.ofString("{\"status\":\"" + status + "\"}"))
+				.build();
+		httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+	}
+
+	@Test
+	void shouldReflectSettledBetProfitInComputedBalance() throws Exception {
+		HttpResponse<String> createResponse = post("{\"name\":\"Betway\",\"initialBalance\":100}", tenantSlug);
+		String bettingHouseId = extractId(createResponse.body());
+
+		String wonBetId = newBet(bettingHouseId, "100", "2.5");
+		settleBet(wonBetId, "won");
+		String lostBetId = newBet(bettingHouseId, "50", "3");
+		settleBet(lostBetId, "lost");
+		String voidBetId = newBet(bettingHouseId, "20", "1.5");
+		settleBet(voidBetId, "void");
+
+		// balance = 100 (initial) + 150 (won: 100*2.5-100) - 50 (lost) + 0 (void) = 200
+		HttpResponse<String> listResponse = get("?page=0&size=20", tenantSlug);
+
+		assertThat(listResponse.statusCode()).isEqualTo(200);
+		assertThat(listResponse.body()).contains("\"name\":\"Betway\"").contains("\"balance\":200");
+	}
+
+	@Test
+	void shouldNotFailWhenBettingHouseHasNoSettledBets() throws Exception {
+		post("{\"name\":\"Novibet\",\"initialBalance\":10}", tenantSlug);
+
+		HttpResponse<String> listResponse = get("?page=0&size=20", tenantSlug);
+
+		assertThat(listResponse.statusCode()).isEqualTo(200);
+		assertThat(listResponse.body()).contains("\"balance\":10");
+	}
 }

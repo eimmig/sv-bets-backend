@@ -6,9 +6,11 @@ import java.util.UUID;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.stakevault.betting.bets.domain.model.Bet;
 import com.stakevault.betting.bets.domain.model.BetNotFoundException;
+import com.stakevault.betting.bets.domain.model.BetResult;
 import com.stakevault.betting.bets.domain.model.BetStatus;
 import com.stakevault.betting.bets.domain.model.BettingHouseNotFoundException;
 import com.stakevault.betting.bets.domain.model.InvalidOddException;
@@ -22,6 +24,7 @@ import com.stakevault.betting.bets.domain.port.in.BetCreationResult;
 import com.stakevault.betting.bets.domain.port.in.BetUseCase;
 import com.stakevault.betting.bets.domain.port.in.CreateBetCommand;
 import com.stakevault.betting.bets.domain.port.out.BetRepository;
+import com.stakevault.betting.bets.domain.port.out.BetResultRepository;
 import com.stakevault.betting.bets.domain.port.out.BettingHouseRepository;
 import com.stakevault.betting.bets.domain.port.out.LeagueRepository;
 import com.stakevault.betting.bets.domain.port.out.MarketRepository;
@@ -32,16 +35,18 @@ import com.stakevault.betting.bets.domain.port.out.TipsterRepository;
 public class BetService implements BetUseCase {
 
 	private final BetRepository betRepository;
+	private final BetResultRepository betResultRepository;
 	private final BettingHouseRepository bettingHouseRepository;
 	private final SportRepository sportRepository;
 	private final LeagueRepository leagueRepository;
 	private final MarketRepository marketRepository;
 	private final TipsterRepository tipsterRepository;
 
-	public BetService(BetRepository betRepository, BettingHouseRepository bettingHouseRepository,
-			SportRepository sportRepository, LeagueRepository leagueRepository, MarketRepository marketRepository,
-			TipsterRepository tipsterRepository) {
+	public BetService(BetRepository betRepository, BetResultRepository betResultRepository,
+			BettingHouseRepository bettingHouseRepository, SportRepository sportRepository,
+			LeagueRepository leagueRepository, MarketRepository marketRepository, TipsterRepository tipsterRepository) {
 		this.betRepository = betRepository;
+		this.betResultRepository = betResultRepository;
 		this.bettingHouseRepository = bettingHouseRepository;
 		this.sportRepository = sportRepository;
 		this.leagueRepository = leagueRepository;
@@ -83,12 +88,26 @@ public class BetService implements BetUseCase {
 	}
 
 	@Override
-	public Bet updateStatus(UUID id, BetStatus newStatus) {
-		Bet current = findById(id);
-		if (current.status() != BetStatus.PENDING || newStatus == BetStatus.PENDING) {
+	@Transactional
+	public Bet updateStatus(UUID id, BetStatus newStatus, UUID settledByUserId) {
+		if (newStatus == BetStatus.PENDING || !betRepository.transitionStatus(id, BetStatus.PENDING, newStatus)) {
+			Bet current = findById(id);
 			throw new InvalidStatusTransitionException(current.status(), newStatus);
 		}
-		return betRepository.updateStatus(id, newStatus);
+
+		Bet settled = findById(id);
+		BigDecimal profit = computeProfit(settled, newStatus);
+		betResultRepository.save(new BetResult(UUID.randomUUID(), id, settledByUserId, profit, Instant.now()));
+		return settled;
+	}
+
+	private BigDecimal computeProfit(Bet bet, BetStatus status) {
+		return switch (status) {
+			case WON -> bet.stake().multiply(bet.odd()).subtract(bet.stake());
+			case LOST -> bet.stake().negate();
+			case VOID -> BigDecimal.ZERO;
+			case PENDING -> throw new IllegalStateException("pending is not a settlement status");
+		};
 	}
 
 	private void validateReferences(CreateBetCommand command) {

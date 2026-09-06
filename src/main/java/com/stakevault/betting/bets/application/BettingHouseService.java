@@ -14,6 +14,7 @@ import com.stakevault.betting.bets.domain.model.BettingHouseAlreadyRegisteredExc
 import com.stakevault.betting.bets.domain.model.BettingHouseBalance;
 import com.stakevault.betting.bets.domain.model.PagedResult;
 import com.stakevault.betting.bets.domain.port.in.BettingHouseUseCase;
+import com.stakevault.betting.bets.domain.port.out.BetResultRepository;
 import com.stakevault.betting.bets.domain.port.out.BettingHouseRepository;
 import com.stakevault.betting.bets.domain.port.out.TransactionRepository;
 
@@ -22,10 +23,13 @@ public class BettingHouseService implements BettingHouseUseCase {
 
 	private final BettingHouseRepository bettingHouseRepository;
 	private final TransactionRepository transactionRepository;
+	private final BetResultRepository betResultRepository;
 
-	public BettingHouseService(BettingHouseRepository bettingHouseRepository, TransactionRepository transactionRepository) {
+	public BettingHouseService(BettingHouseRepository bettingHouseRepository, TransactionRepository transactionRepository,
+			BetResultRepository betResultRepository) {
 		this.bettingHouseRepository = bettingHouseRepository;
 		this.transactionRepository = transactionRepository;
+		this.betResultRepository = betResultRepository;
 	}
 
 	@Override
@@ -48,10 +52,13 @@ public class BettingHouseService implements BettingHouseUseCase {
 		PagedResult<BettingHouse> result = bettingHouseRepository.findAll(page, size);
 		List<UUID> ids = result.content().stream().map(BettingHouse::id).toList();
 		Map<UUID, BigDecimal> netAmountById = transactionRepository.sumNetAmountByBettingHouseIds(ids);
+		Map<UUID, BigDecimal> netProfitById = betResultRepository.sumProfitByBettingHouseIds(ids);
 
 		List<BettingHouseBalance> content = result.content().stream()
 				.map(bettingHouse -> new BettingHouseBalance(bettingHouse,
-						bettingHouse.initialBalance().add(netAmountById.getOrDefault(bettingHouse.id(), BigDecimal.ZERO))))
+						bettingHouse.initialBalance()
+								.add(netAmountById.getOrDefault(bettingHouse.id(), BigDecimal.ZERO))
+								.add(netProfitById.getOrDefault(bettingHouse.id(), BigDecimal.ZERO))))
 				.toList();
 
 		return new PagedResult<>(content, result.page(), result.size(), result.totalElements(), result.totalPages());
