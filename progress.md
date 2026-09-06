@@ -3,7 +3,8 @@
 ## Estado Atual (Current State)
 
 **Última atualização:** 2026-09-06
-**Feature ativa:** nenhuma (`feat-008` `done`; `feat-007` liberada por `feat-005`)
+**Feature ativa:** nenhuma (`feat-007` `done` — todas as features de negócio de `bets-service`
+concluídas; só `feat-009`, formalidade de CI, resta no backlog)
 
 ## Status
 
@@ -120,14 +121,35 @@
       `feat-006` não reincidiram). Ver `feature_list.json` (campo `evidence`) para o detalhe
       completo.
 
+- [x] **`feat-007` (RF08 — Histórico paginado de apostas e movimentações) — `done` em
+      2026-09-06.** `GET /api/v1/bets` (novo, listagem paginada com filtros
+      `bettingHouseId`/`sportId`/`leagueId`/`marketId`/`tipsterId`/`from`/`to`) e
+      `GET /api/v1/transactions` (ganhou `from`/`to`) — query JPQL única por endpoint com
+      predicado condicional por filtro. Ver `feature_list.json` (campo `evidence`) para o
+      detalhe completo, incluindo:
+      - **Achado real** (só em execução real contra Postgres, não na compilação):
+        `(:param IS NULL OR coluna >= :param)` — já usado sem problema para colunas `UUID` desde
+        `feat-003`/`feat-004` — quebra para colunas `timestamp` (`could not determine data type
+        of parameter`). Corrigido com `coluna >= COALESCE(:param, coluna)`, seguro por as colunas
+        (`bet_date`/`created_at`) serem `NOT NULL`. Documentado em `docs/CONVENTIONS.md` para
+        `auth-service`/`stats-service`.
+      - `docs/API-CONTRACTS.md` corrigido: o exemplo de nomenclatura de filtro (`?sport=football`,
+        sem sufixo `Id`) nunca bateu com o precedente real já enviado (`bettingHouseId`, feat-003)
+        — a nota estava desatualizada, não o código; corrigida para refletir a nomenclatura real.
+
+**Todas as features de negócio de `bets-service` estão `done`** — resta só `feat-009`
+(formalidade de pipeline de CI, já rodando de verdade desde `epic-009`/`feat-001`, mesmo padrão
+de fechamento que `auth-service feat-007`).
+
 ### Em andamento
 
 - Nenhuma feature iniciada.
 
 ### Próximos passos (Next Steps)
 
-1. `feat-007` (Histórico paginado de apostas e movimentações, RF08) é a única feature liberada
-   restante em `bets-service` (depende de `feat-005`, `done`) — WIP máximo 1 por serviço.
+1. `feat-009` (Pipeline de CI) é a única feature restante em `bets-service` — fechamento formal,
+   sem código novo esperado (mesmo padrão de `auth-service feat-007`: confirmar que a `description`
+   da feature bate com o `ci.yml` real, corrigir se tiver ficado desatualizada).
 
 ## Bloqueios / Riscos
 
@@ -171,28 +193,31 @@
   (injetar `MessageSource`/`LocaleResolver` direto no filtro) já estava provado funcionando por
   `AdminApiKeyFilter` de `auth-service`.
 
-## Arquivos modificados nesta sessão (`feat-008`)
+## Arquivos modificados nesta sessão (`feat-007`)
 
-- Mensageria (`adapter/out/messaging/BetSettledPayload`, `RabbitBetEventPublisher.publishSettled`
-  + método privado `publish` compartilhado com `publishCreated`), `BetEventPublisher` (novo
-  método na porta), `BetService.updateStatus` (hook de publicação),
-  `src/test/resources/contracts/bet-settled.schema.json` (cópia vendorizada), testes
-  (`RabbitBetEventPublisherIntegrationTest`, `BetServiceTest`), `CLAUDE.md`,
-  `docs/services/bets-service.md`, `feature_list.json`, `CHANGELOG.md`.
+- `BetFilter` (novo record), `BetSpringDataRepository`/`JpaBetRepository.findFiltered`,
+  `TransactionSpringDataRepository`/`JpaTransactionRepository.findFiltered` (substitui
+  `findAll`/`findByBettingHouseId`), `BetUseCase.list`/`BetService.list`,
+  `TransactionUseCase.list`/`TransactionService.list` (ganha `from`/`to`), `BetsController`
+  (novo `GET /api/v1/bets`), `TransactionsController` (`from`/`to`), testes
+  (`BetsControllerIntegrationTest`, `TransactionsControllerIntegrationTest`,
+  `JpaTransactionRepositoryIntegrationTest`), `CLAUDE.md`, `docs/services/bets-service.md`,
+  `docs/API-CONTRACTS.md`, `docs/CONVENTIONS.md`, `feature_list.json`, `CHANGELOG.md`.
 
-## Evidência de conclusão (`feat-008`)
+## Evidência de conclusão (`feat-007`)
 
 - `./init.sh` (`mvn verify`, JaCoCo 80% incluso) verde localmente com Docker ativo, em cada uma
-  das 3 subtasks.
-- CI verde em todas as 3 PRs de subtask (`subtask/SV-99..101` → `feature/SV-98`).
-- Plan Reviewer (`READY`, sem achados), Delivery Reviewer, Test Suite Auditor e Persistence
-  Auditor rodados — `PASS` nos três, sem achado novo (gotchas de `feat-006` não reincidiram).
-  Detalhe completo em `feature_list.json` (campo `evidence` de `feat-008`).
+  das 4 subtasks (após corrigir o achado real do `COALESCE`, ver acima).
+- CI verde em todas as 4 PRs de subtask (`subtask/SV-103..106` → `feature/SV-102`).
+- Plan Reviewer (1 MAJOR corrigido no plano), Delivery Reviewer, Test Suite Auditor e Persistence
+  Auditor rodados — `PASS` nos três, achado real do Postgres (`COALESCE`) corrigido e testado
+  antes de `done`. Detalhe completo em `feature_list.json` (campo `evidence` de `feat-007`).
 
 ## Notas para a próxima sessão
 
-`feat-007` (RF08 — histórico paginado de `GET /api/v1/bets` e `GET /api/v1/transactions`, com
-filtros `sport`/`league`/`market`/`tipster`/`bettingHouse`/`from`/`to` em inglês, ver
-`docs/API-CONTRACTS.md`) é a única feature liberada restante em `bets-service`. Sem mensageria
-nem transação nova — mais parecida em escopo com `feat-002`/`feat-003` (endpoints de leitura
-paginados) do que com `feat-006`/`feat-008`.
+**Todas as features de negócio de `bets-service` estão `done`** (`feat-001` a `feat-008`). Só
+resta `feat-009` (pipeline de CI) — fechamento formal sem código novo esperado, mesmo padrão de
+`auth-service feat-007`: confirmar que a `description` da feature bate com o `ci.yml` real
+(passos, `projectKey`) e corrigir se tiver ficado desatualizada, já que o pipeline roda de
+verdade desde `epic-009`/`feat-001` desta sessão. Fechar `feat-009` fecha também `epic-003` na
+raiz (`../../feature_list.json`) — atualizar lá também.

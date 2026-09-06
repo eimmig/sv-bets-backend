@@ -876,7 +876,39 @@
           "owner": "agente"
         }
       ],
-      "evidence": ""
+      "evidence": {
+        "resumo": "Entregue em 2026-09-06 (branch feature/SV-102, story SV-102 com 4 subtasks SV-103..106). GET /api/v1/bets (novo, listagem paginada) e GET /api/v1/transactions (ganhou from/to) com filtros opcionais e combinaveis, query JPQL unica por endpoint. Nomenclatura de query param corrigida contra o precedente real ja enviado (bettingHouseId, com sufixo Id) - docs/API-CONTRACTS.md tinha um exemplo desatualizado (sem sufixo), nunca implementado.",
+        "secoes": [
+          {
+            "titulo": "Verificação real executada",
+            "itens": [
+              "./init.sh (mvn verify, JaCoCo 80% incluso) verde localmente com Docker ativo, em cada uma das 4 subtasks.",
+              "CI verde em todas as 4 PRs de subtask (subtask/SV-103..106 -> feature/SV-102).",
+              "Testes de integracao reais: filtro isolado por bettingHouseId/sportId, combinacao de 2 filtros, intervalo de data isolando um registro especifico (bet) ou contendo/excluindo 'agora' (transaction, sem campo de data controlavel via API), lista vazia sem erro, isolamento entre tenants, clamp de page/size."
+            ]
+          },
+          {
+            "titulo": "Divergência do plano original",
+            "itens": [
+              "Nenhuma na intencao - mas um bug real de execucao foi descoberto e corrigido durante feat-007.2 (ver Defeitos abaixo), nao previsto no plan_review."
+            ]
+          },
+          {
+            "titulo": "Defeitos encontrados antes de causar dano",
+            "itens": [
+              "Plan Reviewer (antes do codigo): READY WITH CONCERNS, 1 MAJOR corrigido no plano (nomenclatura de query param, ver campo plan_review).",
+              "Achado real de execucao (feat-007.2, so aparece rodando ./init.sh contra Postgres real, nao na compilacao): o padrao '(:param IS NULL OR coluna >= :param)', ja usado sem problema para colunas UUID desde feat-003/004, quebra para colunas timestamp com 'ERROR: could not determine data type of parameter' - o Postgres nao consegue inferir o tipo de um parametro cujo unico uso e um IS NULL isolado, e e mais rigido pra isso em tipos temporais que em uuid/text. Corrigido trocando para 'coluna >= COALESCE(:param, coluna)' nos filtros from/to dos 2 endpoints (bets e transactions) - seguro so porque as colunas (bet_date/created_at) sao NOT NULL. Documentado em docs/CONVENTIONS.md para auth-service/stats-service reaproveitarem em qualquer filtro de data/numero futuro."
+            ]
+          },
+          {
+            "titulo": "Skills e ferramentas",
+            "itens": [
+              "Plan Reviewer (1 MAJOR corrigido), Delivery Reviewer/Test Suite Auditor/Persistence Auditor (PASS, feat-007.4) rodados antes de done.",
+              "docs/API-CONTRACTS.md (nomenclatura real de query param corrigida), docs/CONVENTIONS.md (gotcha do Postgres com parametro em IS NULL isolado sobre coluna timestamp) e docs/services/bets-service.md (secao RF08 atualizada) atualizados no mesmo commit/sessao (raiz, repositorio sv-harness)."
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "feat-008",
