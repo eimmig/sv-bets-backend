@@ -3,6 +3,7 @@ package com.stakevault.betting.bets.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -186,6 +187,23 @@ class BetServiceTest {
 				.isInstanceOf(InvalidStatusTransitionException.class);
 
 		verify(betResultRepository, never()).save(any());
+		verify(betEventPublisher, never()).publishSettled(any(), any());
+	}
+
+	@Test
+	void shouldPublishSettledEventOnceForASuccessfulSettlement() {
+		service = service();
+		Bet bet = pendingBet(BigDecimal.valueOf(100), BigDecimal.valueOf(2.5));
+		UUID settledByUserId = UUID.randomUUID();
+		when(betRepository.transitionStatus(bet.id(), BetStatus.PENDING, BetStatus.WON)).thenReturn(true);
+		when(betRepository.findById(bet.id())).thenReturn(Optional.of(bet));
+		when(betResultRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+		service.updateStatus(bet.id(), BetStatus.WON, settledByUserId);
+
+		ArgumentCaptor<BetResult> captor = ArgumentCaptor.forClass(BetResult.class);
+		verify(betEventPublisher).publishSettled(eq(bet), captor.capture());
+		assertThat(captor.getValue().settledByUserId()).isEqualTo(settledByUserId);
 	}
 
 	@Test
