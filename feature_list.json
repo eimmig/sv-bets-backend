@@ -631,7 +631,7 @@
         {
           "id": "feat-005.5",
           "name": "CHANGELOG e verificacao final",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-92",
           "detail": "Fecha a feature com o gate real do harness, nao so com os testes isolados de cada subtask.",
           "checklist": [
@@ -645,7 +645,39 @@
           "owner": "agente"
         }
       ],
-      "evidence": ""
+      "evidence": {
+        "resumo": "Entregue em 2026-09-06 (branch feature/SV-87, story SV-87 com 5 subtasks SV-88..92). BET_RESULT (1:1 com BET via UNIQUE(bet_id)), liquidacao via PATCH /api/v1/bets/{id}/status agora exige X-User-Id e usa transicao atomica condicional (UPDATE ... WHERE status='pending', corrige o TOCTOU residual aceito em feat-004), calcula profit (RN02 stake*odd-stake, RN03 -stake, 0 para void) numa unica transacao com a criacao de BET_RESULT (primeiro @Transactional real do servico), e GET /api/v1/betting-houses passa a somar esse profit no balance (RN01/RN05).",
+        "secoes": [
+          {
+            "titulo": "Verificação real executada",
+            "itens": [
+              "./init.sh (mvn verify, JaCoCo 80% incluso) verde localmente com Docker ativo, em cada uma das 5 subtasks.",
+              "CI verde em todas as 5 PRs de subtask (subtask/SV-88..92 -> feature/SV-87).",
+              "Teste de concorrencia real (2 threads via ExecutorService disparando PATCH pending->won simultaneamente para a mesma aposta contra o servidor HTTP real, WebEnvironment.RANDOM_PORT) prova que so uma chamada sucede (200) e a outra recebe 422 - nao dado corrompido, nao dupla liquidacao."
+            ]
+          },
+          {
+            "titulo": "Divergência do plano original",
+            "itens": [
+              "Nenhuma - o unico achado MAJOR do plan_review (corrigir o TOCTOU de feat-004 com UPDATE atomico condicional) foi implementado exatamente como planejado em feat-005.3."
+            ]
+          },
+          {
+            "titulo": "Defeitos encontrados antes de causar dano",
+            "itens": [
+              "Plan Reviewer (antes do codigo): READY WITH CONCERNS, 1 MAJOR corrigido no plano (TOCTOU de feat-004 vira bug financeiro real nesta feature) - detalhe completo no campo plan_review.",
+              "Nenhum achado novo do Delivery/Test Suite/Persistence Auditor alem do que o plan_review ja havia previsto - a guarda atomica (@Modifying, linhas afetadas) e a defesa em profundidade (UNIQUE(bet_id) em BET_RESULT) confirmadas corretas pelo teste de concorrencia real, nao so por inspecao estatica."
+            ]
+          },
+          {
+            "titulo": "Skills e ferramentas",
+            "itens": [
+              "Plan Reviewer (1 MAJOR corrigido), Delivery Reviewer/Test Suite Auditor/Persistence Auditor (PASS nos tres, feat-005.5) rodados antes de done.",
+              "docs/CONVENTIONS.md (UPDATE atomico condicional via @Modifying para transicoes de estado com guarda de negocio, distinto do padrao findById+mutar+save de feat-004 para updates incondicionais) e docs/services/bets-service.md (secao feat-005, residual do TOCTOU removido - corrigido de verdade) atualizados no mesmo commit/sessao (raiz, repositorio sv-harness)."
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "feat-006",

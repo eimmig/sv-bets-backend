@@ -2,8 +2,8 @@
 
 ## Estado Atual (Current State)
 
-**Última atualização:** 2026-09-05
-**Feature ativa:** nenhuma (`feat-004` `done`, `feat-005`/`feat-006` liberadas)
+**Última atualização:** 2026-09-06
+**Feature ativa:** nenhuma (`feat-005` `done`, `feat-006` liberada; `feat-007`/`feat-008` liberadas por `feat-005`)
 
 ## Status
 
@@ -78,7 +78,22 @@
         entidade, salvar a mesma instância) documentado em `docs/CONVENTIONS.md` para
         `auth-service`/`stats-service` reaproveitarem.
       - Risco residual aceito (TOCTOU): `BetService.updateStatus` sem guarda atômica —
-        detalhe na seção "Bloqueios / Riscos" abaixo.
+        **corrigido em `feat-005.3`**, ver abaixo.
+
+- [x] **`feat-005` (RF06/RF07 — Processamento de resultado e bankroll consolidado) — `done` em
+      2026-09-06.** `BET_RESULT` (1:1 com `BET`), `PATCH /api/v1/bets/{id}/status` passou a
+      exigir `X-User-Id`, transição de status virou `UPDATE` atômico condicional (corrige o
+      TOCTOU de `feat-004`), profit calculado (RN02/RN03) e persistido na mesma transação
+      (`@Transactional`, primeira vez real no serviço), `GET /api/v1/betting-houses` soma esse
+      profit no `balance` (RN01/RN05). Ver `feature_list.json` (campo `evidence`) para o detalhe
+      completo, incluindo:
+      - Teste de concorrência real (2 threads via `ExecutorService` contra o servidor HTTP,
+        `WebEnvironment.RANDOM_PORT`) prova que só uma de duas liquidações simultâneas para a
+        mesma aposta sucede — a outra recebe `422`, nunca dado corrompido.
+      - `docs/CONVENTIONS.md` distingue agora dois padrões de update: `findById`+mutar+`save`
+        para updates incondicionais (`feat-004`), `@Modifying @Query` atômico para transições de
+        estado com guarda de negócio (`feat-005`) — reaproveitável por `auth-service`/
+        `stats-service`.
 
 ### Em andamento
 
@@ -86,9 +101,9 @@
 
 ### Próximos passos (Next Steps)
 
-1. `feat-005` (RF06/RF07 — Processamento de resultado e bankroll consolidado) e `feat-006`
-   (Publicação do evento `BetCreated`) estão liberadas (dependem só de `feat-004`, `done`) — WIP
-   máximo 1 por serviço, escolher uma.
+1. `feat-006` (Publicação do evento `BetCreated`), `feat-007` (Histórico paginado) e `feat-008`
+   (Publicação do evento `BetSettled`) estão liberadas (dependem de `feat-004`/`feat-005`, ambas
+   `done`) — WIP máximo 1 por serviço, escolher uma.
 
 ## Bloqueios / Riscos
 
@@ -108,13 +123,11 @@
 - Cache `migratedSchemas` (em `JdbcFlywayTenantSchemaGateway`) nunca expira — aceitável porque
   cresce por schema-de-tenant-visto-no-processo (cardinalidade = número de organizações
   clientes), não por entidade de alto volume.
-- **Residual aceito (TOCTOU, `feat-004`)**: `BetService.updateStatus` lê o status atual
-  (`findById`) e só depois escreve (`betRepository.updateStatus`), sem `WHERE status='pending'`
-  atômico nem `@Version` — duas chamadas `PATCH /api/v1/bets/{id}/status` concorrentes para a
-  mesma aposta `pending` poderiam ambas passar a validação e a segunda sobrescrever a primeira
-  (last-write-wins), sem nunca retornar `422`. Persistence Auditor confirmou sem consequência
-  hoje (não existe `BET_RESULT`/`profit` associado ainda) — revisitar em `feat-005`, quando essa
-  transição precisar ser exatamente-uma-vez para o cálculo de lucro/prejuízo ser confiável.
+- ~~Residual aceito (TOCTOU, `feat-004`): `BetService.updateStatus` lê o status atual e só depois
+  escreve, sem guarda atômica~~ — **corrigido em `feat-005.3`**: transição de status agora é um
+  `UPDATE` atômico condicional (`WHERE status='pending'`, via `@Modifying @Query`), provado por
+  teste de concorrência real (2 threads via `ExecutorService`) — só uma de duas liquidações
+  simultâneas para a mesma aposta sucede, a outra recebe `422 invalid-status-transition`.
 
 ## Decisões tomadas
 
@@ -128,30 +141,30 @@
   (injetar `MessageSource`/`LocaleResolver` direto no filtro) já estava provado funcionando por
   `AdminApiKeyFilter` de `auth-service`.
 
-## Arquivos modificados nesta sessão (`feat-004`)
+## Arquivos modificados nesta sessão (`feat-005`)
 
-- `src/main/resources/db/migration/V20260905224836__create_bet_table.sql`, domínio (`Bet`,
-  `BetStatus` + exceções), persistência (`BetJpaEntity`, `JpaBetRepository`,
-  `BetStatusAttributeConverter`, `existsById` nos 4 repositórios de catálogo), aplicação
-  (`BetService`), web (`BetsController`, DTOs), i18n (3 locales), testes de integração
-  (`JpaBetRepositoryIntegrationTest`, `BetsControllerIntegrationTest`), `CLAUDE.md`,
-  `feature_list.json`, `CHANGELOG.md`.
+- `src/main/resources/db/migration/V20260905234334__create_bet_result_table.sql`, domínio
+  (`BetResult`), persistência (`BetResultJpaEntity`, `JpaBetResultRepository`, `@Modifying
+  transitionStatus` em `BetSpringDataRepository`), aplicação (`BetService.updateStatus`
+  reescrito, `BettingHouseService.list` somando profit), web (`BetsController` exige `X-User-Id`
+  no PATCH), testes (`JpaBetResultRepositoryIntegrationTest`, testes novos em
+  `BetsControllerIntegrationTest`/`BettingHousesControllerIntegrationTest`/`BetServiceTest`,
+  incluindo o teste de concorrência), `CLAUDE.md`, `feature_list.json`, `CHANGELOG.md`.
 
-## Evidência de conclusão (`feat-004`)
+## Evidência de conclusão (`feat-005`)
 
 - `./init.sh` (`mvn verify`, JaCoCo 80% incluso) verde localmente com Docker ativo, em cada uma
   das 5 subtasks.
-- CI verde em todas as 5 PRs de subtask (`subtask/SV-82..86` → `feature/SV-81`).
-- Plan Reviewer (3 MAJOR + 1 MINOR corrigidos no plano), Delivery Reviewer, Test Suite Auditor e
-  Persistence Auditor rodados — `PASS` nos três últimos, com 1 achado `CONCERNS` não bloqueante
-  (TOCTOU em `updateStatus`, ver "Bloqueios / Riscos"). Detalhe completo em `feature_list.json`
-  (campo `evidence` de `feat-004`).
+- CI verde em todas as 5 PRs de subtask (`subtask/SV-88..92` → `feature/SV-87`).
+- Plan Reviewer (1 MAJOR corrigido no plano), Delivery Reviewer, Test Suite Auditor e Persistence
+  Auditor rodados — `PASS` nos três últimos, sem achado novo além do já previsto e corrigido no
+  plano. Detalhe completo em `feature_list.json` (campo `evidence` de `feat-005`).
 
 ## Notas para a próxima sessão
 
-`feat-005` (RF06/RF07 — bankroll consolidado) e `feat-006` (evento `BetCreated`) estão
-liberadas — escolher uma (WIP máximo 1). `feat-005` reage à transição de status introduzida em
-`feat-004` (criação de `BET_RESULT`, cálculo de profit RN02/RN03, atualização imediata do saldo
-RN05) — ao planejá-la, decidir se o TOCTOU residual de `updateStatus` precisa de correção agora
-(guarda atômica `WHERE status='pending'` ou `@Version`) antes de acoplar lógica financeira a essa
-transição.
+`feat-006` (evento `BetCreated`), `feat-007` (histórico paginado) e `feat-008` (evento
+`BetSettled`) estão liberadas — escolher uma (WIP máximo 1). `feat-006`/`feat-008` publicam no
+RabbitMQ (primeira vez que este serviço produz eventos) — revisar a topologia já provisionada em
+`infra/rabbitmq/definitions.json` e os schemas em `docs/contracts/bet-created.schema.json`/
+`bet-settled.schema.json` (ambos já existentes e usados como fonte de verdade em `feat-004`/
+`feat-005` para nullability de campos) antes de planejar.
