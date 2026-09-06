@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.stakevault.betting.bets.domain.model.Bet;
+import com.stakevault.betting.bets.domain.model.BetDimensionNames;
 import com.stakevault.betting.bets.domain.model.BetFilter;
 import com.stakevault.betting.bets.domain.model.BetNotFoundException;
 import com.stakevault.betting.bets.domain.model.BetResult;
@@ -80,7 +81,7 @@ public class BetService implements BetUseCase {
 
 		try {
 			Bet saved = betRepository.save(bet);
-			betEventPublisher.publishCreated(saved);
+			betEventPublisher.publishCreated(saved, resolveDimensionNames(saved));
 			return new BetCreationResult(saved, true);
 		} catch (DataIntegrityViolationException _) {
 			// Concurrent replay of the same Idempotency-Key raced us to the unique constraint.
@@ -107,7 +108,7 @@ public class BetService implements BetUseCase {
 		BigDecimal profit = computeProfit(settled, newStatus);
 		BetResult result = betResultRepository.save(new BetResult(UUID.randomUUID(), id, settledByUserId, profit,
 				Instant.now()));
-		betEventPublisher.publishSettled(settled, result);
+		betEventPublisher.publishSettled(settled, result, resolveDimensionNames(settled));
 		return settled;
 	}
 
@@ -123,6 +124,20 @@ public class BetService implements BetUseCase {
 			case VOID -> BigDecimal.ZERO;
 			case PENDING -> throw new IllegalStateException("pending is not a settlement status");
 		};
+	}
+
+	private BetDimensionNames resolveDimensionNames(Bet bet) {
+		String bettingHouseName = bettingHouseRepository.findById(bet.bettingHouseId())
+				.orElseThrow(() -> new BettingHouseNotFoundException(bet.bettingHouseId())).name();
+		String sportName = sportRepository.findById(bet.sportId())
+				.orElseThrow(() -> new SportNotFoundException(bet.sportId())).name();
+		String leagueName = leagueRepository.findById(bet.leagueId())
+				.orElseThrow(() -> new LeagueNotFoundException(bet.leagueId())).name();
+		String marketName = marketRepository.findById(bet.marketId())
+				.orElseThrow(() -> new MarketNotFoundException(bet.marketId())).name();
+		String tipsterName = bet.tipsterId() == null ? null : tipsterRepository.findById(bet.tipsterId())
+				.orElseThrow(() -> new TipsterNotFoundException(bet.tipsterId())).name();
+		return new BetDimensionNames(bettingHouseName, sportName, leagueName, marketName, tipsterName);
 	}
 
 	private void validateReferences(CreateBetCommand command) {

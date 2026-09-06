@@ -55,16 +55,25 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 		this.marketRepository = marketRepository;
 	}
 
-	private CreateBetCommand newCommand(UUID callerId, String idempotencyKey) {
+	private record BetFixture(CreateBetCommand command, String bettingHouseName, String sportName, String leagueName,
+			String marketName) {
+	}
+
+	private BetFixture newCommand(UUID callerId, String idempotencyKey) {
+		String suffix = UUID.randomUUID().toString();
+		String bettingHouseName = "House-" + suffix;
+		String sportName = "Sport-" + suffix;
+		String leagueName = "League-" + suffix;
+		String marketName = "Market-" + suffix;
 		UUID bettingHouseId = bettingHouseRepository
-				.save(new BettingHouse(UUID.randomUUID(), "House-" + UUID.randomUUID(), BigDecimal.ZERO, Instant.now()))
-				.id();
-		UUID sportId = sportRepository.save(new Sport(UUID.randomUUID(), "Sport-" + UUID.randomUUID())).id();
-		UUID leagueId = leagueRepository.save(new League(UUID.randomUUID(), "League-" + UUID.randomUUID())).id();
-		UUID marketId = marketRepository.save(new Market(UUID.randomUUID(), "Market-" + UUID.randomUUID())).id();
-		return new CreateBetCommand(callerId, bettingHouseId, sportId, leagueId, marketId, null, null, null, null,
-				null, null, null, BigDecimal.valueOf(100), BigDecimal.valueOf(1.5), Instant.parse("2026-09-06T12:00:00Z"),
-				idempotencyKey);
+				.save(new BettingHouse(UUID.randomUUID(), bettingHouseName, BigDecimal.ZERO, Instant.now())).id();
+		UUID sportId = sportRepository.save(new Sport(UUID.randomUUID(), sportName)).id();
+		UUID leagueId = leagueRepository.save(new League(UUID.randomUUID(), leagueName)).id();
+		UUID marketId = marketRepository.save(new Market(UUID.randomUUID(), marketName)).id();
+		CreateBetCommand command = new CreateBetCommand(callerId, bettingHouseId, sportId, leagueId, marketId, null,
+				null, null, null, null, null, null, BigDecimal.valueOf(100), BigDecimal.valueOf(1.5),
+				Instant.parse("2026-09-06T12:00:00Z"), idempotencyKey);
+		return new BetFixture(command, bettingHouseName, sportName, leagueName, marketName);
 	}
 
 	private JsonNode validateAgainstSchema(byte[] body, String schemaResourcePath) throws Exception {
@@ -83,9 +92,9 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 	void shouldPublishBetCreatedMatchingTheSchema() throws Exception {
 		try (var _ = TenantContextScope.open(schema)) {
 			UUID callerId = UUID.randomUUID();
-			var command = newCommand(callerId, null);
+			var fixture = newCommand(callerId, null);
 
-			var result = bets.create(command);
+			var result = bets.create(fixture.command());
 
 			Message message = rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000);
 			assertThat(message).isNotNull();
@@ -99,6 +108,11 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 			assertThat(payload.get("betId").asText()).isEqualTo(result.bet().id().toString());
 			assertThat(payload.get("status").asText()).isEqualTo("pending");
 			assertThat(payload.get("tipsterId").isNull()).isTrue();
+			assertThat(payload.get("tipsterName").isNull()).isTrue();
+			assertThat(payload.get("bettingHouseName").asText()).isEqualTo(fixture.bettingHouseName());
+			assertThat(payload.get("sportName").asText()).isEqualTo(fixture.sportName());
+			assertThat(payload.get("leagueName").asText()).isEqualTo(fixture.leagueName());
+			assertThat(payload.get("marketName").asText()).isEqualTo(fixture.marketName());
 			assertThat(message.getMessageProperties().getReceivedDeliveryMode())
 					.isEqualTo(org.springframework.amqp.core.MessageDeliveryMode.PERSISTENT);
 		}
@@ -108,11 +122,11 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 	void shouldNotPublishAgainWhenIdempotencyKeyReplays() {
 		try (var _ = TenantContextScope.open(schema)) {
 			String idempotencyKey = "idem-" + UUID.randomUUID();
-			var command = newCommand(UUID.randomUUID(), idempotencyKey);
-			bets.create(command);
+			var fixture = newCommand(UUID.randomUUID(), idempotencyKey);
+			bets.create(fixture.command());
 			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000)).isNotNull();
 
-			bets.create(command);
+			bets.create(fixture.command());
 
 			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 1000)).isNull();
 		}
@@ -121,7 +135,8 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 	@Test
 	void shouldPublishBetSettledMatchingTheSchema() throws Exception {
 		try (var _ = TenantContextScope.open(schema)) {
-			var created = bets.create(newCommand(UUID.randomUUID(), null));
+			var fixture = newCommand(UUID.randomUUID(), null);
+			var created = bets.create(fixture.command());
 			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000)).isNotNull(); // BetCreated
 			UUID settledByUserId = UUID.randomUUID();
 
@@ -137,6 +152,10 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 			assertThat(payload.get("betId").asText()).isEqualTo(created.bet().id().toString());
 			assertThat(payload.get("status").asText()).isEqualTo("won");
 			assertThat(payload.get("profit").asDouble()).isEqualTo(50.0);
+			assertThat(payload.get("bettingHouseName").asText()).isEqualTo(fixture.bettingHouseName());
+			assertThat(payload.get("sportName").asText()).isEqualTo(fixture.sportName());
+			assertThat(payload.get("leagueName").asText()).isEqualTo(fixture.leagueName());
+			assertThat(payload.get("marketName").asText()).isEqualTo(fixture.marketName());
 			assertThat(message.getMessageProperties().getReceivedDeliveryMode())
 					.isEqualTo(org.springframework.amqp.core.MessageDeliveryMode.PERSISTENT);
 		}
@@ -145,7 +164,7 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 	@Test
 	void shouldNotPublishBetSettledWhenTransitionIsInvalid() {
 		try (var _ = TenantContextScope.open(schema)) {
-			var created = bets.create(newCommand(UUID.randomUUID(), null));
+			var created = bets.create(newCommand(UUID.randomUUID(), null).command());
 			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000)).isNotNull(); // BetCreated
 			bets.updateStatus(created.bet().id(), BetStatus.WON, UUID.randomUUID());
 			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000)).isNotNull(); // BetSettled

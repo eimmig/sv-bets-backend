@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 
 import com.stakevault.betting.bets.config.TenantContextHolder;
 import com.stakevault.betting.bets.domain.model.Bet;
+import com.stakevault.betting.bets.domain.model.BetDimensionNames;
 import com.stakevault.betting.bets.domain.model.BetResult;
 import com.stakevault.betting.bets.domain.port.out.BetEventPublisher;
 
@@ -38,18 +39,18 @@ public class RabbitBetEventPublisher implements BetEventPublisher {
 	}
 
 	@Override
-	public void publishCreated(Bet bet) {
+	public void publishCreated(Bet bet, BetDimensionNames dimensionNames) {
 		BetEventEnvelope<BetCreatedPayload> envelope = new BetEventEnvelope<>(UUID.randomUUID(), "BetCreated", 1,
 				Instant.now(), TenantContextHolder.current().slug(), bet.createdByUserId(),
-				BetCreatedPayload.from(bet));
+				BetCreatedPayload.from(bet, dimensionNames));
 		publish(ROUTING_KEY_BET_CREATED, envelope, bet.id(), "BetCreated");
 	}
 
 	@Override
-	public void publishSettled(Bet bet, BetResult result) {
+	public void publishSettled(Bet bet, BetResult result, BetDimensionNames dimensionNames) {
 		BetEventEnvelope<BetSettledPayload> envelope = new BetEventEnvelope<>(UUID.randomUUID(), "BetSettled", 1,
 				Instant.now(), TenantContextHolder.current().slug(), result.settledByUserId(),
-				BetSettledPayload.from(bet, result));
+				BetSettledPayload.from(bet, result, dimensionNames));
 		publish(ROUTING_KEY_BET_SETTLED, envelope, bet.id(), "BetSettled");
 	}
 

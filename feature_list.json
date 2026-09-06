@@ -1083,6 +1083,52 @@
           }
         ]
       }
+    },
+    {
+      "id": "feat-010",
+      "name": "Denormalizar nomes das dimensoes em BetCreated/BetSettled",
+      "description": "Mudanca de contrato decidida com o usuario a partir de um achado real de stats-service feat-002 (docs/API-CONTRACTS.md 'Nomes das dimensoes denormalizados no payload'): DIM_BETTING_HOUSE/DIM_SPORT/DIM_LEAGUE/DIM_MARKET/DIM_TIPSTER (stats-service, OLAP) tem coluna name, mas o payload de BetCreated/BetSettled so carregava os IDs (bettingHouseId, sportId, leagueId, marketId, tipsterId) - sem chamada sincrona de stats-service de volta a este servico (consistencia eventual e intencional, ver CLAUDE.md raiz), nao ha como popular o nome. Adicionar bettingHouseName/sportName/leagueName/marketName (obrigatorios) e tipsterName (opcional, acompanha tipsterId) aos dois payloads, resolvidos a partir do catalogo ja existente neste servico no momento de publicar (sem I/O sincrono cross-service - so consulta ao proprio banco deste servico). docs/contracts/bet-created.schema.json e bet-settled.schema.json (repositorio raiz) ja atualizados; esta feature so implementa o lado publicador.",
+      "dependencies": [
+        "feat-008"
+      ],
+      "status": "in-progress",
+      "plan_review": "2026-09-06, Plan Reviewer (review-suite:ln-11-plan-reviewer) rodado contra o plano antes de qualquer codigo. Veredito: READY WITH CONCERNS, 1 achado MINOR (nao bloqueia). Auditoria de BetService.validateReferences confirmou que hoje ela so chama existsById (boolean) nos 5 repositorios de catalogo - NAO ha 'mesma consulta que ja traz o nome' como a description original (herdada de docs/API-CONTRACTS.md) sugeria; e preciso trocar por findById (retorna a entidade) para obter o nome, o que e uma consulta adicional por PK em tabela pequena (catalogo), nao um I/O caro nem sincrono cross-service - so mais especifico que o texto do achado inicial. Plano: (1) adicionar findById(UUID): Optional<X> aos 5 ports de catalogo (BettingHouseRepository/SportRepository/LeagueRepository/MarketRepository/TipsterRepository) + adapters Jpa (Spring Data ja fornece via JpaRepository, so expor); (2) novo record de dominio BetDimensionNames(bettingHouseName, sportName, leagueName, marketName, tipsterName) para nao estourar S107 nas assinaturas de publishCreated/publishSettled (mesmo padrao ja usado em BetJpaEntity(Bet) e BetFilter); (3) BetService ganha resolveDimensionNames(Bet) chamando os 5 findById (reaproveitando as mesmas *NotFoundException ja lancadas por validateReferences, defesa em profundidade - cataogos nao tem DELETE, entao inalcancavel na pratica mas mantem simetria de erro); (4) BetEventPublisher/RabbitBetEventPublisher/BetCreatedPayload/BetSettledPayload ganham o parametro BetDimensionNames; (5) copia vendorizada em src/test/resources/contracts/ atualizada para bater com o schema real da raiz (ja mudou la); (6) RabbitBetEventPublisherIntegrationTest atualizado para capturar os nomes gerados (hoje descartados) e assertar os novos campos do payload, nao so a presenca deles. Achado MINOR: nome do metodo 'resolveDimensionNames' e chamado tanto em create() (apos validateReferences ja ter confirmado existencia) quanto em updateStatus() (sem validacao previa nesta chamada) - aceito, redundancia de 1 SELECT por PK em tabela pequena e mais simples que threading de um DTO de nomes desde a criacao ate a liquidacao (que exigiria persistir os nomes em BET, mudanca de schema OLTP desproporcional ao beneficio, so para um evento). Rodada de desafio independente executada como passe proprio, sem subagentes - independencia reduzida, declarada.",
+      "jira": "SV-121",
+      "subtasks": [
+        {
+          "id": "feat-010.1",
+          "name": "Resolver e publicar nomes das dimensoes em BetCreated/BetSettled",
+          "status": "in-progress",
+          "jira": "SV-122",
+          "detail": "Implementa a mudanca de contrato decidida com o usuario - ver plan_review para o desenho completo (findById nos 5 catalogos, BetDimensionNames, BetService.resolveDimensionNames, payloads e publisher atualizados, copia vendorizada do schema ressincronizada).",
+          "checklist": [
+            "findById(UUID): Optional<X> adicionado a BettingHouseRepository/SportRepository/LeagueRepository/MarketRepository/TipsterRepository (ports) e aos 5 adapters Jpa.",
+            "Record BetDimensionNames(bettingHouseName, sportName, leagueName, marketName, tipsterName) em domain/model.",
+            "BetService.resolveDimensionNames(Bet) chamado em create() (apos validateReferences) e em updateStatus() (antes de publishSettled), reaproveitando as *NotFoundException ja existentes.",
+            "BetEventPublisher.publishCreated/publishSettled, RabbitBetEventPublisher e BetCreatedPayload/BetSettledPayload atualizados com o parametro BetDimensionNames.",
+            "src/test/resources/contracts/{bet-created,bet-settled}.schema.json ressincronizados com docs/contracts/ (repositorio raiz).",
+            "RabbitBetEventPublisherIntegrationTest atualizado: nomes gerados em newCommand capturados (nao mais descartados) e assertados contra os campos novos do payload publicado."
+          ],
+          "validation": "./init.sh (mvn verify) verde; teste de integracao do publicador prova bettingHouseName/sportName/leagueName/marketName/tipsterName no payload real batendo com o catalogo criado no teste.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-010.2",
+          "name": "CHANGELOG e verificacao final",
+          "status": "not-started",
+          "jira": "SV-123",
+          "detail": "Fecha a feature - mudanca de contrato ja documentada no repositorio raiz (docs/API-CONTRACTS.md, docs/DATA-MODEL.md, docs/services/{bets-service,stats-service}.md) na sessao que decidiu com o usuario; aqui so falta a evidencia de implementacao.",
+          "checklist": [
+            "Entrada em CHANGELOG.md (automatica, via tools/jira_story.py na criacao da issue).",
+            "./init.sh (mvn verify) verde com Docker ativo.",
+            "Delivery Reviewer, Test Suite Auditor e Persistence Auditor rodados sobre o diff completo da feature.",
+            "Vault (docs/) revisado: alguma descoberta desta feature - mecanismo reaproveitavel, gotcha de lib/config, lacuna de especificacao, decisao que diverge do ja documentado - sem nota correspondente? Se sim, atualizar/criar a nota do assunto no mesmo commit."
+          ],
+          "validation": "./init.sh sai 0; feature_list.json deste servico atualizado com evidence; epic-003 (raiz) reaberto e refechado se necessario.",
+          "owner": "agente"
+        }
+      ],
+      "evidence": ""
     }
   ]
 }
