@@ -97,6 +97,8 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 			assertThat(payload.get("betId").asText()).isEqualTo(result.bet().id().toString());
 			assertThat(payload.get("status").asText()).isEqualTo("pending");
 			assertThat(payload.get("tipsterId").isNull()).isTrue();
+			assertThat(message.getMessageProperties().getReceivedDeliveryMode())
+					.isEqualTo(org.springframework.amqp.core.MessageDeliveryMode.PERSISTENT);
 		}
 	}
 
