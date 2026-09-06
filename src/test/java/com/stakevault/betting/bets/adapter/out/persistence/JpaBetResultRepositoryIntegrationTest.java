@@ -85,8 +85,9 @@ class JpaBetResultRepositoryIntegrationTest extends TenantSchemaIntegrationSuppo
 			betResultRepository.save(new BetResult(UUID.randomUUID(), betId, UUID.randomUUID(), BigDecimal.TEN,
 					Instant.now()));
 
-			assertThatThrownBy(() -> betResultRepository.save(
-					new BetResult(UUID.randomUUID(), betId, UUID.randomUUID(), BigDecimal.ONE, Instant.now())))
+			BetResult secondResult = new BetResult(UUID.randomUUID(), betId, UUID.randomUUID(), BigDecimal.ONE,
+					Instant.now());
+			assertThatThrownBy(() -> betResultRepository.save(secondResult))
 					.isInstanceOf(DataIntegrityViolationException.class);
 		}
 	}

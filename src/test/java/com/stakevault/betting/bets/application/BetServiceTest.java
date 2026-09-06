@@ -3,7 +3,6 @@ package com.stakevault.betting.bets.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -141,10 +140,11 @@ class BetServiceTest {
 		Bet alreadySettled = new Bet(bet.id(), bet.bettingHouseId(), bet.sportId(), bet.leagueId(), bet.marketId(),
 				null, bet.createdByUserId(), null, null, null, null, null, null, bet.stake(), bet.odd(),
 				BetStatus.WON, bet.betDate(), null);
+		UUID settledByUserId = UUID.randomUUID();
 		when(betRepository.transitionStatus(bet.id(), BetStatus.PENDING, BetStatus.LOST)).thenReturn(false);
 		when(betRepository.findById(bet.id())).thenReturn(Optional.of(alreadySettled));
 
-		assertThatThrownBy(() -> service.updateStatus(bet.id(), BetStatus.LOST, UUID.randomUUID()))
+		assertThatThrownBy(() -> service.updateStatus(bet.id(), BetStatus.LOST, settledByUserId))
 				.isInstanceOf(InvalidStatusTransitionException.class);
 
 		verify(betResultRepository, never()).save(any());
@@ -154,9 +154,10 @@ class BetServiceTest {
 	void shouldRejectTransitionToPendingWithoutCallingRepository() {
 		service = service();
 		Bet bet = pendingBet(BigDecimal.TEN, BigDecimal.valueOf(2));
-		when(betRepository.findById(eq(bet.id()))).thenReturn(Optional.of(bet));
+		UUID settledByUserId = UUID.randomUUID();
+		when(betRepository.findById(bet.id())).thenReturn(Optional.of(bet));
 
-		assertThatThrownBy(() -> service.updateStatus(bet.id(), BetStatus.PENDING, UUID.randomUUID()))
+		assertThatThrownBy(() -> service.updateStatus(bet.id(), BetStatus.PENDING, settledByUserId))
 				.isInstanceOf(InvalidStatusTransitionException.class);
 
 		verify(betRepository, never()).transitionStatus(any(), any(), any());
