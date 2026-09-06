@@ -55,3 +55,6 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 - [SV-104](https://stakevault.atlassian.net/browse/SV-104) - GET /api/v1/transactions ganha from/to
 - [SV-105](https://stakevault.atlassian.net/browse/SV-105) - Testes dos 2 endpoints com filtros combinados
 - [SV-106](https://stakevault.atlassian.net/browse/SV-106) - CHANGELOG e verificacao final
+- [SV-107](https://stakevault.atlassian.net/browse/SV-107) - Pipeline de CI (GitHub Actions + SonarCloud)
+- [SV-108](https://stakevault.atlassian.net/browse/SV-108) - Auditoria do pipeline real vs description da feature
+- [SV-109](https://stakevault.atlassian.net/browse/SV-109) - CHANGELOG e verificacao final
