@@ -833,7 +833,7 @@
         {
           "id": "feat-008.1",
           "name": "BetSettledPayload, publishSettled e hook em BetService.updateStatus",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-99",
           "detail": "Reaproveita BetEventEnvelope<T> e o padrao de publishCreated de feat-006 - so o payload e a routing key mudam.",
           "checklist": [
