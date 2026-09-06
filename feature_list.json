@@ -862,7 +862,7 @@
         {
           "id": "feat-007.4",
           "name": "CHANGELOG e verificacao final",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-106",
           "detail": "Fecha a feature com o gate real do harness - ultima feature planejada de bets-service alem de feat-009 (formalidade de CI ja rodando).",
           "checklist": [
