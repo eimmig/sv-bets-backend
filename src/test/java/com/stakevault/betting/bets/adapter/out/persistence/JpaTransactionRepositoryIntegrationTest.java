@@ -48,7 +48,7 @@ class JpaTransactionRepositoryIntegrationTest extends TenantSchemaIntegrationSup
 
 			transactionRepository.save(transaction);
 
-			PagedResult<Transaction> page = transactionRepository.findAll(0, 20);
+			PagedResult<Transaction> page = transactionRepository.findFiltered(null, null, null, 0, 20);
 
 			assertThat(page.content()).extracting(Transaction::id).contains(transaction.id());
 		}
@@ -65,7 +65,7 @@ class JpaTransactionRepositoryIntegrationTest extends TenantSchemaIntegrationSup
 			transactionRepository.save(new Transaction(UUID.randomUUID(), houseB, TransactionType.DEPOSIT,
 					BigDecimal.ONE, Instant.now()));
 
-			PagedResult<Transaction> houseAPage = transactionRepository.findByBettingHouseId(houseA, 0, 20);
+			PagedResult<Transaction> houseAPage = transactionRepository.findFiltered(houseA, null, null, 0, 20);
 
 			assertThat(houseAPage.content()).extracting(Transaction::bettingHouseId).containsOnly(houseA);
 		}

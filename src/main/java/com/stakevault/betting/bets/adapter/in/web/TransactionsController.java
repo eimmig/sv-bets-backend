@@ -1,5 +1,6 @@
 package com.stakevault.betting.bets.adapter.in.web;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -36,10 +37,13 @@ public class TransactionsController {
 	@GetMapping
 	public PagedResponse<TransactionResponse> list(
 			@RequestParam(required = false) UUID bettingHouseId,
+			@RequestParam(required = false) Instant from,
+			@RequestParam(required = false) Instant to,
 			@RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "20") int size) {
 		return PagedResponse.from(
-				transactions.list(bettingHouseId, Math.clamp(page, 0, Integer.MAX_VALUE), Math.clamp(size, 1, MAX_PAGE_SIZE)),
+				transactions.list(bettingHouseId, from, to, Math.clamp(page, 0, Integer.MAX_VALUE),
+						Math.clamp(size, 1, MAX_PAGE_SIZE)),
 				TransactionResponse::from);
 	}
 }
