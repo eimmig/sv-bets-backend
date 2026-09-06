@@ -21,9 +21,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import com.stakevault.betting.bets.domain.model.Bet;
+import com.stakevault.betting.bets.domain.model.BetDimensionNames;
 import com.stakevault.betting.bets.domain.model.BetResult;
 import com.stakevault.betting.bets.domain.model.BetStatus;
+import com.stakevault.betting.bets.domain.model.BettingHouse;
 import com.stakevault.betting.bets.domain.model.InvalidStatusTransitionException;
+import com.stakevault.betting.bets.domain.model.League;
+import com.stakevault.betting.bets.domain.model.Market;
+import com.stakevault.betting.bets.domain.model.Sport;
 import com.stakevault.betting.bets.domain.port.in.CreateBetCommand;
 import com.stakevault.betting.bets.domain.port.out.BetEventPublisher;
 import com.stakevault.betting.bets.domain.port.out.BetRepository;
@@ -67,6 +72,14 @@ class BetServiceTest {
 				Instant.now(), null);
 	}
 
+	private void stubDimensionNames(Bet bet) {
+		when(bettingHouseRepository.findById(bet.bettingHouseId()))
+				.thenReturn(Optional.of(new BettingHouse(bet.bettingHouseId(), "House", BigDecimal.ZERO, Instant.now())));
+		when(sportRepository.findById(bet.sportId())).thenReturn(Optional.of(new Sport(bet.sportId(), "Sport")));
+		when(leagueRepository.findById(bet.leagueId())).thenReturn(Optional.of(new League(bet.leagueId(), "League")));
+		when(marketRepository.findById(bet.marketId())).thenReturn(Optional.of(new Market(bet.marketId(), "Market")));
+	}
+
 	@Test
 	void shouldReturnExistingBetWhenIdempotencyKeyRacesOnUniqueConstraint() {
 		service = service();
@@ -90,7 +103,7 @@ class BetServiceTest {
 
 		assertThat(result.created()).isFalse();
 		assertThat(result.bet()).isEqualTo(existing);
-		verify(betEventPublisher, never()).publishCreated(any());
+		verify(betEventPublisher, never()).publishCreated(any(), any());
 	}
 
 	@Test
@@ -105,25 +118,35 @@ class BetServiceTest {
 		var result = service.create(command);
 
 		assertThat(result.created()).isFalse();
-		verify(betEventPublisher, never()).publishCreated(any());
+		verify(betEventPublisher, never()).publishCreated(any(), any());
 	}
 
 	@Test
 	void shouldPublishCreatedEventOnceForANewBet() {
 		service = service();
-		CreateBetCommand command = new CreateBetCommand(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-				UUID.randomUUID(), UUID.randomUUID(), null, null, null, null, null, null, null, BigDecimal.TEN,
-				BigDecimal.valueOf(1.5), Instant.now(), null);
+		UUID bettingHouseId = UUID.randomUUID();
+		UUID sportId = UUID.randomUUID();
+		UUID leagueId = UUID.randomUUID();
+		UUID marketId = UUID.randomUUID();
+		CreateBetCommand command = new CreateBetCommand(UUID.randomUUID(), bettingHouseId, sportId, leagueId,
+				marketId, null, null, null, null, null, null, null, BigDecimal.TEN, BigDecimal.valueOf(1.5),
+				Instant.now(), null);
 		when(bettingHouseRepository.existsById(any())).thenReturn(true);
 		when(sportRepository.existsById(any())).thenReturn(true);
 		when(leagueRepository.existsById(any())).thenReturn(true);
 		when(marketRepository.existsById(any())).thenReturn(true);
+		when(bettingHouseRepository.findById(bettingHouseId))
+				.thenReturn(Optional.of(new BettingHouse(bettingHouseId, "House", BigDecimal.ZERO, Instant.now())));
+		when(sportRepository.findById(sportId)).thenReturn(Optional.of(new Sport(sportId, "Sport")));
+		when(leagueRepository.findById(leagueId)).thenReturn(Optional.of(new League(leagueId, "League")));
+		when(marketRepository.findById(marketId)).thenReturn(Optional.of(new Market(marketId, "Market")));
 		when(betRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
 		var result = service.create(command);
 
 		assertThat(result.created()).isTrue();
-		verify(betEventPublisher).publishCreated(result.bet());
+		verify(betEventPublisher).publishCreated(result.bet(),
+				new BetDimensionNames("House", "Sport", "League", "Market", null));
 	}
 
 	@Test
@@ -133,6 +156,7 @@ class BetServiceTest {
 		UUID settledByUserId = UUID.randomUUID();
 		when(betRepository.transitionStatus(bet.id(), BetStatus.PENDING, BetStatus.WON)).thenReturn(true);
 		when(betRepository.findById(bet.id())).thenReturn(Optional.of(bet));
+		stubDimensionNames(bet);
 
 		service.updateStatus(bet.id(), BetStatus.WON, settledByUserId);
 
@@ -149,6 +173,7 @@ class BetServiceTest {
 		Bet bet = pendingBet(BigDecimal.valueOf(100), BigDecimal.valueOf(2.5));
 		when(betRepository.transitionStatus(bet.id(), BetStatus.PENDING, BetStatus.LOST)).thenReturn(true);
 		when(betRepository.findById(bet.id())).thenReturn(Optional.of(bet));
+		stubDimensionNames(bet);
 
 		service.updateStatus(bet.id(), BetStatus.LOST, UUID.randomUUID());
 
@@ -163,6 +188,7 @@ class BetServiceTest {
 		Bet bet = pendingBet(BigDecimal.valueOf(100), BigDecimal.valueOf(2.5));
 		when(betRepository.transitionStatus(bet.id(), BetStatus.PENDING, BetStatus.VOID)).thenReturn(true);
 		when(betRepository.findById(bet.id())).thenReturn(Optional.of(bet));
+		stubDimensionNames(bet);
 
 		service.updateStatus(bet.id(), BetStatus.VOID, UUID.randomUUID());
 
@@ -187,7 +213,7 @@ class BetServiceTest {
 				.isInstanceOf(InvalidStatusTransitionException.class);
 
 		verify(betResultRepository, never()).save(any());
-		verify(betEventPublisher, never()).publishSettled(any(), any());
+		verify(betEventPublisher, never()).publishSettled(any(), any(), any());
 	}
 
 	@Test
@@ -198,11 +224,13 @@ class BetServiceTest {
 		when(betRepository.transitionStatus(bet.id(), BetStatus.PENDING, BetStatus.WON)).thenReturn(true);
 		when(betRepository.findById(bet.id())).thenReturn(Optional.of(bet));
 		when(betResultRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+		stubDimensionNames(bet);
 
 		service.updateStatus(bet.id(), BetStatus.WON, settledByUserId);
 
 		ArgumentCaptor<BetResult> captor = ArgumentCaptor.forClass(BetResult.class);
-		verify(betEventPublisher).publishSettled(eq(bet), captor.capture());
+		verify(betEventPublisher).publishSettled(eq(bet), captor.capture(),
+				eq(new BetDimensionNames("House", "Sport", "League", "Market", null)));
 		assertThat(captor.getValue().settledByUserId()).isEqualTo(settledByUserId);
 	}
 

@@ -1,5 +1,6 @@
 package com.stakevault.betting.bets.adapter.out.persistence;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -33,6 +34,11 @@ public class JpaMarketRepository implements MarketRepository {
 	@Override
 	public boolean existsById(UUID id) {
 		return jpaRepository.existsById(id);
+	}
+
+	@Override
+	public Optional<Market> findById(UUID id) {
+		return jpaRepository.findById(id).map(JpaMarketRepository::toDomain);
 	}
 
 	@Override
