@@ -103,7 +103,7 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 	}
 
 	@Test
-	void shouldNotPublishAgainWhenIdempotencyKeyReplays() throws Exception {
+	void shouldNotPublishAgainWhenIdempotencyKeyReplays() {
 		try (var _ = TenantContextScope.open(schema)) {
 			String idempotencyKey = "idem-" + UUID.randomUUID();
 			var command = newCommand(UUID.randomUUID(), idempotencyKey);
