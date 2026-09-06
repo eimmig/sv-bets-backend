@@ -152,7 +152,7 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 
 			try {
 				bets.updateStatus(created.bet().id(), BetStatus.LOST, UUID.randomUUID());
-			} catch (InvalidStatusTransitionException expected) {
+			} catch (InvalidStatusTransitionException _) {
 				// already settled - expected
 			}
 
