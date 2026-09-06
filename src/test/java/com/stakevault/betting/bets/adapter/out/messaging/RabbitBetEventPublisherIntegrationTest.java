@@ -19,7 +19,9 @@ import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.SpecVersion;
 import com.stakevault.betting.bets.TestcontainersConfiguration;
 import com.stakevault.betting.bets.config.TenantContextScope;
+import com.stakevault.betting.bets.domain.model.BetStatus;
 import com.stakevault.betting.bets.domain.model.BettingHouse;
+import com.stakevault.betting.bets.domain.model.InvalidStatusTransitionException;
 import com.stakevault.betting.bets.domain.model.League;
 import com.stakevault.betting.bets.domain.model.Market;
 import com.stakevault.betting.bets.domain.model.Sport;
@@ -65,11 +67,11 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 				idempotencyKey);
 	}
 
-	private JsonNode validateAgainstSchema(byte[] body) throws Exception {
+	private JsonNode validateAgainstSchema(byte[] body, String schemaResourcePath) throws Exception {
 		ObjectMapper objectMapper = new ObjectMapper();
 		JsonNode node = objectMapper.readTree(body);
 		JsonSchemaFactory factory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V7);
-		try (InputStream schemaStream = getClass().getResourceAsStream("/contracts/bet-created.schema.json")) {
+		try (InputStream schemaStream = getClass().getResourceAsStream(schemaResourcePath)) {
 			JsonSchema schema = factory.getSchema(schemaStream);
 			var errors = schema.validate(node);
 			assertThat(errors).as("schema validation errors: %s", errors).isEmpty();
@@ -87,7 +89,7 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 
 			Message message = rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000);
 			assertThat(message).isNotNull();
-			JsonNode event = validateAgainstSchema(message.getBody());
+			JsonNode event = validateAgainstSchema(message.getBody(), "/contracts/bet-created.schema.json");
 
 			assertThat(event.get("eventType").asText()).isEqualTo("BetCreated");
 			assertThat(event.get("schemaVersion").asInt()).isEqualTo(1);
@@ -111,6 +113,48 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000)).isNotNull();
 
 			bets.create(command);
+
+			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 1000)).isNull();
+		}
+	}
+
+	@Test
+	void shouldPublishBetSettledMatchingTheSchema() throws Exception {
+		try (var _ = TenantContextScope.open(schema)) {
+			var created = bets.create(newCommand(UUID.randomUUID(), null));
+			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000)).isNotNull(); // BetCreated
+			UUID settledByUserId = UUID.randomUUID();
+
+			bets.updateStatus(created.bet().id(), BetStatus.WON, settledByUserId);
+
+			Message message = rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000);
+			assertThat(message).isNotNull();
+			JsonNode event = validateAgainstSchema(message.getBody(), "/contracts/bet-settled.schema.json");
+
+			assertThat(event.get("eventType").asText()).isEqualTo("BetSettled");
+			assertThat(event.get("userId").asText()).isEqualTo(settledByUserId.toString());
+			JsonNode payload = event.get("payload");
+			assertThat(payload.get("betId").asText()).isEqualTo(created.bet().id().toString());
+			assertThat(payload.get("status").asText()).isEqualTo("won");
+			assertThat(payload.get("profit").asDouble()).isEqualTo(50.0);
+			assertThat(message.getMessageProperties().getReceivedDeliveryMode())
+					.isEqualTo(org.springframework.amqp.core.MessageDeliveryMode.PERSISTENT);
+		}
+	}
+
+	@Test
+	void shouldNotPublishBetSettledWhenTransitionIsInvalid() {
+		try (var _ = TenantContextScope.open(schema)) {
+			var created = bets.create(newCommand(UUID.randomUUID(), null));
+			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000)).isNotNull(); // BetCreated
+			bets.updateStatus(created.bet().id(), BetStatus.WON, UUID.randomUUID());
+			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000)).isNotNull(); // BetSettled
+
+			try {
+				bets.updateStatus(created.bet().id(), BetStatus.LOST, UUID.randomUUID());
+			} catch (InvalidStatusTransitionException expected) {
+				// already settled - expected
+			}
 
 			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 1000)).isNull();
 		}
