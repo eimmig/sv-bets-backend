@@ -848,7 +848,7 @@
         {
           "id": "feat-007.3",
           "name": "Testes dos 2 endpoints com filtros combinados",
-          "status": "not-started",
+          "status": "in-progress",
           "jira": "SV-105",
           "detail": "Cobrir combinacoes reais de filtro, nao so o caminho feliz sem filtro nenhum.",
           "checklist": [
