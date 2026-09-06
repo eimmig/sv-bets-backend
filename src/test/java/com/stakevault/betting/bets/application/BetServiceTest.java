@@ -24,6 +24,7 @@ import com.stakevault.betting.bets.domain.model.BetResult;
 import com.stakevault.betting.bets.domain.model.BetStatus;
 import com.stakevault.betting.bets.domain.model.InvalidStatusTransitionException;
 import com.stakevault.betting.bets.domain.port.in.CreateBetCommand;
+import com.stakevault.betting.bets.domain.port.out.BetEventPublisher;
 import com.stakevault.betting.bets.domain.port.out.BetRepository;
 import com.stakevault.betting.bets.domain.port.out.BetResultRepository;
 import com.stakevault.betting.bets.domain.port.out.BettingHouseRepository;
@@ -49,12 +50,14 @@ class BetServiceTest {
 	private MarketRepository marketRepository;
 	@Mock
 	private TipsterRepository tipsterRepository;
+	@Mock
+	private BetEventPublisher betEventPublisher;
 
 	private BetService service;
 
 	private BetService service() {
 		return new BetService(betRepository, betResultRepository, bettingHouseRepository, sportRepository,
-				leagueRepository, marketRepository, tipsterRepository);
+				leagueRepository, marketRepository, tipsterRepository, betEventPublisher);
 	}
 
 	private Bet pendingBet(BigDecimal stake, BigDecimal odd) {
@@ -86,6 +89,40 @@ class BetServiceTest {
 
 		assertThat(result.created()).isFalse();
 		assertThat(result.bet()).isEqualTo(existing);
+		verify(betEventPublisher, never()).publishCreated(any());
+	}
+
+	@Test
+	void shouldReturnExistingBetWithoutPublishingWhenIdempotencyKeyAlreadyExists() {
+		service = service();
+		Bet existing = pendingBet(BigDecimal.TEN, BigDecimal.valueOf(1.5));
+		CreateBetCommand command = new CreateBetCommand(UUID.randomUUID(), existing.bettingHouseId(),
+				existing.sportId(), existing.leagueId(), existing.marketId(), null, null, null, null, null, null,
+				null, BigDecimal.TEN, BigDecimal.valueOf(1.5), Instant.now(), "already-used-key");
+		when(betRepository.findByIdempotencyKey("already-used-key")).thenReturn(Optional.of(existing));
+
+		var result = service.create(command);
+
+		assertThat(result.created()).isFalse();
+		verify(betEventPublisher, never()).publishCreated(any());
+	}
+
+	@Test
+	void shouldPublishCreatedEventOnceForANewBet() {
+		service = service();
+		CreateBetCommand command = new CreateBetCommand(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+				UUID.randomUUID(), UUID.randomUUID(), null, null, null, null, null, null, null, BigDecimal.TEN,
+				BigDecimal.valueOf(1.5), Instant.now(), null);
+		when(bettingHouseRepository.existsById(any())).thenReturn(true);
+		when(sportRepository.existsById(any())).thenReturn(true);
+		when(leagueRepository.existsById(any())).thenReturn(true);
+		when(marketRepository.existsById(any())).thenReturn(true);
+		when(betRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+		var result = service.create(command);
+
+		assertThat(result.created()).isTrue();
+		verify(betEventPublisher).publishCreated(result.bet());
 	}
 
 	@Test
