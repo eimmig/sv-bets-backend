@@ -684,13 +684,84 @@
       "id": "feat-006",
       "name": "Publicacao do evento BetCreated",
       "description": "Publicar BetCreated no RabbitMQ logo apos persistir BET (registro inicial, status sempre pending), sem bloquear a resposta HTTP (201 Created) ao cliente. Envelope inclui userId (= BET.createdByUserId) alem de tenantId - ver docs/contracts/bet-created.schema.json (campo obrigatorio) e docs/DECISIONS-LOG.md 2026-08-02. Evento distinto de BetSettled (ver feat-008) - nao reaproveitar o mesmo evento para liquidacao.",
+      "goal": "Ao criar uma aposta nova (nao num replay de Idempotency-Key), publicar BetCreated no exchange bets.events (routing key bet.created) com o envelope e payload documentados em docs/contracts/bet-created.schema.json, sem bloquear a resposta HTTP nem falhar a criacao se o broker estiver indisponivel.",
+      "scope": [
+        "spring-boot-starter-amqp (primeira mensageria do servico) + Testcontainers RabbitMQ (org.testcontainers:testcontainers-rabbitmq, versao gerenciada pelo BOM do Spring Boot 4.1.1, mesma linha 2.0.5 ja usada por testcontainers-postgresql) + com.networknt:json-schema-validator:3.0.7 (test scope) para validar a mensagem publicada contra o schema real, exigido pela Definicao de Pronto deste servico",
+        "Copia vendorizada de docs/contracts/bet-created.schema.json em src/test/resources/contracts/ deste repositorio - o schema mora no repositorio sv-harness (raiz), que a pipeline de CI de sv-bets-backend NAO faz checkout (repositorios git separados, ver docs/DECISIONS-LOG.md 'Topologia'); mesmo padrao de duplicacao ja aceito para .github/scripts (docs/CI-CD.md). Manter as duas copias em sincronia manualmente vira regra nova em docs/API-CONTRACTS.md",
+        "domain/port/out/BetEventPublisher (publishCreated(Bet)) + adapter/out/messaging/RabbitBetEventPublisher - le o tenant atual via TenantContextHolder (config/, ja existente) dentro do adapter, nao no dominio/aplicacao; publica so apos o INSERT de fato suceder, nunca antes; falha de publish e logada (nao propagada) - a durabilidade do registro da aposta pesa mais que o sinal assincrono nesta fase do projeto, sem outbox/retry (fora de escopo, ver docs/DECISIONS-LOG.md se o usuario quiser essa garantia depois)",
+        "BetService.create() so publica no ramo de criacao nova (created=true) - replay de Idempotency-Key NUNCA republica (a aposta ja foi publicada na primeira chamada)",
+        "management.endpoint.health.group.readiness inclui 'rabbit' (indicador auto-configurado pelo spring-boot-starter-amqp+actuator, sem codigo extra) ao lado de 'db' ja existente"
+      ],
       "dependencies": [
         "feat-004"
       ],
-      "status": "not-started",
-      "plan_review": "",
-      "jira": "",
-      "subtasks": [],
+      "status": "in-progress",
+      "plan_review": "2026-09-06, Plan Reviewer (review-suite:ln-11-plan-reviewer) rodado contra o plano antes de qualquer codigo. Veredito: READY WITH CONCERNS, 1 achado MAJOR corrigido no plano (resolvido por evidencia real do proprio ambiente de CI, nao preferencia) + 2 decisoes de design registradas sem bloqueio. (MAJOR) O rascunho original nao considerava QUE repositorio hospeda o arquivo docs/contracts/bet-created.schema.json exigido pela Definicao de Pronto deste servico ('teste validando a mensagem contra o JSON Schema') - confirmado que o arquivo vive em sv-harness (raiz), repositorio git separado de sv-bets-backend, e a pipeline de CI deste servico so faz checkout do proprio repositorio (actions/checkout@v4 sem acesso a outros repos) - um teste que lesse o caminho relativo ../../docs/contracts/... passaria localmente (pastas aninhadas neste ambiente de desenvolvimento) e falharia sempre no CI real. Corrigido: vendorizar uma copia do schema em src/test/resources/contracts/ deste repositorio (mesmo padrao ja aceito para .github/scripts, documentado em docs/CI-CD.md) - resolvido por evidencia (checkout do workflow real), nao preferencia de estilo. Decisoes de design resolvidas sem bloqueio: (a) leitura do tenant atual (TenantContextHolder) fica dentro do adapter de mensageria (adapter/out/messaging/), nao no dominio/aplicacao - BetService so chama publishCreated(bet), sem saber de ThreadLocal nem de RabbitMQ, mesma separacao ja usada para X-User-Id (controller extrai, aplicacao so recebe o valor); (b) falha ao publicar e logada e engolida, nao propagada como erro HTTP - justificada por 'consistencia eventual e intencional' (CLAUDE.md raiz) e pela ausencia de qualquer mecanismo de outbox/retry decidido para este projeto; documentado como limitacao aceita, nao residual TOCTOU (nao ha corrida aqui, e uma escolha deliberada de prioridade dado o estagio do projeto). Confirmado contra o ambiente real: testcontainers-rabbitmq resolve sem versao explicita (gerenciado pelo mesmo BOM 2.0.5 que ja fixa testcontainers-postgresql, confirmado via cache local do Maven), spring-boot-starter-amqp existe como artifact id em Spring Boot 4.1.1 (nao foi renomeado como spring-boot-starter-web/webmvc), com.networknt:json-schema-validator:3.0.7 e a versao mais recente publicada (consultado maven-metadata.xml real). A topologia RabbitMQ de teste (exchange bets.events topic durable + fila/binding so para a routing key bet.created) e declarada localmente no suporte de teste via RabbitAdmin - nao reaproveita infra/rabbitmq/definitions.json (mesmo motivo do schema: arquivo fora deste repositorio) nem precisa replicar fielmente a fila/DLQ de producao (isso e contrato do lado consumidor, stats-service). Rodada de desafio independente executada como passe proprio (grounding contra o workflow de CI real, cache local do Maven e maven-metadata.xml do Maven Central), sem subagentes - independencia reduzida, declarada.",
+      "jira": "SV-93",
+      "subtasks": [
+        {
+          "id": "feat-006.1",
+          "name": "Dependencias, config RabbitMQ e schema vendorizado",
+          "status": "in-progress",
+          "jira": "SV-94",
+          "detail": "Achado MAJOR do Plan Reviewer: sem a copia vendorizada do schema, o teste de feat-006.3 passaria local e falharia sempre no CI real (checkout de um so repositorio).",
+          "checklist": [
+            "pom.xml: spring-boot-starter-amqp (main), org.testcontainers:testcontainers-rabbitmq (test, sem versao - herda do BOM), com.networknt:json-schema-validator:3.0.7 (test).",
+            "application.yml: profile dev/prod com spring.rabbitmq.host/port/username/password (${RABBITMQ_HOST:localhost}/${RABBITMQ_PORT:5672}/${RABBITMQ_USER}/${RABBITMQ_PASSWORD}, sem default para credenciais - mesmo padrao de DB_PASSWORD); profile test sem bloco novo (Testcontainers @ServiceConnection injeta tudo, mesmo padrao do Postgres). management.endpoint.health.group.readiness.include ganha ', rabbit'.",
+            "TestcontainersConfiguration: bean RabbitMQContainer (imagem rabbitmq:4-management-alpine, mesma tag do infra/docker-compose.yml) com @ServiceConnection.",
+            ".env.example: RABBITMQ_HOST/RABBITMQ_PORT/RABBITMQ_USER/RABBITMQ_PASSWORD.",
+            "src/test/resources/contracts/bet-created.schema.json: copia byte-a-byte de docs/contracts/bet-created.schema.json (raiz)."
+          ],
+          "validation": "mvn compile passa com a nova dependencia; aplicacao sobe em profile dev/test sem erro de conexao RabbitMQ (com container/infra disponivel).",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-006.2",
+          "name": "BetEventPublisher e hook em BetService",
+          "status": "not-started",
+          "jira": "SV-95",
+          "detail": "Decisao do Plan Reviewer: TenantContextHolder lido dentro do adapter de mensageria, nao no dominio/aplicacao. Publica so no ramo de criacao nova, nunca em replay de Idempotency-Key.",
+          "checklist": [
+            "domain/port/out/BetEventPublisher: void publishCreated(Bet bet).",
+            "adapter/out/messaging/RabbitBetEventPublisher: monta o envelope (eventId aleatorio, eventType=BetCreated, schemaVersion=1, occurredAt=Instant.now(), tenantId=TenantContextHolder.current().slug(), userId=bet.createdByUserId(), payload com os campos de BET incluindo tipsterId/campos descritivos nullable) via ObjectMapper (Jackson ja presente), publica com rabbitTemplate.convertAndSend('bets.events', 'bet.created', bytes) e content-type application/json; captura qualquer excecao do RabbitTemplate e loga em ERROR (slf4j), nunca relança.",
+            "BetService.create(): apos 'return new BetCreationResult(betRepository.save(bet), true)' suceder (ramo de criacao nova, nao no ramo de replay/idempotencia), chama betEventPublisher.publishCreated(saved)."
+          ],
+          "validation": "Compilacao e testes unitarios existentes de BetService continuam passando com o novo mock injetado.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-006.3",
+          "name": "Testes: publicacao real via Testcontainers + validacao contra o schema",
+          "status": "not-started",
+          "jira": "SV-96",
+          "detail": "Definicao de Pronto deste servico exige teste validando a mensagem contra o JSON Schema (copia vendorizada de feat-006.1).",
+          "checklist": [
+            "Suporte de teste (ou classe dedicada) declara via RabbitAdmin: exchange 'bets.events' (topic, durable) + fila de teste + binding para routing key 'bet.created' - nao replica a fila/DLQ de producao (contrato do consumidor, fora de escopo aqui).",
+            "Teste de integracao: POST /api/v1/bets (feat-004) publica mensagem; consome da fila de teste (RabbitTemplate.receive com timeout), valida contra src/test/resources/contracts/bet-created.schema.json via com.networknt:json-schema-validator (zero erros de validacao), confere tenantId/userId/payload.status=pending/payload.betId batem com a aposta criada.",
+            "Teste: replay de Idempotency-Key NAO publica uma segunda mensagem (fila de teste vazia apos o segundo POST).",
+            "Teste unitario (BetServiceTest, mock de BetEventPublisher): publishCreated chamado 1x em criacao nova, nunca chamado no ramo de replay.",
+            "Teste: readiness (/actuator/health/readiness) inclui componente 'rabbit' UP com RabbitMQ disponivel."
+          ],
+          "validation": "Testes de integracao e unitarios acima passam.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-006.4",
+          "name": "CHANGELOG e verificacao final",
+          "status": "not-started",
+          "jira": "SV-97",
+          "detail": "Fecha a feature com o gate real do harness, nao so com os testes isolados de cada subtask.",
+          "checklist": [
+            "Entrada em CHANGELOG.md [Unreleased] (automatica, via tools/jira_story.py).",
+            "./init.sh (mvn verify) verde com Docker ativo (Testcontainers, incluindo o container RabbitMQ novo).",
+            "Delivery Reviewer, Test Suite Auditor e Persistence Auditor rodados antes de done.",
+            "CLAUDE.md deste servico e docs/services/bets-service.md atualizados (evento BetCreated publicado, mecanismo de vendorizacao do schema). docs/API-CONTRACTS.md ganha a regra de manter as copias vendorizadas de schema em sincronia manual com a raiz.",
+            "Vault (docs/) revisado: alguma descoberta desta feature - mecanismo reaproveitavel, gotcha de lib/config, lacuna de especificacao, decisao que diverge do ja documentado - sem nota correspondente? Se sim, atualizar/criar a nota do assunto (nao docs/DECISIONS-LOG.md a menos que divirja do TCC 1) no mesmo commit."
+          ],
+          "validation": "./init.sh sai 0; feature_list.json (deste servico) atualizado com evidence.",
+          "owner": "agente"
+        }
+      ],
       "evidence": ""
     },
     {
