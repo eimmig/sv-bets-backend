@@ -862,7 +862,7 @@
         {
           "id": "feat-008.3",
           "name": "CHANGELOG e verificacao final",
-          "status": "not-started",
+          "status": "done",
           "jira": "SV-101",
           "detail": "Fecha a feature com o gate real do harness.",
           "checklist": [
@@ -876,7 +876,39 @@
           "owner": "agente"
         }
       ],
-      "evidence": ""
+      "evidence": {
+        "resumo": "Entregue em 2026-09-06 (branch feature/SV-98, story SV-98 com 3 subtasks SV-99..101). Reaproveita quase integralmente o mecanismo de feat-006 (BetEventEnvelope, RabbitBetEventPublisher, PERSISTENT, log-e-engole em falha de publish): publica BetSettled (exchange bets.events, routing key bet.settled) apos a transicao atomica e o BET_RESULT serem salvos com sucesso, com o payload correto do schema real (sem os campos descritivos de BET, diferente de BetCreated). Nao publica em transicao invalida (422).",
+        "secoes": [
+          {
+            "titulo": "Verificação real executada",
+            "itens": [
+              "./init.sh (mvn verify, JaCoCo 80% incluso) verde localmente com Docker ativo, em cada uma das 3 subtasks.",
+              "CI verde em todas as 3 PRs de subtask (subtask/SV-99..101 -> feature/SV-98).",
+              "Teste de integracao real: cria e liquida aposta (won), consome a mensagem BetSettled da fila de teste, valida 0 erros contra o schema vendorizado, confere profit=50 (100*1.5-100), userId=settledByUserId, status=won, PERSISTENT via getReceivedDeliveryMode. Segundo teste confirma que uma segunda tentativa de liquidacao (422) nao publica nada."
+            ]
+          },
+          {
+            "titulo": "Divergência do plano original",
+            "itens": [
+              "Nenhuma - plan_review READY sem achados MAJOR/BLOCKER, unica ressalva (payload diferente de BetCreated) ja confirmada contra o schema real antes do codigo."
+            ]
+          },
+          {
+            "titulo": "Defeitos encontrados antes de causar dano",
+            "itens": [
+              "Plan Reviewer (antes do codigo): READY, sem achado - feature de baixo risco por reaproveitar mecanismo ja testado em feat-006 na mesma sessao.",
+              "Nenhum achado novo do Delivery/Test Suite/Persistence Auditor - gotchas de feat-006 (getReceivedDeliveryMode, versao do json-schema-validator, palavra 'todo' em comentario) ja estavam documentados e nao reincidiram."
+            ]
+          },
+          {
+            "titulo": "Skills e ferramentas",
+            "itens": [
+              "Plan Reviewer (READY), Delivery Reviewer/Test Suite Auditor/Persistence Auditor (PASS, feat-008.3) rodados antes de done.",
+              "docs/services/bets-service.md (secao de eventos publicados atualizada, BetSettled implementado) e CLAUDE.md deste servico atualizados no mesmo commit/sessao (raiz, repositorio sv-harness)."
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "feat-009",
