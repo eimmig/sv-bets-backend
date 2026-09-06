@@ -61,10 +61,23 @@ class BetsControllerIntegrationTest extends TenantSchemaIntegrationSupport {
 	}
 
 	private String bodyFor(References refs, String tipsterId, String odd, String stake) {
+		return bodyFor(refs, tipsterId, odd, stake, "2026-09-05T12:00:00Z");
+	}
+
+	private String bodyFor(References refs, String tipsterId, String odd, String stake, String betDate) {
 		return "{\"bettingHouseId\":\"" + refs.bettingHouseId() + "\",\"sportId\":\"" + refs.sportId()
 				+ "\",\"leagueId\":\"" + refs.leagueId() + "\",\"marketId\":\"" + refs.marketId() + "\","
 				+ (tipsterId != null ? "\"tipsterId\":\"" + tipsterId + "\"," : "") + "\"stake\":" + stake + ",\"odd\":"
-				+ odd + ",\"betDate\":\"2026-09-05T12:00:00Z\"}";
+				+ odd + ",\"betDate\":\"" + betDate + "\"}";
+	}
+
+	private HttpResponse<String> list(String query) throws Exception {
+		HttpRequest request = HttpRequest
+				.newBuilder(URI.create("http://localhost:" + port + "/api/v1/bets" + query))
+				.header("X-Tenant-Id", tenantSlug)
+				.GET()
+				.build();
+		return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 	}
 
 	private HttpResponse<String> post(String body, String callerId, String idempotencyKey) throws Exception {
@@ -329,6 +342,109 @@ class BetsControllerIntegrationTest extends TenantSchemaIntegrationSupport {
 			assertThat(java.util.List.of(status1, status2)).containsExactlyInAnyOrder(200, 422);
 		} finally {
 			executor.shutdown();
+		}
+	}
+
+	@Test
+	void shouldListAllBetsForTenantWithoutFilters() throws Exception {
+		References refs = newReferences();
+		String betId1 = extractId(post(bodyFor(refs, null, "1.5", "100"), UUID.randomUUID().toString(), null).body());
+		String betId2 = extractId(post(bodyFor(refs, null, "1.5", "100"), UUID.randomUUID().toString(), null).body());
+
+		HttpResponse<String> response = list("?page=0&size=20");
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body()).contains(betId1).contains(betId2);
+	}
+
+	@Test
+	void shouldFilterByBettingHouseId() throws Exception {
+		References refsA = newReferences();
+		References refsB = newReferences();
+		String betInHouseA = extractId(post(bodyFor(refsA, null, "1.5", "100"), UUID.randomUUID().toString(), null).body());
+		String betInHouseB = extractId(post(bodyFor(refsB, null, "1.5", "100"), UUID.randomUUID().toString(), null).body());
+
+		HttpResponse<String> response = list("?bettingHouseId=" + refsA.bettingHouseId() + "&page=0&size=20");
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body()).contains(betInHouseA).doesNotContain(betInHouseB);
+	}
+
+	@Test
+	void shouldFilterBySportId() throws Exception {
+		References refsA = newReferences();
+		References refsB = newReferences();
+		String betWithSportA = extractId(post(bodyFor(refsA, null, "1.5", "100"), UUID.randomUUID().toString(), null).body());
+		String betWithSportB = extractId(post(bodyFor(refsB, null, "1.5", "100"), UUID.randomUUID().toString(), null).body());
+
+		HttpResponse<String> response = list("?sportId=" + refsA.sportId() + "&page=0&size=20");
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body()).contains(betWithSportA).doesNotContain(betWithSportB);
+	}
+
+	@Test
+	void shouldCombineBettingHouseAndSportFilters() throws Exception {
+		References refs = newReferences();
+		String matching = extractId(post(bodyFor(refs, null, "1.5", "100"), UUID.randomUUID().toString(), null).body());
+		References other = newReferences();
+		String nonMatching = extractId(post(bodyFor(other, null, "1.5", "100"), UUID.randomUUID().toString(), null).body());
+
+		HttpResponse<String> response = list(
+				"?bettingHouseId=" + refs.bettingHouseId() + "&sportId=" + refs.sportId() + "&page=0&size=20");
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body()).contains(matching).doesNotContain(nonMatching);
+	}
+
+	@Test
+	void shouldFilterByDateRange() throws Exception {
+		References refs = newReferences();
+		String early = extractId(
+				post(bodyFor(refs, null, "1.5", "100", "2026-01-01T12:00:00Z"), UUID.randomUUID().toString(), null).body());
+		String late = extractId(
+				post(bodyFor(refs, null, "1.5", "100", "2026-06-01T12:00:00Z"), UUID.randomUUID().toString(), null).body());
+
+		HttpResponse<String> response = list("?from=2026-05-01T00:00:00Z&to=2026-07-01T00:00:00Z&page=0&size=20");
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body()).contains(late).doesNotContain(early);
+	}
+
+	@Test
+	void shouldReturnEmptyListWhenFilterMatchesNothing() throws Exception {
+		HttpResponse<String> response = list("?bettingHouseId=" + UUID.randomUUID() + "&page=0&size=20");
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body()).contains("\"totalElements\":0");
+	}
+
+	@Test
+	void shouldClampNegativePageAndNonPositiveSizeForBetsList() throws Exception {
+		HttpResponse<String> response = list("?page=-5&size=0");
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body()).contains("\"page\":0");
+	}
+
+	@Test
+	void shouldIsolateBetsListBetweenTenantSchemas() throws Exception {
+		References refs = newReferences();
+		String betId = extractId(post(bodyFor(refs, null, "1.5", "100"), UUID.randomUUID().toString(), null).body());
+
+		String otherSlug = "test-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+		provisionTenantSchema.ensureSchemaExists(otherSlug);
+		try {
+			HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/bets?page=0&size=20"))
+					.header("X-Tenant-Id", otherSlug)
+					.GET()
+					.build();
+			HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+			assertThat(response.statusCode()).isEqualTo(200);
+			assertThat(response.body()).doesNotContain(betId).contains("\"totalElements\":0");
+		} finally {
+			jdbcTemplate.execute("DROP SCHEMA IF EXISTS \"tenant_" + otherSlug + "\" CASCADE");
 		}
 	}
 }

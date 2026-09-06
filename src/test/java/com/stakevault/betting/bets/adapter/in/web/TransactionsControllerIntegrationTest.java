@@ -138,6 +138,34 @@ class TransactionsControllerIntegrationTest extends TenantSchemaIntegrationSuppo
 	}
 
 	@Test
+	void shouldFilterByDateRangeContainingNow() throws Exception {
+		String bettingHouseId = newBettingHouseId(tenantSlug);
+		post("{\"bettingHouseId\":\"" + bettingHouseId + "\",\"type\":\"deposit\",\"amount\":10}", tenantSlug);
+		java.time.Instant oneHourAgo = java.time.Instant.now().minusSeconds(3600);
+		java.time.Instant oneHourFromNow = java.time.Instant.now().plusSeconds(3600);
+
+		HttpResponse<String> response = get("?from=" + oneHourAgo + "&to=" + oneHourFromNow + "&page=0&size=20",
+				tenantSlug);
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body()).contains("\"amount\":10");
+	}
+
+	@Test
+	void shouldExcludeTransactionsOutsideTheDateRange() throws Exception {
+		String bettingHouseId = newBettingHouseId(tenantSlug);
+		post("{\"bettingHouseId\":\"" + bettingHouseId + "\",\"type\":\"deposit\",\"amount\":10}", tenantSlug);
+		java.time.Instant oneHourFromNow = java.time.Instant.now().plusSeconds(3600);
+		java.time.Instant twoHoursFromNow = java.time.Instant.now().plusSeconds(7200);
+
+		HttpResponse<String> response = get("?from=" + oneHourFromNow + "&to=" + twoHoursFromNow + "&page=0&size=20",
+				tenantSlug);
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body()).contains("\"totalElements\":0");
+	}
+
+	@Test
 	void shouldIsolateTransactionsBetweenTenantSchemas() throws Exception {
 		String otherSlug = "test-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
 		TenantSchemaName otherSchema = TenantSchemaName.fromSlug(otherSlug);
