@@ -1,5 +1,6 @@
 package com.stakevault.betting.bets.adapter.in.web;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -11,8 +12,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.stakevault.betting.bets.domain.model.BetFilter;
 import com.stakevault.betting.bets.domain.model.MissingCallerContextException;
 import com.stakevault.betting.bets.domain.port.in.BetCreationResult;
 import com.stakevault.betting.bets.domain.port.in.BetUseCase;
@@ -26,6 +29,7 @@ public class BetsController {
 
 	public static final String CALLER_HEADER = "X-User-Id";
 	public static final String IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
+	private static final int MAX_PAGE_SIZE = 100;
 
 	private final BetUseCase bets;
 
@@ -53,6 +57,23 @@ public class BetsController {
 	@GetMapping("/{id}")
 	public BetResponse get(@PathVariable UUID id) {
 		return BetResponse.from(bets.findById(id));
+	}
+
+	@GetMapping
+	public PagedResponse<BetResponse> list(
+			@RequestParam(required = false) UUID bettingHouseId,
+			@RequestParam(required = false) UUID sportId,
+			@RequestParam(required = false) UUID leagueId,
+			@RequestParam(required = false) UUID marketId,
+			@RequestParam(required = false) UUID tipsterId,
+			@RequestParam(required = false) Instant from,
+			@RequestParam(required = false) Instant to,
+			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "20") int size) {
+		BetFilter filter = new BetFilter(bettingHouseId, sportId, leagueId, marketId, tipsterId, from, to);
+		return PagedResponse.from(
+				bets.list(filter, Math.clamp(page, 0, Integer.MAX_VALUE), Math.clamp(size, 1, MAX_PAGE_SIZE)),
+				BetResponse::from);
 	}
 
 	@PatchMapping("/{id}/status")
