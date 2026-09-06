@@ -802,13 +802,80 @@
       "id": "feat-007",
       "name": "RF08 - Historico paginado de apostas e movimentacoes",
       "description": "GET /api/v1/bets e GET /api/v1/transactions com paginacao (page/size) e filtros em ingles (sport, league, market, tipster, bettingHouse, from/to - RF11/RN08) seguindo o envelope e query params documentados em docs/API-CONTRACTS.md. Endpoint de leitura consumido tanto pela tela de historico (RF08 UI) quanto por auditoria.",
+      "goal": "GET /api/v1/bets (novo, lista paginada - so existia GET por id, feat-004) e GET /api/v1/transactions (feat-003, ganha from/to) permitem consultar o historico completo combinando filtros (bettingHouseId/sportId/leagueId/marketId/tipsterId/from/to), para a tela de historico (RF08 UI) e auditoria.",
+      "scope": [
+        "GET /api/v1/bets: novo endpoint de listagem paginada (envelope PagedResponse ja existente) com filtros opcionais e combinaveis bettingHouseId/sportId/leagueId/marketId/tipsterId (UUID) e from/to (data, sobre bet_date) - uma unica query JPQL com predicados condicionais (:param IS NULL OR campo = :param), ordenada por betDate DESC",
+        "GET /api/v1/transactions: ganha from/to (sobre created_at) - substitui a dupla findAll/findByBettingHouseId por uma unica query filtrada (bettingHouseId/from/to todos opcionais), mesmo padrao de predicados condicionais",
+        "Nomenclatura dos query params segue o precedente JA ENVIADO em feat-003 (bettingHouseId, com sufixo Id) e nao o exemplo ilustrativo de docs/API-CONTRACTS.md (?sport=football, sem sufixo) - API-CONTRACTS.md corrigido para bater com o codigo real dos 2 endpoints ja implementados, evitando repetir uma inconsistencia que so existia na documentacao",
+        "page/size clampados (Math.clamp), mesmo padrao ja usado em todos os outros endpoints paginados deste servico"
+      ],
       "dependencies": [
         "feat-005"
       ],
-      "status": "not-started",
-      "plan_review": "",
-      "jira": "",
-      "subtasks": [],
+      "status": "in-progress",
+      "plan_review": "2026-09-06, Plan Reviewer (review-suite:ln-11-plan-reviewer) rodado contra o plano antes de qualquer codigo. Veredito: READY WITH CONCERNS, 1 achado MAJOR corrigido no plano (resolvido por evidencia do codigo real ja enviado, nao preferencia). (MAJOR) O exemplo de docs/API-CONTRACTS.md ('Filtros (RF11, RN08)... ?sport=football&league=brasileirao...') usa nomes de query param SEM sufixo Id ('sport', nao 'sportId'), mas o unico precedente real ja implementado neste servico (TransactionsController.list, feat-003) usa 'bettingHouseId' (COM sufixo Id) - os dois nunca foram conciliados, e um rascunho ingenuo desta feature poderia ter seguido o exemplo da doc (sem sufixo) e introduzido uma inconsistencia de nomenclatura entre o endpoint novo (/bets) e o endpoint ja existente (/transactions) dentro do MESMO servico. Corrigido: os 5 novos filtros de /api/v1/bets seguem o padrao com sufixo Id (bettingHouseId/sportId/leagueId/marketId/tipsterId), mesmo de /api/v1/transactions; docs/API-CONTRACTS.md atualizado para refletir o nome real dos parametros nos 2 endpoints ja implementados (a doc estava desatualizada, nao o codigo). Confirmado contra o repositorio real: nenhuma Specification/Criteria API usada em nenhum dos 3 servicos ate agora - todas as queries dinamicas existentes (sumNetAmountByBettingHouseIds, transitionStatus) sao JPQL simples com @Query; o padrao '(:param IS NULL OR campo = :param)' para filtros opcionais combinaveis segue a mesma ferramenta (JPQL) ja usada em todo o servico, sem introduzir abstracao nova. RF11/RN08 (citados na description desta feature) pertencem a stats-service/web na tabela de RF/RN (docs/REQUIREMENTS.md linha 18/20) - bets-service so reaproveita o VOCABULARIO de nomes de filtro por consistencia entre servicos, RF08 (bets-service, 'manter historico de operacoes') e o requisito que esta feature de fato implementa; nao ha contradicao, so a citacao 'RF11/RN08' na description original pode confundir - deixada como esta (nao e erro, so referencia de vocabulario compartilhado, ja explicada na propria description). Rodada de desafio independente executada como passe proprio (grounding contra o codigo real de feat-003 e o texto literal de docs/API-CONTRACTS.md), sem subagentes - independencia reduzida, declarada.",
+      "jira": "SV-102",
+      "subtasks": [
+        {
+          "id": "feat-007.1",
+          "name": "GET /api/v1/bets (listagem paginada com filtros)",
+          "status": "in-progress",
+          "jira": "SV-103",
+          "detail": "Primeiro endpoint de listagem de BET - so existia GET por id (feat-004).",
+          "checklist": [
+            "BetRepository ganha findFiltered(bettingHouseId, sportId, leagueId, marketId, tipsterId, from, to, page, size) -> PagedResult<Bet>.",
+            "BetSpringDataRepository: @Query JPQL com predicados condicionais '(:param IS NULL OR b.campo = :param)' para os 5 filtros de FK + from/to sobre b.betDate, ORDER BY b.betDate DESC, Pageable.",
+            "BetUseCase/BetService ganham list(...) delegando ao repositorio.",
+            "BetsController: GET /api/v1/bets com os 7 query params opcionais (todos nullable) + page/size clampados (Math.clamp, mesmo padrao dos outros controllers) - reusa BetResponse/PagedResponse ja existentes."
+          ],
+          "validation": "Compilacao e testes existentes de BetService continuam passando.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-007.2",
+          "name": "GET /api/v1/transactions ganha from/to",
+          "status": "not-started",
+          "jira": "SV-104",
+          "detail": "Substitui a dupla findAll/findByBettingHouseId (feat-003) por uma unica query filtrada - bettingHouseId/from/to todos opcionais.",
+          "checklist": [
+            "TransactionSpringDataRepository: nova @Query JPQL substituindo findByBettingHouseId - predicados condicionais para bettingHouseId/from/to (sobre t.createdAt), ORDER BY t.createdAt DESC.",
+            "TransactionRepository/TransactionUseCase/TransactionService: assinatura de list() ganha from/to (Instant, opcionais).",
+            "TransactionsController: GET /api/v1/transactions ganha query params from/to (ISO-8601, opcionais)."
+          ],
+          "validation": "Compilacao e testes existentes de TransactionsControllerIntegrationTest continuam passando (ajustados se a assinatura mudar).",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-007.3",
+          "name": "Testes dos 2 endpoints com filtros combinados",
+          "status": "not-started",
+          "jira": "SV-105",
+          "detail": "Cobrir combinacoes reais de filtro, nao so o caminho feliz sem filtro nenhum.",
+          "checklist": [
+            "GET /api/v1/bets: sem filtro (todas as apostas do tenant), filtro por bettingHouseId isolado, por sportId isolado, combinacao de 2+ filtros, from/to isolando um intervalo, filtro que nao bate com nada (lista vazia, nao erro), isolamento entre tenants, clamp de page/size negativo/zero.",
+            "GET /api/v1/transactions: from/to isolado, combinacao bettingHouseId+from/to, filtro que nao bate com nada.",
+            "Atualizar/estender os testes existentes de TransactionsControllerIntegrationTest que dependiam da assinatura antiga."
+          ],
+          "validation": "Testes de integracao dos cenarios acima passam.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-007.4",
+          "name": "CHANGELOG e verificacao final",
+          "status": "not-started",
+          "jira": "SV-106",
+          "detail": "Fecha a feature com o gate real do harness - ultima feature planejada de bets-service alem de feat-009 (formalidade de CI ja rodando).",
+          "checklist": [
+            "Entrada em CHANGELOG.md [Unreleased] (automatica, via tools/jira_story.py).",
+            "./init.sh (mvn verify) verde com Docker ativo.",
+            "Delivery Reviewer, Test Suite Auditor e Persistence Auditor rodados antes de done.",
+            "CLAUDE.md deste servico (lista de rotas) e docs/services/bets-service.md atualizados (GET /api/v1/bets novo, filtros de /api/v1/transactions). docs/API-CONTRACTS.md corrigido para os nomes reais dos query params (com sufixo Id).",
+            "Vault (docs/) revisado: alguma descoberta desta feature sem nota correspondente? Se sim, atualizar/criar a nota do assunto no mesmo commit."
+          ],
+          "validation": "./init.sh sai 0; feature_list.json (deste servico e, se fechar epic-003, da raiz) atualizado com evidence.",
+          "owner": "agente"
+        }
+      ],
       "evidence": ""
     },
     {
