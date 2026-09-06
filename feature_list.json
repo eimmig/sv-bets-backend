@@ -1024,7 +1024,7 @@
         {
           "id": "feat-009.1",
           "name": "Auditoria do pipeline real vs description da feature",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-108",
           "detail": "Achado do Plan Reviewer: description desta feature dizia '5 passos', ci.yml/docs/CI-CD.md real ja tem 6 desde SV-61 - corrigir para nao deixar o backlog contradizendo o proprio pipeline que documenta.",
           "checklist": [
@@ -1038,7 +1038,7 @@
         {
           "id": "feat-009.2",
           "name": "CHANGELOG e verificacao final",
-          "status": "not-started",
+          "status": "done",
           "jira": "SV-109",
           "detail": "Fecha a feature e o epic-003 da raiz (ultima feature liberada deste servico) - sem codigo/teste/persistencia tocados, so Delivery Reviewer sobre o diff (feature_list.json/CHANGELOG.md).",
           "checklist": [
@@ -1051,7 +1051,38 @@
           "owner": "agente"
         }
       ],
-      "evidence": ""
+      "evidence": {
+        "resumo": "Entregue em 2026-09-06 (branch feature/SV-107, story SV-107 com 2 subtasks SV-108/SV-109, PR de subtask #45 mergeado). Feature de fechamento formal, sem codigo/workflow novo - o pipeline de CI (GitHub Actions + SonarCloud) deste servico ja existia e ja rodava de verdade em producao desde SV-61 (endurecimento antecipado, porta o padrao de auth-service antes do bootstrap) e feat-001..008 (uso real: CI verde em toda PR, gate SonarCloud disparou achados reais 2 vezes - feat-004/S107 e feat-007/S107 - alem de S1130/S1135/S5778/S6068/S7467 pontuais). Ultima feature liberada do backlog de bets-service - fecha epic-003 na raiz.",
+        "secoes": [
+          {
+            "titulo": "Verificacao real executada",
+            "itens": [
+              "./init.sh (mvn verify) verde com Docker ativo - suite completa passando, nenhum teste novo (feature nao toca codigo de aplicacao).",
+              "CI verde na PR de subtask (#45, subtask/SV-108 -> feature/SV-107), confirmado com gh pr checks.",
+              "gh api repos/eimmig/sv-bets-backend/branches/develop/protection confirmado real (required_status_checks: pipeline) - branch protection de producao, nao suposicao."
+            ]
+          },
+          {
+            "titulo": "Divergência do plano original",
+            "itens": [
+              "Nenhuma - o Plan Reviewer ja constatou que nao havia mais nenhuma peca de CI faltando (setup do GitHub/SonarCloud/branch protection provados em producao pelas 8 features anteriores); o unico trabalho real era corrigir a description desatualizada da propria feature."
+            ]
+          },
+          {
+            "titulo": "Defeitos encontrados antes de causar dano",
+            "itens": [
+              "Plan Reviewer (antes de qualquer mudanca): REVISE, 1 MAJOR corrigido no plano - description desta feature dizia '5 passos' de CI e citava o atalho 'mvn sonar:sonar' sem coordenadas completas, mas o ci.yml real (lido integralmente) e docs/CI-CD.md ja tem 6 passos e coordenadas completas do plugin desde SV-61. Detalhe completo no campo plan_review."
+            ]
+          },
+          {
+            "titulo": "Skills e ferramentas",
+            "itens": [
+              "Plan Reviewer (1 MAJOR corrigido) rodado antes de codificar - Delivery Reviewer confirmou diff puramente documental (feature_list.json/CHANGELOG.md), Test Suite Auditor e Persistence Auditor nao se aplicam (zero codigo/teste/persistencia tocado nesta feature), documentado no plan_review em vez de rodados sem proposito.",
+              "tools/jira_story.py usado normalmente (criacao da story + 2 subtasks, --sync-status a cada transicao real; 1 erro de rede transitorio no primeiro --sync-status, resolvido com retry simples)."
+            ]
+          }
+        ]
+      }
     }
   ]
 }
