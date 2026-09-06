@@ -834,7 +834,7 @@
         {
           "id": "feat-007.2",
           "name": "GET /api/v1/transactions ganha from/to",
-          "status": "not-started",
+          "status": "in-progress",
           "jira": "SV-104",
           "detail": "Substitui a dupla findAll/findByBettingHouseId (feat-003) por uma unica query filtrada - bettingHouseId/from/to todos opcionais.",
           "checklist": [
