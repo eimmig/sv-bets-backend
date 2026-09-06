@@ -718,7 +718,7 @@
         {
           "id": "feat-006.2",
           "name": "BetEventPublisher e hook em BetService",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-95",
           "detail": "Decisao do Plan Reviewer: TenantContextHolder lido dentro do adapter de mensageria, nao no dominio/aplicacao. Publica so no ramo de criacao nova, nunca em replay de Idempotency-Key.",
           "checklist": [
