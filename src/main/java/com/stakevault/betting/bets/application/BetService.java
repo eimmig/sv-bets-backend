@@ -23,6 +23,7 @@ import com.stakevault.betting.bets.domain.model.TipsterNotFoundException;
 import com.stakevault.betting.bets.domain.port.in.BetCreationResult;
 import com.stakevault.betting.bets.domain.port.in.BetUseCase;
 import com.stakevault.betting.bets.domain.port.in.CreateBetCommand;
+import com.stakevault.betting.bets.domain.port.out.BetEventPublisher;
 import com.stakevault.betting.bets.domain.port.out.BetRepository;
 import com.stakevault.betting.bets.domain.port.out.BetResultRepository;
 import com.stakevault.betting.bets.domain.port.out.BettingHouseRepository;
@@ -41,10 +42,12 @@ public class BetService implements BetUseCase {
 	private final LeagueRepository leagueRepository;
 	private final MarketRepository marketRepository;
 	private final TipsterRepository tipsterRepository;
+	private final BetEventPublisher betEventPublisher;
 
 	public BetService(BetRepository betRepository, BetResultRepository betResultRepository,
 			BettingHouseRepository bettingHouseRepository, SportRepository sportRepository,
-			LeagueRepository leagueRepository, MarketRepository marketRepository, TipsterRepository tipsterRepository) {
+			LeagueRepository leagueRepository, MarketRepository marketRepository, TipsterRepository tipsterRepository,
+			BetEventPublisher betEventPublisher) {
 		this.betRepository = betRepository;
 		this.betResultRepository = betResultRepository;
 		this.bettingHouseRepository = bettingHouseRepository;
@@ -52,6 +55,7 @@ public class BetService implements BetUseCase {
 		this.leagueRepository = leagueRepository;
 		this.marketRepository = marketRepository;
 		this.tipsterRepository = tipsterRepository;
+		this.betEventPublisher = betEventPublisher;
 	}
 
 	@Override
@@ -73,7 +77,9 @@ public class BetService implements BetUseCase {
 				command.idempotencyKey());
 
 		try {
-			return new BetCreationResult(betRepository.save(bet), true);
+			Bet saved = betRepository.save(bet);
+			betEventPublisher.publishCreated(saved);
+			return new BetCreationResult(saved, true);
 		} catch (DataIntegrityViolationException _) {
 			// Concurrent replay of the same Idempotency-Key raced us to the unique constraint.
 			return betRepository.findByIdempotencyKey(command.idempotencyKey())

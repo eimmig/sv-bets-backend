@@ -41,3 +41,8 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 - [SV-90](https://stakevault.atlassian.net/browse/SV-90) - Liquidacao atomica: transicao condicional + BET_RESULT + X-User-Id no PATCH
 - [SV-91](https://stakevault.atlassian.net/browse/SV-91) - Balance de betting-houses passa a incluir profit de apostas liquidadas (RN01/RN05)
 - [SV-92](https://stakevault.atlassian.net/browse/SV-92) - CHANGELOG e verificacao final
+- [SV-93](https://stakevault.atlassian.net/browse/SV-93) - Publicacao do evento BetCreated
+- [SV-94](https://stakevault.atlassian.net/browse/SV-94) - Dependencias, config RabbitMQ e schema vendorizado
+- [SV-95](https://stakevault.atlassian.net/browse/SV-95) - BetEventPublisher e hook em BetService
+- [SV-96](https://stakevault.atlassian.net/browse/SV-96) - Testes: publicacao real via Testcontainers + validacao contra o schema
+- [SV-97](https://stakevault.atlassian.net/browse/SV-97) - CHANGELOG e verificacao final
