@@ -1,7 +1,11 @@
 package com.stakevault.betting.bets.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
@@ -11,14 +15,18 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import com.stakevault.betting.bets.domain.model.Bet;
+import com.stakevault.betting.bets.domain.model.BetResult;
 import com.stakevault.betting.bets.domain.model.BetStatus;
+import com.stakevault.betting.bets.domain.model.InvalidStatusTransitionException;
 import com.stakevault.betting.bets.domain.port.in.CreateBetCommand;
 import com.stakevault.betting.bets.domain.port.out.BetRepository;
+import com.stakevault.betting.bets.domain.port.out.BetResultRepository;
 import com.stakevault.betting.bets.domain.port.out.BettingHouseRepository;
 import com.stakevault.betting.bets.domain.port.out.LeagueRepository;
 import com.stakevault.betting.bets.domain.port.out.MarketRepository;
@@ -30,6 +38,8 @@ class BetServiceTest {
 
 	@Mock
 	private BetRepository betRepository;
+	@Mock
+	private BetResultRepository betResultRepository;
 	@Mock
 	private BettingHouseRepository bettingHouseRepository;
 	@Mock
@@ -43,10 +53,20 @@ class BetServiceTest {
 
 	private BetService service;
 
+	private BetService service() {
+		return new BetService(betRepository, betResultRepository, bettingHouseRepository, sportRepository,
+				leagueRepository, marketRepository, tipsterRepository);
+	}
+
+	private Bet pendingBet(BigDecimal stake, BigDecimal odd) {
+		return new Bet(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+				null, UUID.randomUUID(), null, null, null, null, null, null, stake, odd, BetStatus.PENDING,
+				Instant.now(), null);
+	}
+
 	@Test
 	void shouldReturnExistingBetWhenIdempotencyKeyRacesOnUniqueConstraint() {
-		service = new BetService(betRepository, bettingHouseRepository, sportRepository, leagueRepository,
-				marketRepository, tipsterRepository);
+		service = service();
 
 		Bet existing = new Bet(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
 				UUID.randomUUID(), null, UUID.randomUUID(), null, null, null, null, null, null, BigDecimal.TEN,
@@ -67,5 +87,78 @@ class BetServiceTest {
 
 		assertThat(result.created()).isFalse();
 		assertThat(result.bet()).isEqualTo(existing);
+	}
+
+	@Test
+	void shouldComputeProfitAsStakeTimesOddMinusStakeWhenWon() {
+		service = service();
+		Bet bet = pendingBet(BigDecimal.valueOf(100), BigDecimal.valueOf(2.5));
+		UUID settledByUserId = UUID.randomUUID();
+		when(betRepository.transitionStatus(bet.id(), BetStatus.PENDING, BetStatus.WON)).thenReturn(true);
+		when(betRepository.findById(bet.id())).thenReturn(Optional.of(bet));
+
+		service.updateStatus(bet.id(), BetStatus.WON, settledByUserId);
+
+		ArgumentCaptor<BetResult> captor = ArgumentCaptor.forClass(BetResult.class);
+		verify(betResultRepository).save(captor.capture());
+		assertThat(captor.getValue().profit()).isEqualByComparingTo("150");
+		assertThat(captor.getValue().settledByUserId()).isEqualTo(settledByUserId);
+		assertThat(captor.getValue().betId()).isEqualTo(bet.id());
+	}
+
+	@Test
+	void shouldComputeProfitAsNegativeStakeWhenLost() {
+		service = service();
+		Bet bet = pendingBet(BigDecimal.valueOf(100), BigDecimal.valueOf(2.5));
+		when(betRepository.transitionStatus(bet.id(), BetStatus.PENDING, BetStatus.LOST)).thenReturn(true);
+		when(betRepository.findById(bet.id())).thenReturn(Optional.of(bet));
+
+		service.updateStatus(bet.id(), BetStatus.LOST, UUID.randomUUID());
+
+		ArgumentCaptor<BetResult> captor = ArgumentCaptor.forClass(BetResult.class);
+		verify(betResultRepository).save(captor.capture());
+		assertThat(captor.getValue().profit()).isEqualByComparingTo("-100");
+	}
+
+	@Test
+	void shouldComputeZeroProfitWhenVoid() {
+		service = service();
+		Bet bet = pendingBet(BigDecimal.valueOf(100), BigDecimal.valueOf(2.5));
+		when(betRepository.transitionStatus(bet.id(), BetStatus.PENDING, BetStatus.VOID)).thenReturn(true);
+		when(betRepository.findById(bet.id())).thenReturn(Optional.of(bet));
+
+		service.updateStatus(bet.id(), BetStatus.VOID, UUID.randomUUID());
+
+		ArgumentCaptor<BetResult> captor = ArgumentCaptor.forClass(BetResult.class);
+		verify(betResultRepository).save(captor.capture());
+		assertThat(captor.getValue().profit()).isEqualByComparingTo("0");
+	}
+
+	@Test
+	void shouldRejectTransitionWithoutSavingResultWhenAtomicUpdateLosesTheRace() {
+		service = service();
+		Bet bet = pendingBet(BigDecimal.TEN, BigDecimal.valueOf(2));
+		Bet alreadySettled = new Bet(bet.id(), bet.bettingHouseId(), bet.sportId(), bet.leagueId(), bet.marketId(),
+				null, bet.createdByUserId(), null, null, null, null, null, null, bet.stake(), bet.odd(),
+				BetStatus.WON, bet.betDate(), null);
+		when(betRepository.transitionStatus(bet.id(), BetStatus.PENDING, BetStatus.LOST)).thenReturn(false);
+		when(betRepository.findById(bet.id())).thenReturn(Optional.of(alreadySettled));
+
+		assertThatThrownBy(() -> service.updateStatus(bet.id(), BetStatus.LOST, UUID.randomUUID()))
+				.isInstanceOf(InvalidStatusTransitionException.class);
+
+		verify(betResultRepository, never()).save(any());
+	}
+
+	@Test
+	void shouldRejectTransitionToPendingWithoutCallingRepository() {
+		service = service();
+		Bet bet = pendingBet(BigDecimal.TEN, BigDecimal.valueOf(2));
+		when(betRepository.findById(eq(bet.id()))).thenReturn(Optional.of(bet));
+
+		assertThatThrownBy(() -> service.updateStatus(bet.id(), BetStatus.PENDING, UUID.randomUUID()))
+				.isInstanceOf(InvalidStatusTransitionException.class);
+
+		verify(betRepository, never()).transitionStatus(any(), any(), any());
 	}
 }

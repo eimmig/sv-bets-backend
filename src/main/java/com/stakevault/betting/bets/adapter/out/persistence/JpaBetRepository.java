@@ -34,10 +34,8 @@ public class JpaBetRepository implements BetRepository {
 	}
 
 	@Override
-	public Bet updateStatus(UUID id, BetStatus status) {
-		BetJpaEntity entity = jpaRepository.findById(id).orElseThrow(() -> new IllegalStateException("bet vanished: " + id));
-		entity.updateStatus(status);
-		return toDomain(jpaRepository.save(entity));
+	public boolean transitionStatus(UUID id, BetStatus from, BetStatus to) {
+		return jpaRepository.transitionStatus(id, from, to) > 0;
 	}
 
 	private static Bet toDomain(BetJpaEntity entity) {
