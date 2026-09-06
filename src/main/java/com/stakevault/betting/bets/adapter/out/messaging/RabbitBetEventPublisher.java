@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageBuilder;
+import org.springframework.amqp.core.MessageDeliveryMode;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
 
@@ -41,7 +42,9 @@ public class RabbitBetEventPublisher implements BetEventPublisher {
 				BetCreatedPayload.from(bet));
 		try {
 			byte[] body = objectMapper.writeValueAsBytes(envelope);
-			Message message = MessageBuilder.withBody(body).setContentType("application/json").build();
+			Message message = MessageBuilder.withBody(body).setContentType("application/json")
+					.setDeliveryMode(MessageDeliveryMode.PERSISTENT)
+					.build();
 			rabbitTemplate.send(EXCHANGE, ROUTING_KEY_BET_CREATED, message);
 		} catch (Exception exception) {
 			// Consistencia eventual e intencional (ver CLAUDE.md raiz) - durabilidade do registro

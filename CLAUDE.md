@@ -51,11 +51,15 @@ antes de `feat-001`.
   (correspondem a pendente/ganha/perdida/devolvida em RF12/RN06 — a especificação em si, ver
   `../../docs/REQUIREMENTS.md`, continua em português; só a codificação técnica é inglês).
 - Publique **dois eventos distintos**, não um único evento reaproveitado: `BetCreated` no
-  registro inicial (`../../docs/contracts/bet-created.schema.json`) e `BetSettled` na
-  liquidação (`../../docs/contracts/bet-settled.schema.json`) — ver
-  `../../docs/API-CONTRACTS.md`. Mudanças de payload em qualquer um dos dois atualizam o schema
-  correspondente, `../../docs/services/bets-service.md` e `../../docs/services/stats-service.md`
-  no mesmo commit.
+  registro inicial (`../../docs/contracts/bet-created.schema.json`, `feat-006`, implementado) e
+  `BetSettled` na liquidação (`../../docs/contracts/bet-settled.schema.json`, `feat-008`, ainda
+  não implementado) — ver `../../docs/API-CONTRACTS.md`. Mudanças de payload em qualquer um dos
+  dois atualizam o schema correspondente, `../../docs/services/bets-service.md` e
+  `../../docs/services/stats-service.md` no mesmo commit — **e a cópia vendorizada em
+  `src/test/resources/contracts/` deste repositório** (o schema mora em `sv-harness`, repositório
+  separado que a CI daqui não faz checkout, ver `../../docs/API-CONTRACTS.md` seção "Cópias
+  vendorizadas do schema"). Mensagens marcadas `PERSISTENT` (`MessageDeliveryMode`) - fila de
+  produção é durable mas isso não basta sozinho.
 - **Maven** (não Gradle) e **arquitetura hexagonal** (`domain/`, `application/`, `adapter/`) —
   decisões já tomadas em `../../docs/CONVENTIONS.md`, não reabrir. O publicador do evento vive
   em `adapter/out/messaging/`, implementando um `port/out` do domínio.

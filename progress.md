@@ -3,7 +3,7 @@
 ## Estado Atual (Current State)
 
 **Última atualização:** 2026-09-06
-**Feature ativa:** nenhuma (`feat-005` `done`, `feat-006` liberada; `feat-007`/`feat-008` liberadas por `feat-005`)
+**Feature ativa:** nenhuma (`feat-006` `done`; `feat-007`/`feat-008` liberadas por `feat-005`)
 
 ## Status
 
@@ -95,15 +95,32 @@
         estado com guarda de negócio (`feat-005`) — reaproveitável por `auth-service`/
         `stats-service`.
 
+- [x] **`feat-006` (Publicação do evento `BetCreated`) — `done` em 2026-09-06.** Primeira
+      mensageria do serviço: `spring-boot-starter-amqp` + Testcontainers RabbitMQ,
+      `RabbitBetEventPublisher` publica `BetCreated` (exchange `bets.events`, routing key
+      `bet.created`) logo após o `INSERT` suceder, mensagem `PERSISTENT`, falha de publish logada
+      e nunca propagada como erro HTTP (sem outbox/retry — risco residual aceito). Ver
+      `feature_list.json` (campo `evidence`) para o detalhe completo, incluindo:
+      - Cópia vendorizada de `docs/contracts/bet-created.schema.json` em
+        `src/test/resources/contracts/` — o schema mora no repositório `sv-harness`, que a CI
+        deste repositório não faz checkout; achado do Plan Reviewer, evita um teste que passa
+        local e falha sempre no CI real.
+      - `com.networknt:json-schema-validator` pinado em `1.5.9` (não a versão mais recente,
+        `3.0.7` — reescrita completa da API, descoberta só na compilação do teste).
+      - `MessageProperties.getDeliveryMode()` retorna `null` numa mensagem RECEBIDA — o valor
+        real fica em `getReceivedDeliveryMode()`; achado real na revisão final (mensagem não
+        marcada `PERSISTENT`), corrigido e coberto por teste antes de `done`.
+
 ### Em andamento
 
 - Nenhuma feature iniciada.
 
 ### Próximos passos (Next Steps)
 
-1. `feat-006` (Publicação do evento `BetCreated`), `feat-007` (Histórico paginado) e `feat-008`
-   (Publicação do evento `BetSettled`) estão liberadas (dependem de `feat-004`/`feat-005`, ambas
-   `done`) — WIP máximo 1 por serviço, escolher uma.
+1. `feat-007` (Histórico paginado) e `feat-008` (Publicação do evento `BetSettled`) estão
+   liberadas (dependem de `feat-005`, `done`) — WIP máximo 1 por serviço, escolher uma. `feat-008`
+   pode reaproveitar diretamente `BetEventEnvelope`/o mecanismo de `RabbitBetEventPublisher` desta
+   sessão (só o payload e a routing key mudam).
 
 ## Bloqueios / Riscos
 
@@ -128,6 +145,12 @@
   `UPDATE` atômico condicional (`WHERE status='pending'`, via `@Modifying @Query`), provado por
   teste de concorrência real (2 threads via `ExecutorService`) — só uma de duas liquidações
   simultâneas para a mesma aposta sucede, a outra recebe `422 invalid-status-transition`.
+- **Residual aceito (`feat-006`)**: `RabbitBetEventPublisher.publishCreated` não tem
+  outbox/retry — se o broker estiver indisponível no instante do `INSERT`, a falha é logada e a
+  aposta é criada normalmente, mas o evento `BetCreated` correspondente nunca chega ao
+  `stats-service` (replay de `Idempotency-Key` não tenta republicar). Aceito por ser fora do
+  escopo decidido para este projeto (sem mecanismo de outbox); revisitar se o volume/criticidade
+  justificar depois.
 
 ## Decisões tomadas
 
@@ -141,30 +164,30 @@
   (injetar `MessageSource`/`LocaleResolver` direto no filtro) já estava provado funcionando por
   `AdminApiKeyFilter` de `auth-service`.
 
-## Arquivos modificados nesta sessão (`feat-005`)
+## Arquivos modificados nesta sessão (`feat-006`)
 
-- `src/main/resources/db/migration/V20260905234334__create_bet_result_table.sql`, domínio
-  (`BetResult`), persistência (`BetResultJpaEntity`, `JpaBetResultRepository`, `@Modifying
-  transitionStatus` em `BetSpringDataRepository`), aplicação (`BetService.updateStatus`
-  reescrito, `BettingHouseService.list` somando profit), web (`BetsController` exige `X-User-Id`
-  no PATCH), testes (`JpaBetResultRepositoryIntegrationTest`, testes novos em
-  `BetsControllerIntegrationTest`/`BettingHousesControllerIntegrationTest`/`BetServiceTest`,
-  incluindo o teste de concorrência), `CLAUDE.md`, `feature_list.json`, `CHANGELOG.md`.
+- `pom.xml` (spring-boot-starter-amqp, testcontainers-rabbitmq, json-schema-validator),
+  `application.yml`/`.env.example` (config RabbitMQ), `TestcontainersConfiguration` (container +
+  topologia de teste), domínio (`BetEventPublisher`), mensageria
+  (`adapter/out/messaging/RabbitBetEventPublisher`, `BetCreatedPayload`, `BetEventEnvelope`),
+  `BetService.create` (hook de publicação), `src/test/resources/contracts/bet-created.schema.json`
+  (cópia vendorizada), testes (`RabbitBetEventPublisherIntegrationTest`, `BetServiceTest`,
+  `HealthChecksTest`), `CLAUDE.md`, `feature_list.json`, `CHANGELOG.md`.
 
-## Evidência de conclusão (`feat-005`)
+## Evidência de conclusão (`feat-006`)
 
-- `./init.sh` (`mvn verify`, JaCoCo 80% incluso) verde localmente com Docker ativo, em cada uma
-  das 5 subtasks.
-- CI verde em todas as 5 PRs de subtask (`subtask/SV-88..92` → `feature/SV-87`).
+- `./init.sh` (`mvn verify`, JaCoCo 80% incluso) verde localmente com Docker ativo (Postgres +
+  RabbitMQ via Testcontainers), em cada uma das 4 subtasks.
+- CI verde em todas as 4 PRs de subtask (`subtask/SV-94..97` → `feature/SV-93`).
 - Plan Reviewer (1 MAJOR corrigido no plano), Delivery Reviewer, Test Suite Auditor e Persistence
-  Auditor rodados — `PASS` nos três últimos, sem achado novo além do já previsto e corrigido no
-  plano. Detalhe completo em `feature_list.json` (campo `evidence` de `feat-005`).
+  Auditor rodados — achado real na revisão final (mensagem não marcada `PERSISTENT`) corrigido e
+  testado antes de `done`. Detalhe completo em `feature_list.json` (campo `evidence` de
+  `feat-006`).
 
 ## Notas para a próxima sessão
 
-`feat-006` (evento `BetCreated`), `feat-007` (histórico paginado) e `feat-008` (evento
-`BetSettled`) estão liberadas — escolher uma (WIP máximo 1). `feat-006`/`feat-008` publicam no
-RabbitMQ (primeira vez que este serviço produz eventos) — revisar a topologia já provisionada em
-`infra/rabbitmq/definitions.json` e os schemas em `docs/contracts/bet-created.schema.json`/
-`bet-settled.schema.json` (ambos já existentes e usados como fonte de verdade em `feat-004`/
-`feat-005` para nullability de campos) antes de planejar.
+`feat-007` (histórico paginado) e `feat-008` (evento `BetSettled`) estão liberadas — escolher uma
+(WIP máximo 1). `feat-008` pode reaproveitar diretamente `BetEventEnvelope`/o padrão de
+`RabbitBetEventPublisher` desta sessão (só o payload — `BetSettledPayload` — e a routing key
+`bet.settled` mudam) — inclusive o gotcha de `setDeliveryMode(PERSISTENT)` e o teste de
+`getReceivedDeliveryMode()`, ambos já documentados em `docs/CONVENTIONS.md`.
