@@ -52,8 +52,9 @@ antes de `feat-001`.
   `../../docs/REQUIREMENTS.md`, continua em português; só a codificação técnica é inglês).
 - Publique **dois eventos distintos**, não um único evento reaproveitado: `BetCreated` no
   registro inicial (`../../docs/contracts/bet-created.schema.json`, `feat-006`, implementado) e
-  `BetSettled` na liquidação (`../../docs/contracts/bet-settled.schema.json`, `feat-008`, ainda
-  não implementado) — ver `../../docs/API-CONTRACTS.md`. Mudanças de payload em qualquer um dos
+  `BetSettled` na liquidação (`../../docs/contracts/bet-settled.schema.json`, `feat-008`,
+  implementado — payload SEM os campos descritivos de `BET`, diferente de `BetCreated`) — ver
+  `../../docs/API-CONTRACTS.md`. Mudanças de payload em qualquer um dos
   dois atualizam o schema correspondente, `../../docs/services/bets-service.md` e
   `../../docs/services/stats-service.md` no mesmo commit — **e a cópia vendorizada em
   `src/test/resources/contracts/` deste repositório** (o schema mora em `sv-harness`, repositório

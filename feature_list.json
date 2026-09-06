@@ -815,14 +815,100 @@
       "id": "feat-008",
       "name": "Publicacao do evento BetSettled",
       "description": "Publicar BetSettled no RabbitMQ apos liquidar uma aposta (feat-005: status vira won/lost/void, profit calculado), sem bloquear a resposta HTTP ao cliente. Envelope inclui userId (= BET_RESULT.settledByUserId, pode ser diferente do userId do BetCreated correspondente) alem de tenantId - ver docs/contracts/bet-settled.schema.json (campo obrigatorio) e docs/DECISIONS-LOG.md 2026-08-02. Payload inclui profit/settledAt e repete os campos dimensionais (nao so betId) para o stats-service conseguir fazer upsert em FACT_BET independente de ja ter processado o BetCreated correspondente.",
+      "goal": "Ao liquidar uma aposta com sucesso (PATCH /api/v1/bets/{id}/status, feat-005), publicar BetSettled no mesmo exchange bets.events (routing key bet.settled) com o payload documentado em docs/contracts/bet-settled.schema.json, reaproveitando o mecanismo de feat-006 (envelope, PERSISTENT, falha logada e nunca propagada).",
+      "scope": [
+        "domain/port/out/BetEventPublisher ganha publishSettled(Bet bet, BetResult result) - mesma interface de feat-006, sem porta nova",
+        "adapter/out/messaging: BetSettledPayload (record) + RabbitBetEventPublisher publica com routing key bet.settled, PERSISTENT, mesmo padrao de publishCreated (envelope reaproveitado via BetEventEnvelope<T> generico ja existente)",
+        "BetService.updateStatus() chama publishSettled so apos a transicao atomica suceder E o BetResult ser salvo com sucesso - nunca no ramo de transicao invalida (422)",
+        "Copia vendorizada de docs/contracts/bet-settled.schema.json em src/test/resources/contracts/ deste repositorio (mesmo motivo/padrao de bet-created.schema.json em feat-006, ver docs/API-CONTRACTS.md)",
+        "Payload NAO inclui os campos descritivos de BET (ticketNumber/team1/team2/description/betType/playType) - confirmado contra o schema real, diferente de BetCreated; so os campos dimensionais + profit/settledAt"
+      ],
       "dependencies": [
         "feat-005"
       ],
-      "status": "not-started",
-      "plan_review": "",
-      "jira": "",
-      "subtasks": [],
-      "evidence": ""
+      "status": "done",
+      "plan_review": "2026-09-06, Plan Reviewer (review-suite:ln-11-plan-reviewer) rodado contra o plano antes de qualquer codigo. Veredito: READY, nenhum achado MAJOR/BLOCKER - feature reaproveita quase integralmente o mecanismo ja construido e testado em feat-006 (mesma sessao), sem decisao nova de arquitetura. Confirmado contra o repositorio real: docs/contracts/bet-settled.schema.json (ja existente) tem payload DIFERENTE de bet-created.schema.json - nao inclui ticketNumber/team1/team2/description/betType/playType (so campos dimensionais: bettingHouseId/sportId/leagueId/marketId/tipsterId nullable, mais stake/odd/status/profit/settledAt), e status e enum ['won','lost','void'] (nunca 'pending', ao contrario de BetCreated) - draft original poderia ter copiado o payload de BetCreated por engano, corrigido antes de codificar. Gotchas ja documentados em docs/CONVENTIONS.md (getReceivedDeliveryMode vs getDeliveryMode, versao do json-schema-validator, palavra 'todo' em comentario) se aplicam identicamente aqui - nao precisam ser redescobertos. Unica decisao nova (nao bloqueante): publishSettled roda DENTRO do mesmo @Transactional de updateStatus (feat-005), nao apos o commit - aceito por simplicidade (mesmo estilo de feat-006, sem TransactionalEventListener), residual: se o publish bloquear/atrasar, prolonga a transacao; sem consequencia pratica esperada (broker local, chamada de rede rapida). Rodada de desafio independente executada como passe proprio (grounding contra o schema real e o codigo de feat-006 ja mesclado), sem subagentes - independencia reduzida, declarada.",
+      "jira": "SV-98",
+      "subtasks": [
+        {
+          "id": "feat-008.1",
+          "name": "BetSettledPayload, publishSettled e hook em BetService.updateStatus",
+          "status": "done",
+          "jira": "SV-99",
+          "detail": "Reaproveita BetEventEnvelope<T> e o padrao de publishCreated de feat-006 - so o payload e a routing key mudam.",
+          "checklist": [
+            "adapter/out/messaging/BetSettledPayload (record: betId, bettingHouseId, sportId, leagueId, marketId, tipsterId, stake, odd, status, profit, settledAt - SEM os campos descritivos, confirmado contra o schema real).",
+            "BetEventPublisher.publishSettled(Bet, BetResult) + RabbitBetEventPublisher: monta o envelope (userId=result.settledByUserId()), publica em bets.events/bet.settled, PERSISTENT, mesma captura de excecao (log ERROR, nunca relanca).",
+            "BetService.updateStatus(): apos betResultRepository.save(...) suceder, chama betEventPublisher.publishSettled(settled, betResult) antes do return - nunca no ramo de 422 (transicao invalida)."
+          ],
+          "validation": "Compilacao e testes unitarios existentes de BetService continuam passando com o novo metodo mockado.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-008.2",
+          "name": "Testes: publicacao real via Testcontainers + validacao contra o schema bet-settled",
+          "status": "done",
+          "jira": "SV-100",
+          "detail": "Definicao de Pronto exige teste validando a mensagem contra o JSON Schema - copia vendorizada nova (bet-settled.schema.json).",
+          "checklist": [
+            "src/test/resources/contracts/bet-settled.schema.json: copia byte-a-byte da raiz.",
+            "Teste de integracao: cria aposta, liquida (won/lost/void), consome da fila de teste (binding ja aceita bet.* desde feat-006), valida contra o schema vendorizado (zero erros), confere profit/settledByUserId/status/PERSISTENT.",
+            "Teste: transicao invalida (422) NAO publica BetSettled (fila de teste vazia).",
+            "Teste unitario (BetServiceTest, mock): publishSettled chamado 1x com os argumentos corretos em liquidacao bem-sucedida; nunca chamado quando a transicao atomica falha."
+          ],
+          "validation": "Testes de integracao e unitarios acima passam.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-008.3",
+          "name": "CHANGELOG e verificacao final",
+          "status": "done",
+          "jira": "SV-101",
+          "detail": "Fecha a feature com o gate real do harness.",
+          "checklist": [
+            "Entrada em CHANGELOG.md [Unreleased] (automatica, via tools/jira_story.py).",
+            "./init.sh (mvn verify) verde com Docker ativo.",
+            "Delivery Reviewer, Test Suite Auditor e Persistence Auditor rodados antes de done.",
+            "CLAUDE.md deste servico e docs/services/bets-service.md atualizados (BetSettled implementado).",
+            "Vault (docs/) revisado: alguma descoberta desta feature sem nota correspondente? Se sim, atualizar/criar a nota do assunto no mesmo commit."
+          ],
+          "validation": "./init.sh sai 0; feature_list.json (deste servico) atualizado com evidence.",
+          "owner": "agente"
+        }
+      ],
+      "evidence": {
+        "resumo": "Entregue em 2026-09-06 (branch feature/SV-98, story SV-98 com 3 subtasks SV-99..101). Reaproveita quase integralmente o mecanismo de feat-006 (BetEventEnvelope, RabbitBetEventPublisher, PERSISTENT, log-e-engole em falha de publish): publica BetSettled (exchange bets.events, routing key bet.settled) apos a transicao atomica e o BET_RESULT serem salvos com sucesso, com o payload correto do schema real (sem os campos descritivos de BET, diferente de BetCreated). Nao publica em transicao invalida (422).",
+        "secoes": [
+          {
+            "titulo": "Verificação real executada",
+            "itens": [
+              "./init.sh (mvn verify, JaCoCo 80% incluso) verde localmente com Docker ativo, em cada uma das 3 subtasks.",
+              "CI verde em todas as 3 PRs de subtask (subtask/SV-99..101 -> feature/SV-98).",
+              "Teste de integracao real: cria e liquida aposta (won), consome a mensagem BetSettled da fila de teste, valida 0 erros contra o schema vendorizado, confere profit=50 (100*1.5-100), userId=settledByUserId, status=won, PERSISTENT via getReceivedDeliveryMode. Segundo teste confirma que uma segunda tentativa de liquidacao (422) nao publica nada."
+            ]
+          },
+          {
+            "titulo": "Divergência do plano original",
+            "itens": [
+              "Nenhuma - plan_review READY sem achados MAJOR/BLOCKER, unica ressalva (payload diferente de BetCreated) ja confirmada contra o schema real antes do codigo."
+            ]
+          },
+          {
+            "titulo": "Defeitos encontrados antes de causar dano",
+            "itens": [
+              "Plan Reviewer (antes do codigo): READY, sem achado - feature de baixo risco por reaproveitar mecanismo ja testado em feat-006 na mesma sessao.",
+              "Nenhum achado novo do Delivery/Test Suite/Persistence Auditor - gotchas de feat-006 (getReceivedDeliveryMode, versao do json-schema-validator, palavra 'todo' em comentario) ja estavam documentados e nao reincidiram."
+            ]
+          },
+          {
+            "titulo": "Skills e ferramentas",
+            "itens": [
+              "Plan Reviewer (READY), Delivery Reviewer/Test Suite Auditor/Persistence Auditor (PASS, feat-008.3) rodados antes de done.",
+              "docs/services/bets-service.md (secao de eventos publicados atualizada, BetSettled implementado) e CLAUDE.md deste servico atualizados no mesmo commit/sessao (raiz, repositorio sv-harness)."
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "feat-009",

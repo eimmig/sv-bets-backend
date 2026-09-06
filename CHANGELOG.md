@@ -46,3 +46,7 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 - [SV-95](https://stakevault.atlassian.net/browse/SV-95) - BetEventPublisher e hook em BetService
 - [SV-96](https://stakevault.atlassian.net/browse/SV-96) - Testes: publicacao real via Testcontainers + validacao contra o schema
 - [SV-97](https://stakevault.atlassian.net/browse/SV-97) - CHANGELOG e verificacao final
+- [SV-98](https://stakevault.atlassian.net/browse/SV-98) - Publicacao do evento BetSettled
+- [SV-99](https://stakevault.atlassian.net/browse/SV-99) - BetSettledPayload, publishSettled e hook em BetService.updateStatus
+- [SV-100](https://stakevault.atlassian.net/browse/SV-100) - Testes: publicacao real via Testcontainers + validacao contra o schema bet-settled
+- [SV-101](https://stakevault.atlassian.net/browse/SV-101) - CHANGELOG e verificacao final
