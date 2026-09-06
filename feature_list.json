@@ -702,7 +702,7 @@
         {
           "id": "feat-006.1",
           "name": "Dependencias, config RabbitMQ e schema vendorizado",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-94",
           "detail": "Achado MAJOR do Plan Reviewer: sem a copia vendorizada do schema, o teste de feat-006.3 passaria local e falharia sempre no CI real (checkout de um so repositorio).",
           "checklist": [
