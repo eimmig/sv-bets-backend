@@ -3,7 +3,7 @@
 ## Estado Atual (Current State)
 
 **Última atualização:** 2026-09-06
-**Feature ativa:** nenhuma (`feat-006` `done`; `feat-007`/`feat-008` liberadas por `feat-005`)
+**Feature ativa:** nenhuma (`feat-008` `done`; `feat-007` liberada por `feat-005`)
 
 ## Status
 
@@ -111,16 +111,23 @@
         real fica em `getReceivedDeliveryMode()`; achado real na revisão final (mensagem não
         marcada `PERSISTENT`), corrigido e coberto por teste antes de `done`.
 
+- [x] **`feat-008` (Publicação do evento `BetSettled`) — `done` em 2026-09-06.** Reaproveitou
+      quase integralmente o mecanismo de `feat-006` (mesma sessão) — `BetEventEnvelope`,
+      `RabbitBetEventPublisher`, `PERSISTENT`, log-e-engole em falha de publish. Publica após a
+      transição atômica e o `BET_RESULT` serem salvos com sucesso (nunca em transição inválida,
+      `422`). Payload confirmado contra o schema real como **diferente** de `BetCreated` — sem os
+      campos descritivos de `BET`. Plan Reviewer: `READY`, sem achados novos (gotchas de
+      `feat-006` não reincidiram). Ver `feature_list.json` (campo `evidence`) para o detalhe
+      completo.
+
 ### Em andamento
 
 - Nenhuma feature iniciada.
 
 ### Próximos passos (Next Steps)
 
-1. `feat-007` (Histórico paginado) e `feat-008` (Publicação do evento `BetSettled`) estão
-   liberadas (dependem de `feat-005`, `done`) — WIP máximo 1 por serviço, escolher uma. `feat-008`
-   pode reaproveitar diretamente `BetEventEnvelope`/o mecanismo de `RabbitBetEventPublisher` desta
-   sessão (só o payload e a routing key mudam).
+1. `feat-007` (Histórico paginado de apostas e movimentações, RF08) é a única feature liberada
+   restante em `bets-service` (depende de `feat-005`, `done`) — WIP máximo 1 por serviço.
 
 ## Bloqueios / Riscos
 
@@ -164,30 +171,28 @@
   (injetar `MessageSource`/`LocaleResolver` direto no filtro) já estava provado funcionando por
   `AdminApiKeyFilter` de `auth-service`.
 
-## Arquivos modificados nesta sessão (`feat-006`)
+## Arquivos modificados nesta sessão (`feat-008`)
 
-- `pom.xml` (spring-boot-starter-amqp, testcontainers-rabbitmq, json-schema-validator),
-  `application.yml`/`.env.example` (config RabbitMQ), `TestcontainersConfiguration` (container +
-  topologia de teste), domínio (`BetEventPublisher`), mensageria
-  (`adapter/out/messaging/RabbitBetEventPublisher`, `BetCreatedPayload`, `BetEventEnvelope`),
-  `BetService.create` (hook de publicação), `src/test/resources/contracts/bet-created.schema.json`
-  (cópia vendorizada), testes (`RabbitBetEventPublisherIntegrationTest`, `BetServiceTest`,
-  `HealthChecksTest`), `CLAUDE.md`, `feature_list.json`, `CHANGELOG.md`.
+- Mensageria (`adapter/out/messaging/BetSettledPayload`, `RabbitBetEventPublisher.publishSettled`
+  + método privado `publish` compartilhado com `publishCreated`), `BetEventPublisher` (novo
+  método na porta), `BetService.updateStatus` (hook de publicação),
+  `src/test/resources/contracts/bet-settled.schema.json` (cópia vendorizada), testes
+  (`RabbitBetEventPublisherIntegrationTest`, `BetServiceTest`), `CLAUDE.md`,
+  `docs/services/bets-service.md`, `feature_list.json`, `CHANGELOG.md`.
 
-## Evidência de conclusão (`feat-006`)
+## Evidência de conclusão (`feat-008`)
 
-- `./init.sh` (`mvn verify`, JaCoCo 80% incluso) verde localmente com Docker ativo (Postgres +
-  RabbitMQ via Testcontainers), em cada uma das 4 subtasks.
-- CI verde em todas as 4 PRs de subtask (`subtask/SV-94..97` → `feature/SV-93`).
-- Plan Reviewer (1 MAJOR corrigido no plano), Delivery Reviewer, Test Suite Auditor e Persistence
-  Auditor rodados — achado real na revisão final (mensagem não marcada `PERSISTENT`) corrigido e
-  testado antes de `done`. Detalhe completo em `feature_list.json` (campo `evidence` de
-  `feat-006`).
+- `./init.sh` (`mvn verify`, JaCoCo 80% incluso) verde localmente com Docker ativo, em cada uma
+  das 3 subtasks.
+- CI verde em todas as 3 PRs de subtask (`subtask/SV-99..101` → `feature/SV-98`).
+- Plan Reviewer (`READY`, sem achados), Delivery Reviewer, Test Suite Auditor e Persistence
+  Auditor rodados — `PASS` nos três, sem achado novo (gotchas de `feat-006` não reincidiram).
+  Detalhe completo em `feature_list.json` (campo `evidence` de `feat-008`).
 
 ## Notas para a próxima sessão
 
-`feat-007` (histórico paginado) e `feat-008` (evento `BetSettled`) estão liberadas — escolher uma
-(WIP máximo 1). `feat-008` pode reaproveitar diretamente `BetEventEnvelope`/o padrão de
-`RabbitBetEventPublisher` desta sessão (só o payload — `BetSettledPayload` — e a routing key
-`bet.settled` mudam) — inclusive o gotcha de `setDeliveryMode(PERSISTENT)` e o teste de
-`getReceivedDeliveryMode()`, ambos já documentados em `docs/CONVENTIONS.md`.
+`feat-007` (RF08 — histórico paginado de `GET /api/v1/bets` e `GET /api/v1/transactions`, com
+filtros `sport`/`league`/`market`/`tipster`/`bettingHouse`/`from`/`to` em inglês, ver
+`docs/API-CONTRACTS.md`) é a única feature liberada restante em `bets-service`. Sem mensageria
+nem transação nova — mais parecida em escopo com `feat-002`/`feat-003` (endpoints de leitura
+paginados) do que com `feat-006`/`feat-008`.
