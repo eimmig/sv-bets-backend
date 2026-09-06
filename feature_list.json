@@ -897,7 +897,7 @@
             "titulo": "Defeitos encontrados antes de causar dano",
             "itens": [
               "Plan Reviewer (antes do codigo): READY, sem achado - feature de baixo risco por reaproveitar mecanismo ja testado em feat-006 na mesma sessao.",
-              "Nenhum achado novo do Delivery/Test Suite/Persistence Auditor - gotchas de feat-006 (getReceivedDeliveryMode, versao do json-schema-validator, palavra 'todo' em comentario) ja estavam documentados e nao reincidiram."
+              "Nenhum achado novo do Delivery/Test Suite/Persistence Auditor - gotchas de feat-006 (getReceivedDeliveryMode, versao do json-schema-validator, palavra 'todo' em comentario) ja estavam documentados e nao reincidiram. 1 achado real do SonarCloud so no gate feature->develop: java:S7467 - variavel de catch nao usada (InvalidStatusTransitionException expected) deveria usar o padrao unnamed (_) ja convencionado no projeto (TenantSchemaFilter, BetService) - lapso de nao seguir a propria convencao, nao gotcha novo, corrigido antes do merge."
             ]
           },
           {
