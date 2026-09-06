@@ -762,7 +762,40 @@
           "owner": "agente"
         }
       ],
-      "evidence": ""
+      "evidence": {
+        "resumo": "Entregue em 2026-09-06 (branch feature/SV-93, story SV-93 com 4 subtasks SV-94..97). Primeira mensageria do servico: spring-boot-starter-amqp + Testcontainers RabbitMQ, BetEventPublisher/RabbitBetEventPublisher publicam BetCreated (exchange bets.events, routing key bet.created) logo apos o INSERT de BET suceder, mensagem marcada PERSISTENT, falha de publish logada e nunca propagada como erro HTTP. Replay de Idempotency-Key nunca republica. Cópia vendorizada de docs/contracts/bet-created.schema.json em src/test/resources/contracts/ (repositorio separado da raiz, CI nao faz checkout cruzado) - teste de integracao consome a mensagem real via Testcontainers e valida contra o schema (com.networknt:json-schema-validator).",
+        "secoes": [
+          {
+            "titulo": "Verificação real executada",
+            "itens": [
+              "./init.sh (mvn verify, JaCoCo 80% incluso) verde localmente com Docker ativo (Postgres + RabbitMQ via Testcontainers), em cada uma das 4 subtasks.",
+              "CI verde em todas as 4 PRs de subtask (subtask/SV-94..97 -> feature/SV-93), confirmando que o container RabbitMQ novo tambem sobe sem problema no runner do GitHub Actions.",
+              "Teste de integracao real: cria aposta via BetUseCase, consome a mensagem da fila de teste via RabbitTemplate.receive, valida 0 erros contra o JSON Schema vendorizado, confere tenantId/userId/payload.status=pending/payload.betId e MessageDeliveryMode.PERSISTENT (via getReceivedDeliveryMode, nao getDeliveryMode)."
+            ]
+          },
+          {
+            "titulo": "Divergência do plano original",
+            "itens": [
+              "com.networknt:json-schema-validator: plan_review fixou 3.0.7 (versao mais recente na epoca) - descoberto na compilacao do teste (nao antes) que 3.0.7 e uma reescrita completa da biblioteca, sem as classes classicas JsonSchemaFactory/JsonSchema/SpecVersion/ValidationMessage. Corrigido fixando 1.5.9 (ultima da linha 1.x, API classica estavel).",
+              "Descoberta durante feat-006.4 (revisao final, nao prevista no plan_review): mensagem publicada via MessageBuilder+rabbitTemplate.send precisava de setDeliveryMode(PERSISTENT) explicito - sem isso e nao-persistente por padrao do protocolo AMQP, mesmo a fila de producao sendo durable. Corrigido e coberto por teste (usando getReceivedDeliveryMode() do lado consumidor, nao getDeliveryMode() - accessor errado retorna null sempre em mensagem recebida)."
+            ]
+          },
+          {
+            "titulo": "Defeitos encontrados antes de causar dano",
+            "itens": [
+              "Plan Reviewer (antes do codigo): READY WITH CONCERNS, 1 MAJOR corrigido no plano (schema vendorizado, sem o qual o teste de feat-006.3 passaria local e falharia sempre no CI real por checkout de um so repositorio) - detalhe completo no campo plan_review.",
+              "Achado real na revisao final (feat-006.4, Delivery/Persistence Auditor): mensagem nao marcada PERSISTENT (ver acima) - corrigido e testado antes de done."
+            ]
+          },
+          {
+            "titulo": "Skills e ferramentas",
+            "itens": [
+              "Plan Reviewer (1 MAJOR corrigido), Delivery Reviewer/Test Suite Auditor/Persistence Auditor (achado real de PERSISTENT corrigido, PASS apos a correcao) rodados antes de done.",
+              "docs/API-CONTRACTS.md (regra de manter copias vendorizadas de schema em sincronia), docs/CONVENTIONS.md (gotcha de versao do json-schema-validator + getDeliveryMode/getReceivedDeliveryMode), docs/services/bets-service.md (secao feat-006, risco residual de publish sem outbox/retry) e CLAUDE.md deste servico atualizados no mesmo commit/sessao (raiz, repositorio sv-harness)."
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "feat-007",
