@@ -1,5 +1,6 @@
 package com.stakevault.betting.bets.adapter.out.persistence;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -34,6 +35,11 @@ public class JpaBettingHouseRepository implements BettingHouseRepository {
 	@Override
 	public boolean existsById(UUID id) {
 		return jpaRepository.existsById(id);
+	}
+
+	@Override
+	public Optional<BettingHouse> findById(UUID id) {
+		return jpaRepository.findById(id).map(JpaBettingHouseRepository::toDomain);
 	}
 
 	@Override

@@ -58,3 +58,6 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 - [SV-107](https://stakevault.atlassian.net/browse/SV-107) - Pipeline de CI (GitHub Actions + SonarCloud)
 - [SV-108](https://stakevault.atlassian.net/browse/SV-108) - Auditoria do pipeline real vs description da feature
 - [SV-109](https://stakevault.atlassian.net/browse/SV-109) - CHANGELOG e verificacao final
+- [SV-121](https://stakevault.atlassian.net/browse/SV-121) - Denormalizar nomes das dimensoes em BetCreated/BetSettled
+- [SV-122](https://stakevault.atlassian.net/browse/SV-122) - Resolver e publicar nomes das dimensoes em BetCreated/BetSettled
+- [SV-123](https://stakevault.atlassian.net/browse/SV-123) - CHANGELOG e verificacao final
