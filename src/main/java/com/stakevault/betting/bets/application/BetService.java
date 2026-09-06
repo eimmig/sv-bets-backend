@@ -9,10 +9,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.stakevault.betting.bets.domain.model.Bet;
+import com.stakevault.betting.bets.domain.model.BetFilter;
 import com.stakevault.betting.bets.domain.model.BetNotFoundException;
 import com.stakevault.betting.bets.domain.model.BetResult;
 import com.stakevault.betting.bets.domain.model.BetStatus;
 import com.stakevault.betting.bets.domain.model.BettingHouseNotFoundException;
+import com.stakevault.betting.bets.domain.model.PagedResult;
 import com.stakevault.betting.bets.domain.model.InvalidOddException;
 import com.stakevault.betting.bets.domain.model.InvalidStakeException;
 import com.stakevault.betting.bets.domain.model.InvalidStatusTransitionException;
@@ -107,6 +109,11 @@ public class BetService implements BetUseCase {
 				Instant.now()));
 		betEventPublisher.publishSettled(settled, result);
 		return settled;
+	}
+
+	@Override
+	public PagedResult<Bet> list(BetFilter filter, int page, int size) {
+		return betRepository.findFiltered(filter, page, size);
 	}
 
 	private BigDecimal computeProfit(Bet bet, BetStatus status) {

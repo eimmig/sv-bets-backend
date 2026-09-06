@@ -3,10 +3,14 @@ package com.stakevault.betting.bets.adapter.out.persistence;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
 import com.stakevault.betting.bets.domain.model.Bet;
+import com.stakevault.betting.bets.domain.model.BetFilter;
 import com.stakevault.betting.bets.domain.model.BetStatus;
+import com.stakevault.betting.bets.domain.model.PagedResult;
 import com.stakevault.betting.bets.domain.port.out.BetRepository;
 
 @Repository
@@ -36,6 +40,15 @@ public class JpaBetRepository implements BetRepository {
 	@Override
 	public boolean transitionStatus(UUID id, BetStatus from, BetStatus to) {
 		return jpaRepository.transitionStatus(id, from, to) > 0;
+	}
+
+	@Override
+	public PagedResult<Bet> findFiltered(BetFilter filter, int page, int size) {
+		Page<BetJpaEntity> result = jpaRepository.findFiltered(filter.bettingHouseId(), filter.sportId(),
+				filter.leagueId(), filter.marketId(), filter.tipsterId(), filter.from(), filter.to(),
+				PageRequest.of(page, size));
+		return new PagedResult<>(result.getContent().stream().map(JpaBetRepository::toDomain).toList(),
+				result.getNumber(), result.getSize(), result.getTotalElements(), result.getTotalPages());
 	}
 
 	private static Bet toDomain(BetJpaEntity entity) {
