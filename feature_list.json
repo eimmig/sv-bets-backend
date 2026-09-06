@@ -862,7 +862,7 @@
         {
           "id": "feat-008.3",
           "name": "CHANGELOG e verificacao final",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-101",
           "detail": "Fecha a feature com o gate real do harness.",
           "checklist": [
