@@ -847,7 +847,7 @@
         {
           "id": "feat-008.2",
           "name": "Testes: publicacao real via Testcontainers + validacao contra o schema bet-settled",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-100",
           "detail": "Definicao de Pronto exige teste validando a mensagem contra o JSON Schema - copia vendorizada nova (bet-settled.schema.json).",
           "checklist": [
