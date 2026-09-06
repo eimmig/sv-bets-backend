@@ -1098,7 +1098,7 @@
         {
           "id": "feat-010.1",
           "name": "Resolver e publicar nomes das dimensoes em BetCreated/BetSettled",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-122",
           "detail": "Implementa a mudanca de contrato decidida com o usuario - ver plan_review para o desenho completo (findById nos 5 catalogos, BetDimensionNames, BetService.resolveDimensionNames, payloads e publisher atualizados, copia vendorizada do schema ressincronizada).",
           "checklist": [
@@ -1115,7 +1115,7 @@
         {
           "id": "feat-010.2",
           "name": "CHANGELOG e verificacao final",
-          "status": "not-started",
+          "status": "in-progress",
           "jira": "SV-123",
           "detail": "Fecha a feature - mudanca de contrato ja documentada no repositorio raiz (docs/API-CONTRACTS.md, docs/DATA-MODEL.md, docs/services/{bets-service,stats-service}.md) na sessao que decidiu com o usuario; aqui so falta a evidencia de implementacao.",
           "checklist": [
