@@ -819,7 +819,7 @@
         {
           "id": "feat-007.1",
           "name": "GET /api/v1/bets (listagem paginada com filtros)",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-103",
           "detail": "Primeiro endpoint de listagem de BET - so existia GET por id (feat-004).",
           "checklist": [
