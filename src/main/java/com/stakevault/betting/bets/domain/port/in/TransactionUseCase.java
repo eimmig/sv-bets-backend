@@ -1,6 +1,7 @@
 package com.stakevault.betting.bets.domain.port.in;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.UUID;
 
 import com.stakevault.betting.bets.domain.model.PagedResult;
@@ -11,5 +12,5 @@ public interface TransactionUseCase {
 
 	Transaction create(UUID bettingHouseId, TransactionType type, BigDecimal amount);
 
-	PagedResult<Transaction> list(UUID bettingHouseId, int page, int size);
+	PagedResult<Transaction> list(UUID bettingHouseId, Instant from, Instant to, int page, int size);
 }

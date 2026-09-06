@@ -1,6 +1,7 @@
 package com.stakevault.betting.bets.adapter.out.persistence;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -31,13 +32,8 @@ public class JpaTransactionRepository implements TransactionRepository {
 	}
 
 	@Override
-	public PagedResult<Transaction> findAll(int page, int size) {
-		return toPagedResult(jpaRepository.findAll(PageRequest.of(page, size)));
-	}
-
-	@Override
-	public PagedResult<Transaction> findByBettingHouseId(UUID bettingHouseId, int page, int size) {
-		return toPagedResult(jpaRepository.findByBettingHouseId(bettingHouseId, PageRequest.of(page, size)));
+	public PagedResult<Transaction> findFiltered(UUID bettingHouseId, Instant from, Instant to, int page, int size) {
+		return toPagedResult(jpaRepository.findFiltered(bettingHouseId, from, to, PageRequest.of(page, size)));
 	}
 
 	@Override

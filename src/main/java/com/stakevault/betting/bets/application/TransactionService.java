@@ -34,10 +34,7 @@ public class TransactionService implements TransactionUseCase {
 	}
 
 	@Override
-	public PagedResult<Transaction> list(UUID bettingHouseId, int page, int size) {
-		if (bettingHouseId != null) {
-			return transactionRepository.findByBettingHouseId(bettingHouseId, page, size);
-		}
-		return transactionRepository.findAll(page, size);
+	public PagedResult<Transaction> list(UUID bettingHouseId, Instant from, Instant to, int page, int size) {
+		return transactionRepository.findFiltered(bettingHouseId, from, to, page, size);
 	}
 }

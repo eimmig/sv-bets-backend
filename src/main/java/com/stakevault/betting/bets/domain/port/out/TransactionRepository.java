@@ -1,6 +1,7 @@
 package com.stakevault.betting.bets.domain.port.out;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
@@ -12,9 +13,7 @@ public interface TransactionRepository {
 
 	Transaction save(Transaction transaction);
 
-	PagedResult<Transaction> findAll(int page, int size);
-
-	PagedResult<Transaction> findByBettingHouseId(UUID bettingHouseId, int page, int size);
+	PagedResult<Transaction> findFiltered(UUID bettingHouseId, Instant from, Instant to, int page, int size);
 
 	// One query for the whole page, not one per betting house.
 	Map<UUID, BigDecimal> sumNetAmountByBettingHouseIds(Collection<UUID> bettingHouseIds);
