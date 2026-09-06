@@ -1115,7 +1115,7 @@
         {
           "id": "feat-010.2",
           "name": "CHANGELOG e verificacao final",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-123",
           "detail": "Fecha a feature - mudanca de contrato ja documentada no repositorio raiz (docs/API-CONTRACTS.md, docs/DATA-MODEL.md, docs/services/{bets-service,stats-service}.md) na sessao que decidiu com o usuario; aqui so falta a evidencia de implementacao.",
           "checklist": [
@@ -1128,7 +1128,39 @@
           "owner": "agente"
         }
       ],
-      "evidence": ""
+      "evidence": {
+        "resumo": "Entregue em 2026-09-06 (branch feature/SV-121, story SV-121 com 2 subtasks SV-122/SV-123, PR de subtask #47 mergeado). Mudanca de contrato decidida com o usuario a partir de um achado real de stats-service feat-002: BetCreated/BetSettled ganham bettingHouseName/sportName/leagueName/marketName (obrigatorios) e tipsterName (opcional), denormalizados do catalogo deste servico no momento de publicar (findById nos 5 repositorios de catalogo, novo, ja que validateReferences so fazia existsById). Reabre e refecha epic-003 na raiz.",
+        "secoes": [
+          {
+            "titulo": "Verificação real executada",
+            "itens": [
+              "./init.sh (mvn verify) verde com Docker ativo - 136 testes, 0 falhas.",
+              "CI verde na PR de subtask (#47, subtask/SV-122 -> feature/SV-121).",
+              "RabbitBetEventPublisherIntegrationTest atualizado para capturar os nomes reais gerados no fixture (antes descartados) e assertar contra bettingHouseName/sportName/leagueName/marketName/tipsterName no payload publicado de verdade - nao so presenca dos campos."
+            ]
+          },
+          {
+            "titulo": "Divergência do plano original",
+            "itens": [
+              "O achado original (docs/API-CONTRACTS.md, escrito antes do plan_review) dizia que bets-service 'ja tem os nomes em maos, mesma consulta que valida existencia' - o Plan Reviewer corrigiu isso: validateReferences so chamava existsById (boolean), sem retornar a entidade. Foi preciso adicionar findById aos 5 repositorios de catalogo, uma consulta a mais por PK (tabela pequena, nao um custo real) - nao a reutilizacao gratuita que o achado original sugeria. docs/API-CONTRACTS.md corrigido para refletir isso."
+            ]
+          },
+          {
+            "titulo": "Defeitos encontrados antes de causar dano",
+            "itens": [
+              "Plan Reviewer (antes do codigo): READY WITH CONCERNS, 1 MAJOR corrigido no plano (a divergencia acima) e 1 MINOR aceito (resolveDimensionNames chamado em create() apos validateReferences ja ter confirmado existencia - redundancia de 1 SELECT por PK aceita como mais simples que persistir os nomes em BET so para o evento)."
+            ]
+          },
+          {
+            "titulo": "Skills e ferramentas",
+            "itens": [
+              "Plan Reviewer (1 MAJOR corrigido, 1 MINOR aceito) rodado antes de codificar; Delivery Reviewer/Test Suite Auditor/Persistence Auditor (passe proprio, sem subagentes - independencia reduzida, declarada) confirmaram o diff completo sem achado residual.",
+              "docs/API-CONTRACTS.md, docs/DATA-MODEL.md e docs/services/{bets-service,stats-service}.md (repositorio raiz sv-harness) atualizados na decisao com o usuario e no fechamento desta feature.",
+              "Mudanca cross-repo coordenada em 3 repositorios: sv-harness (schemas+docs), sv-bets-backend (publicador), sv-stats-backend (copia vendorizada e fixtures de teste resincronizadas, fora do ciclo normal de feature daquele servico ja que feat-002 ainda nao comecou)."
+            ]
+          }
+        ]
+      }
     }
   ]
 }
