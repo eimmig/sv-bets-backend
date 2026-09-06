@@ -784,7 +784,8 @@
             "titulo": "Defeitos encontrados antes de causar dano",
             "itens": [
               "Plan Reviewer (antes do codigo): READY WITH CONCERNS, 1 MAJOR corrigido no plano (schema vendorizado, sem o qual o teste de feat-006.3 passaria local e falharia sempre no CI real por checkout de um so repositorio) - detalhe completo no campo plan_review.",
-              "Achado real na revisao final (feat-006.4, Delivery/Persistence Auditor): mensagem nao marcada PERSISTENT (ver acima) - corrigido e testado antes de done."
+              "Achado real na revisao final (feat-006.4, Delivery/Persistence Auditor): mensagem nao marcada PERSISTENT (ver acima) - corrigido e testado antes de done.",
+              "2 achados reais do SonarCloud so visiveis no gate feature->develop: java:S1130 (throws Exception vestigial de copy-paste num metodo de teste que nao lanca checked exception) e java:S1135 - a regra de 'comentario TODO' disparou num comentario em portugues com a palavra comum 'todo' ('comum a todo evento'), falso positivo linguistico documentado em docs/CONVENTIONS.md para os 3 servicos Java evitarem a palavra 'todo' em comentarios."
             ]
           },
           {
