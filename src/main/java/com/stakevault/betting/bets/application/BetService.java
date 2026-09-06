@@ -103,7 +103,9 @@ public class BetService implements BetUseCase {
 
 		Bet settled = findById(id);
 		BigDecimal profit = computeProfit(settled, newStatus);
-		betResultRepository.save(new BetResult(UUID.randomUUID(), id, settledByUserId, profit, Instant.now()));
+		BetResult result = betResultRepository.save(new BetResult(UUID.randomUUID(), id, settledByUserId, profit,
+				Instant.now()));
+		betEventPublisher.publishSettled(settled, result);
 		return settled;
 	}
 
