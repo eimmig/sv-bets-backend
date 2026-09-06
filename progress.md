@@ -3,8 +3,7 @@
 ## Estado Atual (Current State)
 
 **Última atualização:** 2026-09-06
-**Feature ativa:** nenhuma (`feat-007` `done` — todas as features de negócio de `bets-service`
-concluídas; só `feat-009`, formalidade de CI, resta no backlog)
+**Feature ativa:** nenhuma — **backlog completo, `feat-001` a `feat-010` todas `done`**
 
 ## Status
 
@@ -213,11 +212,45 @@ de fechamento que `auth-service feat-007`).
   Auditor rodados — `PASS` nos três, achado real do Postgres (`COALESCE`) corrigido e testado
   antes de `done`. Detalhe completo em `feature_list.json` (campo `evidence` de `feat-007`).
 
+## `feat-009` (Pipeline de CI) fechado — formalidade, sem código novo (2026-09-06, mesmo dia)
+
+Mesmo padrão de `auth-service feat-007`: `description` da feature dizia "5 passos" e citava o
+atalho `mvn sonar:sonar`, desatualizada desde que o pipeline já tinha 6 passos e coordenadas
+completas do plugin (herdado de `auth-service` em `SV-61`, antes do bootstrap). Corrigida a
+`description`, `evidence` preenchida, `done`. Fechou `epic-003` na raiz pela primeira vez.
+
+## `feat-010` (Denormalizar nomes das dimensões em `BetCreated`/`BetSettled`) — mudança de
+contrato decidida com o usuário (2026-09-06, mesmo dia)
+
+Ao iniciar `stats-service feat-002` (modelo OLAP), achado real: `DIM_BETTING_HOUSE`/`DIM_SPORT`/
+`DIM_LEAGUE`/`DIM_MARKET`/`DIM_TIPSTER` têm coluna `name`, mas o payload dos eventos só carregava
+os IDs — sem chamada síncrona de `stats-service` de volta a este serviço (consistência eventual é
+intencional), não havia como popular o nome. Usuário decidiu: estender os 2 schemas de evento com
+`bettingHouseName`/`sportName`/`leagueName`/`marketName` (obrigatórios) e `tipsterName`
+(opcional). Reabriu `epic-003` na raiz para esta feature nova.
+
+Implementação: `findById(UUID): Optional<X>` adicionado aos 5 repositórios de catálogo (ports +
+adapters Jpa) — `validateReferences` só tinha `existsById` (boolean), não bastava para obter o
+nome (achado do Plan Reviewer, corrigindo a suposição inicial de "consulta já reaproveitada, sem
+custo"). Novo record `BetDimensionNames` evita assinatura larga em `publishCreated`/
+`publishSettled` (mesmo racional de `BetJpaEntity(Bet)`/`BetFilter`). `BetService.
+resolveDimensionNames` chamado em `create()` e `updateStatus()`, reaproveitando as mesmas
+`*NotFoundException` já lançadas por `validateReferences`.
+
+Story SV-121, 2 subtasks (SV-122/123). `RabbitBetEventPublisherIntegrationTest` atualizado para
+capturar os nomes reais gerados no fixture (antes descartados) e assertar contra o payload
+publicado de verdade. Cópia vendorizada em `src/test/resources/contracts/` resincronizada com
+`docs/contracts/` (raiz) — e a cópia de `stats-service` (`src/main/resources/contracts/`,
+`feat-001.9`) também precisou ser resincronizada fora do ciclo normal daquele serviço, senão
+`additionalProperties: false` rejeitaria toda mensagem nova assim que este serviço passasse a
+publicar os campos.
+
+`./init.sh` verde (136 testes). CI verde na subtask (#47) e na story→develop (#48, SonarCloud
+limpo de primeira). Fechou `epic-003` na raiz de novo — **backlog de `bets-service` completo**.
+
 ## Notas para a próxima sessão
 
-**Todas as features de negócio de `bets-service` estão `done`** (`feat-001` a `feat-008`). Só
-resta `feat-009` (pipeline de CI) — fechamento formal sem código novo esperado, mesmo padrão de
-`auth-service feat-007`: confirmar que a `description` da feature bate com o `ci.yml` real
-(passos, `projectKey`) e corrigir se tiver ficado desatualizada, já que o pipeline roda de
-verdade desde `epic-009`/`feat-001` desta sessão. Fechar `feat-009` fecha também `epic-003` na
-raiz (`../../feature_list.json`) — atualizar lá também.
+Nenhuma feature pendente neste serviço. Se uma mudança futura precisar reabrir o backlog
+(ex.: mais um campo denormalizado no evento, um RF novo), seguir o mesmo padrão de `feat-009`/
+`feat-010`: Plan Reviewer, story/subtasks no Jira, `evidence` completa, e reabrir/refechar
+`epic-003` na raiz (`../../feature_list.json`) nas duas pontas da mudança.
