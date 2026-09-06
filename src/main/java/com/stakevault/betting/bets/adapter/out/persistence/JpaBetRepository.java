@@ -44,9 +44,7 @@ public class JpaBetRepository implements BetRepository {
 
 	@Override
 	public PagedResult<Bet> findFiltered(BetFilter filter, int page, int size) {
-		Page<BetJpaEntity> result = jpaRepository.findFiltered(filter.bettingHouseId(), filter.sportId(),
-				filter.leagueId(), filter.marketId(), filter.tipsterId(), filter.from(), filter.to(),
-				PageRequest.of(page, size));
+		Page<BetJpaEntity> result = jpaRepository.findFiltered(filter, PageRequest.of(page, size));
 		return new PagedResult<>(result.getContent().stream().map(JpaBetRepository::toDomain).toList(),
 				result.getNumber(), result.getSize(), result.getTotalElements(), result.getTotalPages());
 	}
