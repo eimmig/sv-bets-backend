@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 
 import com.stakevault.betting.bets.config.TenantContextHolder;
 import com.stakevault.betting.bets.domain.model.Bet;
+import com.stakevault.betting.bets.domain.model.BetResult;
 import com.stakevault.betting.bets.domain.port.out.BetEventPublisher;
 
 import tools.jackson.databind.ObjectMapper;
@@ -26,6 +27,7 @@ public class RabbitBetEventPublisher implements BetEventPublisher {
 	// nunca redeclarada aqui (ver docs/API-CONTRACTS.md).
 	private static final String EXCHANGE = "bets.events";
 	private static final String ROUTING_KEY_BET_CREATED = "bet.created";
+	private static final String ROUTING_KEY_BET_SETTLED = "bet.settled";
 
 	private final RabbitTemplate rabbitTemplate;
 	private final ObjectMapper objectMapper;
@@ -40,16 +42,28 @@ public class RabbitBetEventPublisher implements BetEventPublisher {
 		BetEventEnvelope<BetCreatedPayload> envelope = new BetEventEnvelope<>(UUID.randomUUID(), "BetCreated", 1,
 				Instant.now(), TenantContextHolder.current().slug(), bet.createdByUserId(),
 				BetCreatedPayload.from(bet));
+		publish(ROUTING_KEY_BET_CREATED, envelope, bet.id(), "BetCreated");
+	}
+
+	@Override
+	public void publishSettled(Bet bet, BetResult result) {
+		BetEventEnvelope<BetSettledPayload> envelope = new BetEventEnvelope<>(UUID.randomUUID(), "BetSettled", 1,
+				Instant.now(), TenantContextHolder.current().slug(), result.settledByUserId(),
+				BetSettledPayload.from(bet, result));
+		publish(ROUTING_KEY_BET_SETTLED, envelope, bet.id(), "BetSettled");
+	}
+
+	private void publish(String routingKey, BetEventEnvelope<?> envelope, UUID betId, String eventType) {
 		try {
 			byte[] body = objectMapper.writeValueAsBytes(envelope);
 			Message message = MessageBuilder.withBody(body).setContentType("application/json")
 					.setDeliveryMode(MessageDeliveryMode.PERSISTENT)
 					.build();
-			rabbitTemplate.send(EXCHANGE, ROUTING_KEY_BET_CREATED, message);
+			rabbitTemplate.send(EXCHANGE, routingKey, message);
 		} catch (Exception exception) {
 			// Consistencia eventual e intencional (ver CLAUDE.md raiz) - durabilidade do registro
 			// da aposta pesa mais que o sinal assincrono; sem outbox/retry nesta fase do projeto.
-			log.error("failed to publish BetCreated for bet {}", bet.id(), exception);
+			log.error("failed to publish {} for bet {}", eventType, betId, exception);
 		}
 	}
 }
