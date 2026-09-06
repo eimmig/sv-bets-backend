@@ -826,7 +826,7 @@
       "dependencies": [
         "feat-005"
       ],
-      "status": "in-progress",
+      "status": "done",
       "plan_review": "2026-09-06, Plan Reviewer (review-suite:ln-11-plan-reviewer) rodado contra o plano antes de qualquer codigo. Veredito: READY, nenhum achado MAJOR/BLOCKER - feature reaproveita quase integralmente o mecanismo ja construido e testado em feat-006 (mesma sessao), sem decisao nova de arquitetura. Confirmado contra o repositorio real: docs/contracts/bet-settled.schema.json (ja existente) tem payload DIFERENTE de bet-created.schema.json - nao inclui ticketNumber/team1/team2/description/betType/playType (so campos dimensionais: bettingHouseId/sportId/leagueId/marketId/tipsterId nullable, mais stake/odd/status/profit/settledAt), e status e enum ['won','lost','void'] (nunca 'pending', ao contrario de BetCreated) - draft original poderia ter copiado o payload de BetCreated por engano, corrigido antes de codificar. Gotchas ja documentados em docs/CONVENTIONS.md (getReceivedDeliveryMode vs getDeliveryMode, versao do json-schema-validator, palavra 'todo' em comentario) se aplicam identicamente aqui - nao precisam ser redescobertos. Unica decisao nova (nao bloqueante): publishSettled roda DENTRO do mesmo @Transactional de updateStatus (feat-005), nao apos o commit - aceito por simplicidade (mesmo estilo de feat-006, sem TransactionalEventListener), residual: se o publish bloquear/atrasar, prolonga a transacao; sem consequencia pratica esperada (broker local, chamada de rede rapida). Rodada de desafio independente executada como passe proprio (grounding contra o schema real e o codigo de feat-006 ja mesclado), sem subagentes - independencia reduzida, declarada.",
       "jira": "SV-98",
       "subtasks": [
