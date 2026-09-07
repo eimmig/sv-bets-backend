@@ -61,3 +61,5 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 - [SV-121](https://stakevault.atlassian.net/browse/SV-121) - Denormalizar nomes das dimensoes em BetCreated/BetSettled
 - [SV-122](https://stakevault.atlassian.net/browse/SV-122) - Resolver e publicar nomes das dimensoes em BetCreated/BetSettled
 - [SV-123](https://stakevault.atlassian.net/browse/SV-123) - CHANGELOG e verificacao final
+- [SV-161](https://stakevault.atlassian.net/browse/SV-161) - Porta HTTP fixa (8082)
+- [SV-162](https://stakevault.atlassian.net/browse/SV-162) - server.port fixo, CHANGELOG e verificacao final
