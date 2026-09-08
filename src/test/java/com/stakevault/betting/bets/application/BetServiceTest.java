@@ -81,6 +81,7 @@ class BetServiceTest {
 	}
 
 	@Test
+	@SuppressWarnings("unchecked")
 	void shouldReturnExistingBetWhenIdempotencyKeyRacesOnUniqueConstraint() {
 		service = service();
 
