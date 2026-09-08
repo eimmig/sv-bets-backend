@@ -63,3 +63,5 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 - [SV-123](https://stakevault.atlassian.net/browse/SV-123) - CHANGELOG e verificacao final
 - [SV-161](https://stakevault.atlassian.net/browse/SV-161) - Porta HTTP fixa (8082)
 - [SV-162](https://stakevault.atlassian.net/browse/SV-162) - server.port fixo, CHANGELOG e verificacao final
+- [SV-172](https://stakevault.atlassian.net/browse/SV-172) - Corrigir avisos do compilador/IDE (RabbitMQContainer deprecado, varargs generico)
+- [SV-173](https://stakevault.atlassian.net/browse/SV-173) - Trocar import de RabbitMQContainer, suprimir warning de varargs, CHANGELOG e verificacao final
