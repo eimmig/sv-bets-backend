@@ -1187,18 +1187,18 @@
       "name": "Corrigir avisos do compilador/IDE (RabbitMQContainer deprecado, varargs generico)",
       "description": "Limpeza de 2 avisos reais encontrados no painel Problems do VSCode (nao bloqueavam ./init.sh nem o gate do SonarCloud, mas sao defeitos reais de codigo, nao ruido de IDE): (1) TestcontainersConfiguration usava org.testcontainers.containers.RabbitMQContainer, deprecado desde que o modulo dedicado org.testcontainers.rabbitmq (ja presente como dependencia testcontainers-rabbitmq no pom.xml) introduziu org.testcontainers.rabbitmq.RabbitMQContainer com o mesmo construtor - mesmo padrao ja seguido para PostgreSQLContainer (org.testcontainers.postgresql, nao org.testcontainers.containers) no mesmo arquivo; (2) BetServiceTest.shouldReturnExistingBetWhenIdempotencyKeyRacesOnUniqueConstraint aciona 'Type safety: generic array created for varargs parameter' ao chamar Mockito thenReturn(Optional<Bet>, Optional<Bet>...) - warning conhecido de javac ao passar tipo generico para varargs, inofensivo, resolvido com @SuppressWarnings(\"unchecked\") no metodo (unica ocorrencia no arquivo).",
       "dependencies": [],
-      "status": "in-progress",
+      "status": "done",
       "plan_review": "2026-09-08, Plan Reviewer rodado antes da mudanca - passe proprio, sem subagentes (risco baixo, troca de import + supressao de warning, independencia reduzida declarada). Veredito: READY. Verificado via javap contra o jar real (testcontainers-rabbitmq 2.0.5, ja presente no pom.xml): org.testcontainers.rabbitmq.RabbitMQContainer tem o mesmo construtor publico RabbitMQContainer(DockerImageName) da classe deprecada - troca de import segura, sem mudanca de comportamento. ./init.sh do servico rodado apos a troca (verde, exit 0, Testcontainers sobe RabbitMQ normalmente). Unica subtask.",
       "jira": "SV-172",
       "subtasks": [
         {
           "id": "feat-012.1",
           "name": "Trocar import de RabbitMQContainer, suprimir warning de varargs, CHANGELOG e verificacao final",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-173"
         }
       ],
-      "evidence": ""
+      "evidence": "Fechada em 2026-09-08 - server.port ja fixo desde feat-011, agora RabbitMQContainer migrado para org.testcontainers.rabbitmq (mesmo construtor, confirmado via javap) e warning de varargs suprimido em BetServiceTest. Delivery Reviewer (passe proprio, sem subagentes, risco baixo - grep confirmou zero referencia remanescente ao pacote antigo org.testcontainers.containers.RabbitMQContainer): PASS. Test Suite Auditor/Persistence Auditor dispensados (mudanca cosmetica de import/anotacao, zero comportamento novo). ./init.sh do servico verde (exit 0) na branch feature/SV-172 apos merge da subtask (PR #51, CI verde). CHANGELOG.md atualizado automaticamente por tools/jira_story.py."
     }
   ]
 }
