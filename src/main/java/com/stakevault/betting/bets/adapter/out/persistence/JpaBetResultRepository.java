@@ -1,6 +1,7 @@
 package com.stakevault.betting.bets.adapter.out.persistence;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -41,6 +42,12 @@ public class JpaBetResultRepository implements BetResultRepository {
 			profitById.put((UUID) row[0], (BigDecimal) row[1]);
 		}
 		return profitById;
+	}
+
+	@Override
+	public BigDecimal sumProfitUpTo(Instant at) {
+		BigDecimal sum = jpaRepository.sumProfitUpTo(at);
+		return sum != null ? sum : BigDecimal.ZERO;
 	}
 
 	private static BetResult toDomain(BetResultJpaEntity entity) {
