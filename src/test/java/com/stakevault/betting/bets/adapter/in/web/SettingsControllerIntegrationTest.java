@@ -89,4 +89,24 @@ class SettingsControllerIntegrationTest extends TenantSchemaIntegrationSupport {
 		assertThat(response.statusCode()).isEqualTo(400);
 		assertThat(response.body()).contains("\"type\":\"https://docs/errors/validation-failed\"");
 	}
+
+	@Test
+	void shouldIsolateUnitPercentBetweenTenantSchemas() throws Exception {
+		assertThat(patch("{\"unitPercent\":0.05}", "admin").statusCode()).isEqualTo(200);
+
+		String otherSlug = "test-" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+		provisionTenantSchema.ensureSchemaExists(otherSlug);
+		try {
+			HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/settings"))
+					.header("X-Tenant-Id", otherSlug)
+					.GET()
+					.build();
+			HttpResponse<String> otherTenantResponse = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+			assertThat(otherTenantResponse.statusCode()).isEqualTo(200);
+			assertThat(otherTenantResponse.body()).contains("\"unitPercent\":0.01");
+		} finally {
+			jdbcTemplate.execute("DROP SCHEMA IF EXISTS \"tenant_" + otherSlug + "\" CASCADE");
+		}
+	}
 }
