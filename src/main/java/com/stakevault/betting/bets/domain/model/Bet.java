@@ -5,7 +5,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record Bet(UUID id, UUID bettingHouseId, UUID sportId, UUID leagueId, UUID marketId, UUID tipsterId,
-		UUID createdByUserId, String ticketNumber, String team1, String team2, String description, String betType,
+		UUID createdByUserId, String ticketNumber, String team1, String team2, String description, BetType betType,
 		String playType, BigDecimal stake, BigDecimal odd, BetStatus status, Instant betDate, String idempotencyKey) {
 
 	public Bet {

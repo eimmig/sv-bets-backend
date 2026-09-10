@@ -6,9 +6,10 @@ import java.util.UUID;
 
 import com.stakevault.betting.bets.domain.model.Bet;
 import com.stakevault.betting.bets.domain.model.BetStatus;
+import com.stakevault.betting.bets.domain.model.BetType;
 
 public record BetResponse(UUID id, UUID bettingHouseId, UUID sportId, UUID leagueId, UUID marketId, UUID tipsterId,
-		UUID createdByUserId, String ticketNumber, String team1, String team2, String description, String betType,
+		UUID createdByUserId, String ticketNumber, String team1, String team2, String description, BetType betType,
 		String playType, BigDecimal stake, BigDecimal odd, BetStatus status, Instant betDate) {
 
 	static BetResponse from(Bet bet) {

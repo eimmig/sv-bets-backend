@@ -1259,7 +1259,7 @@
           ],
           "validation": "mvn -B verify verde; teste de integracao confirma linha com valor fora do dominio vira NULL pos-migration; teste de contrato valida payload contra o schema atualizado.",
           "owner": "agente",
-          "status": "not-started",
+          "status": "done",
           "jira": "SV-319"
         },
         {

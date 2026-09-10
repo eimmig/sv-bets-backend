@@ -7,10 +7,11 @@ import java.util.UUID;
 import com.stakevault.betting.bets.domain.model.Bet;
 import com.stakevault.betting.bets.domain.model.BetDimensionNames;
 import com.stakevault.betting.bets.domain.model.BetStatus;
+import com.stakevault.betting.bets.domain.model.BetType;
 
 public record BetCreatedPayload(UUID betId, UUID bettingHouseId, String bettingHouseName, UUID sportId,
 		String sportName, UUID leagueId, String leagueName, UUID marketId, String marketName, UUID tipsterId,
-		String tipsterName, String ticketNumber, String team1, String team2, String description, String betType,
+		String tipsterName, String ticketNumber, String team1, String team2, String description, BetType betType,
 		String playType, BigDecimal stake, BigDecimal odd, BetStatus status, Instant betDate) {
 
 	static BetCreatedPayload from(Bet bet, BetDimensionNames dimensionNames) {
