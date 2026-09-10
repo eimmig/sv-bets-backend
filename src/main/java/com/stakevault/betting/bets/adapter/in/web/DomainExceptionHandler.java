@@ -13,6 +13,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.stakevault.betting.bets.domain.model.AdminRoleRequiredException;
 import com.stakevault.betting.bets.domain.model.BetNotFoundException;
 import com.stakevault.betting.bets.domain.model.BettingHouseAlreadyRegisteredException;
 import com.stakevault.betting.bets.domain.model.BettingHouseNotFoundException;
@@ -45,7 +46,7 @@ public class DomainExceptionHandler {
 			BettingHouseNotFoundException.class, InvalidOddException.class, InvalidStakeException.class,
 			LeagueNotFoundException.class, MarketNotFoundException.class, MissingCallerContextException.class,
 			SportNotFoundException.class, TipsterNotFoundException.class, BetNotFoundException.class,
-			InvalidStatusTransitionException.class })
+			InvalidStatusTransitionException.class, AdminRoleRequiredException.class })
 	public ProblemDetail handle(LocalizedDomainException exception, Locale locale, HttpServletRequest request) {
 		ProblemDetail problem = ProblemDetail.forStatusAndDetail(
 				HttpStatus.valueOf(exception.httpStatusCode()),

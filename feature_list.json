@@ -1243,7 +1243,7 @@
           ],
           "validation": "mvn -B verify verde; teste de integracao cobrindo GET, PATCH com admin, PATCH com member (403), PATCH sem header (403).",
           "owner": "agente",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-318"
         },
         {
