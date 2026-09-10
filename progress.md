@@ -264,3 +264,13 @@ Nenhuma feature pendente neste serviço. Se uma mudança futura precisar reabrir
 (ex.: mais um campo denormalizado no evento, um RF novo), seguir o mesmo padrão de `feat-009`/
 `feat-010`: Plan Reviewer, story/subtasks no Jira, `evidence` completa, e reabrir/refechar
 `epic-003` na raiz (`../../feature_list.json`) nas duas pontas da mudança.
+
+## `feat-013` — Dockerfile para imagem de produção (2026-09-10)
+
+Achado real de `infra/feat-004` (migração para Kubernetes, `epic-010` da raiz): este serviço
+nunca teve `Dockerfile` próprio. Multi-stage idêntico ao padrão de `auth-service feat-011`
+(build `eclipse-temurin:25-jdk-alpine`, runtime `25-jre-alpine`, usuário não-root, porta 8082).
+Build real e execução real testados contra a infra (`postgres-bets`, `rabbitmq`):
+`/actuator/health` UP. Imagem usada de fato pelos manifests Kubernetes de `infra/feat-004`. 1
+subtask (SV-279, story SV-278), 2 PRs (#53 subtask->feature, #54 feature->develop), CI+SonarCloud
+verdes nos dois.
