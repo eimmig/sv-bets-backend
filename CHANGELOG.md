@@ -65,3 +65,5 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 - [SV-162](https://stakevault.atlassian.net/browse/SV-162) - server.port fixo, CHANGELOG e verificacao final
 - [SV-172](https://stakevault.atlassian.net/browse/SV-172) - Corrigir avisos do compilador/IDE (RabbitMQContainer deprecado, varargs generico)
 - [SV-173](https://stakevault.atlassian.net/browse/SV-173) - Trocar import de RabbitMQContainer, suprimir warning de varargs, CHANGELOG e verificacao final
+- [SV-278](https://stakevault.atlassian.net/browse/SV-278) - Dockerfile para imagem de producao
+- [SV-279](https://stakevault.atlassian.net/browse/SV-279) - Dockerfile multi-stage + verificacao real do container contra a infra
