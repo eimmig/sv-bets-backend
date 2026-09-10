@@ -1219,6 +1219,81 @@
         }
       ],
       "evidence": "Fechada em 2026-09-10. Dockerfile multi-stage identico ao padrao de auth-service feat-011 (build eclipse-temurin:25-jdk-alpine, runtime 25-jre-alpine, usuario nao-root, porta 8082) + .dockerignore. Build real e execucao real testados contra a infra (postgres-bets + rabbitmq): GET /actuator/health respondeu 200. Imagem usada de fato por infra/feat-004 para os manifests Kubernetes."
+    },
+    {
+      "id": "feat-014",
+      "name": "epic-013: saldo consolidado, betType enum, config de unidade",
+      "description": "epic-013 da raiz - escopo novo, fora do backlog original do TCC1 (pedido do usuario, 2026-09-10, especificacao do dashboard consolidado). 3 mudancas independentes: (1) GET /api/v1/bankroll/balance?at=<yyyy-MM-dd> - saldo consolidado somando TODAS as casas de apostas do tenant no instante `at` (default hoje): SUM(BETTING_HOUSE.initialBalance) + SUM(TRANSACTION.amount assinado por type, createdAt<=at) + SUM(BET_RESULT.profit, settledAt<=at). Fecha gap ja documentado desde feat-005 ('RF07 nao ganhou endpoint de saldo consolidado proprio'). (2) BET.betType migra de texto livre (varchar sem enum) pra enum PRE/LIVE (Flyway migration + Bean Validation) - apostas antigas com texto livre nao tem remapeamento seguro, viram NULL. (3) TENANT_SETTINGS nova (schema-per-tenant, linha unica): unitPercent decimal, default 0.01 (1%). GET/PATCH /api/v1/settings (admin-only via X-User-Role, header novo injetado por api-gateway feat-010/auth-service feat-012 - ver docs/DECISIONS-LOG.md 'Claim role no PASETO'), seed automatico via Flyway na criacao do schema do tenant.",
+      "dependencies": [
+        "feat-005"
+      ],
+      "status": "in-progress",
+      "plan_review": "2026-09-10, Plan Reviewer (review-suite:ln-11-plan-reviewer, 1 revisor independente em contexto isolado) - veredito READY WITH CONCERNS, sem BLOCKER. 3 achados MAJOR incorporados ao plano antes de codificar: (1) casing de X-User-Role - o rascunho original assumia uppercase (ADMIN/MEMBER) citando LoginResponse.role de auth-service, mas docs/API-CONTRACTS.md/docs/DECISIONS-LOG.md ja documentavam lowercase ('admin'/'member', mesma convencao de BET.status/TransactionType) - achado propagado de volta pra auth-service feat-012 (que tinha emitido uppercase por engano) e corrigido la (auth-service feat-013, antes de qualquer consumidor real depender do valor errado), api-gateway feat-010 ja estava correto (so repassa a string, nao se importa com case); (2) timezone do parametro `at` - docs/CONVENTIONS.md secao 'Timezone padrao' exige America/Sao_Paulo pra calculo de dia civil (nao UTC, mesmo racional do bug ja documentado em telegram-integration feat-006), `createdAt<=at`/`settledAt<=at` do contrato precisam converter yyyy-MM-dd pro fim do dia civil brasileiro (LocalDate.plusDays(1).atStartOfDay(America/Sao_Paulo).toInstant() como limite superior exclusivo), nao um `atStartOfDay` UTC ingenuo; (3) AdminRoleRequiredException precisa entrar na allowlist explicita de @ExceptionHandler em DomainExceptionHandler.java - implementar LocalizedDomainException sozinho nao basta (achado real confirmado lendo o handler, mesmo padrao de MissingCallerContextException). Achados MINOR aceitos: BettingHouseRepository nao tem metodo de soma agregada hoje, precisa ser adicionado; seed via Flyway confirmado correto dado que migrateIfPending roda toda migration pendente em toda chamada (JdbcFlywayTenantSchemaGateway ja lido) - linha unica de TENANT_SETTINGS usa UUID constante literal no INSERT (sem pgcrypto, sem precedente de gen_random_uuid() no codebase); JpaBetRepositoryIntegrationTest.java (fora da lista original de arquivos, achado pelo revisor) constroi Bet com o literal 'match-winner' na posicao de betType - vai quebrar de compilar quando o tipo mudar pra enum, precisa de update.",
+      "jira": "SV-317",
+      "subtasks": [
+        {
+          "id": "feat-014.1",
+          "name": "TENANT_SETTINGS + GET/PATCH /api/v1/settings (admin-only)",
+          "detail": "Migration: CREATE TABLE tenant_settings (id UUID PK, unit_percent NUMERIC(5,4) NOT NULL DEFAULT 0.01) + INSERT de seed com UUID constante literal (linha unica, sem PK dinamica). AdminRoleRequiredException (LocalizedDomainException, 403) registrada em DomainExceptionHandler. GET/PATCH /api/v1/settings: GET sem restricao (qualquer usuario autenticado do tenant), PATCH exige X-User-Role igual a 'admin' (lowercase, comparacao direta - api-gateway feat-010/auth-service feat-012/013 ja garantem o header correto).",
+          "checklist": [
+            "Migration cria tenant_settings com seed (linha unica por tenant)",
+            "GET /api/v1/settings devolve unitPercent",
+            "PATCH /api/v1/settings atualiza unitPercent, 403 (RFC 7807 localizado) se X-User-Role != admin ou ausente",
+            "AdminRoleRequiredException na allowlist do DomainExceptionHandler"
+          ],
+          "validation": "mvn -B verify verde; teste de integracao cobrindo GET, PATCH com admin, PATCH com member (403), PATCH sem header (403).",
+          "owner": "agente",
+          "status": "in-progress",
+          "jira": "SV-318"
+        },
+        {
+          "id": "feat-014.2",
+          "name": "BET.betType: texto livre -> enum PRE/LIVE",
+          "detail": "BetType enum (PRE/LIVE, @JsonProperty lowercase) + BetTypeAttributeConverter (@Converter(autoApply=true), mesmo padrao de BetStatus/BetStatusAttributeConverter). Migration: normaliza bet_type existente pra lowercase, NULL em qualquer valor fora de ('pre','live'), depois CHECK constraint. Bet/BetJpaEntity/CreateBetRequest/CreateBetCommand/BetResponse/BetService/BetCreatedPayload: String betType -> BetType betType. docs/contracts/bet-created.schema.json (raiz) + copia vendorizada em src/test/resources/contracts/ ganham enum:[pre,live,null]. docs/services/bets-service.md e docs/services/stats-service.md atualizados no mesmo commit (contrato cross-service).",
+          "checklist": [
+            "BetType + converter criados, mesmo padrao de BetStatus",
+            "Migration normaliza dados existentes antes do CHECK constraint",
+            "Todos os call sites de betType (String) migrados pra BetType",
+            "JpaBetRepositoryIntegrationTest.java corrigido (literal 'match-winner' quebra de compilar)",
+            "Schema do evento (raiz + vendorizada) com enum, docs atualizados"
+          ],
+          "validation": "mvn -B verify verde; teste de integracao confirma linha com valor fora do dominio vira NULL pos-migration; teste de contrato valida payload contra o schema atualizado.",
+          "owner": "agente",
+          "status": "not-started",
+          "jira": "SV-319"
+        },
+        {
+          "id": "feat-014.3",
+          "name": "GET /api/v1/bankroll/balance?at=",
+          "detail": "Novos metodos de repositorio: BettingHouseRepository.sumInitialBalance() (agregado, nao existe hoje), TransactionRepository.sumNetAmountUpTo(Instant at), BetResultRepository.sumProfitUpTo(Instant at) - todas as casas do tenant, nao agrupado por casa (diferente dos metodos existentes usados por feat-005). Controller: `at` opcional (yyyy-MM-dd, default hoje), convertido pro fim do dia civil brasileiro (America/Sao_Paulo) como limite superior exclusivo antes de comparar com createdAt/settledAt (Instant/UTC). Resposta {at, balance}.",
+          "checklist": [
+            "3 metodos de repositorio novos (agregado all-houses, nao Map por casa)",
+            "Conversao at (yyyy-MM-dd) -> Instant usa America/Sao_Paulo, nao UTC",
+            "GET /api/v1/bankroll/balance sem at = saldo atual (hoje)",
+            "GET .../balance?at=<data passada> reflete só transacoes/liquidacoes ate aquele dia civil brasileiro"
+          ],
+          "validation": "mvn -B verify verde; teste de integracao com transacao/liquidacao datada perto da meia-noite (fuso) provando o corte correto, nao UTC.",
+          "owner": "agente",
+          "status": "not-started",
+          "jira": "SV-320"
+        },
+        {
+          "id": "feat-014.4",
+          "name": "CHANGELOG e verificacao final",
+          "detail": "Fechamento formal: CHANGELOG.md, init.sh, skills de auditoria (Delivery Reviewer + Test Suite Auditor + Persistence Auditor - banco proprio), e o item fixo de vault desta feature.",
+          "checklist": [
+            "Entrada em CHANGELOG.md (Unreleased)",
+            "./init.sh do servico e da raiz verdes",
+            "Delivery Reviewer + Test Suite Auditor + Persistence Auditor rodados sem achado bloqueante nao resolvido",
+            "Vault (docs/) revisado: alguma descoberta desta feature - mecanismo reaproveitavel, gotcha de lib/config, lacuna de especificacao, decisao que diverge do ja documentado - sem nota correspondente? Se sim, atualizar/criar a nota do assunto (nao docs/DECISIONS-LOG.md a menos que divirja do TCC1) no mesmo commit"
+          ],
+          "validation": "./init.sh raiz e do servico saem 0; evidence da feature preenchida.",
+          "owner": "agente",
+          "status": "not-started",
+          "jira": "SV-321"
+        }
+      ],
+      "evidence": ""
     }
   ]
 }

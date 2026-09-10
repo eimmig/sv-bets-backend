@@ -67,3 +67,8 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 - [SV-173](https://stakevault.atlassian.net/browse/SV-173) - Trocar import de RabbitMQContainer, suprimir warning de varargs, CHANGELOG e verificacao final
 - [SV-278](https://stakevault.atlassian.net/browse/SV-278) - Dockerfile para imagem de producao
 - [SV-279](https://stakevault.atlassian.net/browse/SV-279) - Dockerfile multi-stage + verificacao real do container contra a infra
+- [SV-317](https://stakevault.atlassian.net/browse/SV-317) - epic-013: saldo consolidado, betType enum, config de unidade
+- [SV-318](https://stakevault.atlassian.net/browse/SV-318) - TENANT_SETTINGS + GET/PATCH /api/v1/settings (admin-only)
+- [SV-319](https://stakevault.atlassian.net/browse/SV-319) - BET.betType: texto livre -> enum PRE/LIVE
+- [SV-320](https://stakevault.atlassian.net/browse/SV-320) - GET /api/v1/bankroll/balance?at=
+- [SV-321](https://stakevault.atlassian.net/browse/SV-321) - CHANGELOG e verificacao final
