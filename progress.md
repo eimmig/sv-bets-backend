@@ -2,8 +2,11 @@
 
 ## Estado Atual (Current State)
 
-**Última atualização:** 2026-09-08
-**Feature ativa:** nenhuma — backlog completo, `feat-001` a `feat-012` todas `done`
+**Última atualização:** 2026-09-10
+**Feature ativa:** nenhuma — backlog completo, `feat-001` a `feat-014` todas `done`. Há um
+`feat-015` (build/push de imagem Docker pro GHCR) com `plan_review` já escrito mas nunca
+commitado, parado em `git stash` neste repositório — ver seção `feat-014` abaixo antes de
+retomar.
 
 ## `feat-012` fechada — avisos do painel Problems do VSCode (2026-09-08)
 
@@ -274,3 +277,74 @@ Build real e execução real testados contra a infra (`postgres-bets`, `rabbitmq
 `/actuator/health` UP. Imagem usada de fato pelos manifests Kubernetes de `infra/feat-004`. 1
 subtask (SV-279, story SV-278), 2 PRs (#53 subtask->feature, #54 feature->develop), CI+SonarCloud
 verdes nos dois.
+
+## `feat-014` fechada — `epic-013` da raiz: saldo consolidado, `betType` enum, config de unidade (2026-09-10)
+
+Escopo novo, fora do backlog original do TCC1 (pedido do usuário, especificação do dashboard
+consolidado). 4 subtasks (story SV-317, PRs #56-59 subtask→feature, #59 feature→develop com
+CI+SonarCloud verdes). 3 mudanças independentes:
+
+- **`feat-014.1`** — `TENANT_SETTINGS` nova (schema-per-tenant, linha única, seed via Flyway com
+  UUID constante literal) + `GET`/`PATCH /api/v1/settings`. `PATCH` restrito a
+  `X-User-Role: admin` — este serviço não tem tabela `USER` pra resolver role localmente, então
+  confia no header já validado pelo `api-gateway` (decisão via `AskUserQuestion` ao usuário:
+  claim `role` no PASETO + header injetado, mesmo modelo já usado por `X-User-Id`/`X-Tenant-Id`
+  — ver `docs/DECISIONS-LOG.md` "Claim role no PASETO"). `AdminRoleRequiredException` precisou
+  entrar na allowlist explícita de `@ExceptionHandler` (achado do Plan Reviewer — implementar
+  `LocalizedDomainException` sozinho não basta).
+- **`feat-014.2`** — `BET.betType` migra de texto livre (`varchar` sem `enum`) pra `enum`
+  `PRE`/`LIVE` (`BetType` + `BetTypeAttributeConverter`, mesmo padrão de
+  `BetStatus`/`BetStatusAttributeConverter`). Migração normaliza pra lowercase e zera (`NULL`)
+  qualquer valor fora de `('pre','live')` antes do `CHECK` — apostas antigas com texto livre
+  saem das contagens PRÉ/LIVE do dashboard. Propagado ao evento `BetCreated` (schema + docs
+  atualizados no mesmo commit). Desvio de plano aceito e **documentado no campo `evidence` da
+  própria subtask** (achado do Test Suite Auditor/Persistence Auditor em `feat-014.4`: não
+  estava registrado em nenhum lugar do harness antes): o teste de integração provando que uma
+  linha pré-existente fora do domínio vira `NULL` pós-migração não foi escrito —
+  `TenantSchemaIntegrationSupport` sempre provisiona um schema novo que reaplica o histórico
+  inteiro de migrations de uma vez, sem como inserir dado "sujo" num estado anterior a essa
+  migration específica sem contornar a abstração lazy por tenant.
+- **`feat-014.3`** — `GET /api/v1/bankroll/balance?at=<yyyy-MM-dd>` (default hoje): saldo
+  consolidado de **todas** as casas do tenant (decisão do usuário — sem filtro por
+  `bettingHouseId`), reaproveitando a fórmula por casa já usada por `GET /api/v1/betting-houses`
+  (`initialBalance` + depósitos - saques + profit líquido). 3 métodos de repositório agregados
+  novos (`sumInitialBalance`/`sumNetAmountUpTo`/`sumProfitUpTo`, todas as casas, não agrupado —
+  diferentes dos métodos `Map<UUID,...>` por casa já usados por `feat-005`). `at` convertido pro
+  fim do dia civil brasileiro (`America/Sao_Paulo`) como limite superior exclusivo antes de
+  comparar com `createdAt`/`settledAt` (`Instant`/UTC) — achado MAJOR do Plan Reviewer, provado
+  por teste de integração dedicado (transação às `2026-09-11T01:00:00Z`, já dia UTC seguinte mas
+  ainda dia civil brasileiro `09-10`, entra no corte de `at=2026-09-10`; às `04:00:00Z`, já dia
+  civil seguinte, fica de fora).
+- **`feat-014.4`** — fechamento formal. `./init.sh` verde, `Delivery Reviewer` +
+  `Test Suite Auditor` + `Persistence Auditor` rodados em paralelo (3 subagentes, contexto
+  isolado) contra o diff inteiro (`feature/SV-317` vs `develop`), todos `CONCERNS`. Achados reais
+  corrigidos antes do merge pra `develop`: `BankrollService.getBalance` sem `@Transactional`
+  (3 queries agregadas cada uma em transação implícita própria — risco de misturar dados de
+  instantes diferentes sob escrita concorrente; corrigido com `@Transactional(readOnly = true)`,
+  mesmo padrão já usado por `BetService.updateStatus`); índices faltando em
+  `transaction.created_at`/`bet_result.settled_at` (novo predicado de range sem filtro por
+  `betting_house_id`, migration nova); `tenant_settings` sem teste de isolamento entre tenants
+  (único repositório desta feature sem esse teste); `CreateBetRequest.betType` (`String`→`enum`)
+  sem teste HTTP de valor válido/inválido. 1 achado (CHANGELOG ausente) verificado manualmente
+  (`git diff`) e rejeitado como falso positivo. `mvn -B verify` verde (155 testes) após as
+  correções.
+
+**Achado real cross-service, corrigido antes de qualquer consumidor real depender do valor
+errado**: `auth-service` emitia a claim `role` do PASETO em uppercase (`ADMIN`/`MEMBER`),
+divergindo da convenção lowercase já documentada em `docs/API-CONTRACTS.md`/
+`docs/DECISIONS-LOG.md` e já assumida pelos testes de `api-gateway feat-010` — corrigido em
+`auth-service feat-013` (mesmo dia, antes de `bets-service feat-014.1` consumir o header).
+
+`docs/services/bets-service.md`, `docs/API-CONTRACTS.md`, `docs/contracts/bet-created.schema.json`
+e `docs/DECISIONS-LOG.md` (raiz) atualizados. Libera `epic-014` (`stats-service`) e os epics de
+`apps/web` que dependiam de `epic-013`/`epic-014`.
+
+**Achado fora de escopo, não relacionado a esta feature** — encontrado como trabalho não
+commitado no working tree ao retomar a sessão: um `feat-015` ("CI: build e push da imagem
+Docker pro GHCR") já tinha `plan_review` e subtasks escritos em `feature_list.json`, mais uma
+edição correspondente em `.github/workflows/ci.yml`, nenhum dos dois commitado. Como violaria a
+regra de WIP máximo 1 por serviço (`feat-014` ainda `in-progress` no momento), e por estar fora
+do escopo desta sessão, foi posto de lado com `git stash` (mensagem "stray uncommitted feat-015
+...") em vez de commitado, descartado ou finalizado — decisão de não perder trabalho alheio sem
+entender o contexto completo. Próxima sessão: `git stash list` no repositório deste serviço pra
+recuperar, decidir se segue esse plano ou substitui por outro.
