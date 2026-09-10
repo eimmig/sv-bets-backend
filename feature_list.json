@@ -1274,7 +1274,7 @@
           ],
           "validation": "mvn -B verify verde; teste de integracao com transacao/liquidacao datada perto da meia-noite (fuso) provando o corte correto, nao UTC.",
           "owner": "agente",
-          "status": "not-started",
+          "status": "in-progress",
           "jira": "SV-320"
         },
         {
