@@ -1274,7 +1274,8 @@
           ],
           "validation": "mvn -B verify verde; teste de integracao com transacao/liquidacao datada perto da meia-noite (fuso) provando o corte correto, nao UTC.",
           "owner": "agente",
-          "status": "not-started",
+          "status": "done",
+          "evidence": "3 metodos agregados novos (BettingHouseRepository.sumInitialBalance, TransactionRepository.sumNetAmountUpTo, BetResultRepository.sumProfitUpTo - todas as casas, nao agrupado). BankrollService converte `at` (default hoje) pro fim do dia civil brasileiro (America/Sao_Paulo) como limite superior exclusivo antes de comparar com createdAt/settledAt (Instant/UTC). GET /api/v1/bankroll/balance retorna {at, balance}. Testes de integracao novos: JpaBettingHouseRepositoryIntegrationTest (sumInitialBalance, agregado + zero), JpaTransactionRepositoryIntegrationTest (sumNetAmountUpTo, agregado + exclusao apos corte + zero), JpaBetResultRepositoryIntegrationTest (sumProfitUpTo, idem), BankrollControllerIntegrationTest (4 testes: saldo atual sem `at`, agregacao entre casas/transacoes/liquidacoes, isolamento entre tenants, e o teste critico do fuso horario - transacao datada 2026-09-11T01:00:00Z, que ja e dia UTC seguinte mas ainda e dia civil brasileiro 2026-09-10 (UTC-3), entra no corte de at=2026-09-10; transacao em 2026-09-11T04:00:00Z, ja dia civil brasileiro seguinte, fica de fora - prova que a comparacao usa America/Sao_Paulo e nao UTC ingenuo). mvn -B verify verde (152 testes). docs/services/bets-service.md atualizado com a formula completa e a nota do fuso; docs/API-CONTRACTS.md ja tinha a especificacao do endpoint (sem alteracao necessaria).",
           "jira": "SV-320"
         },
         {

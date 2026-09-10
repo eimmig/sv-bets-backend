@@ -1,5 +1,6 @@
 package com.stakevault.betting.bets.adapter.out.persistence;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -47,6 +48,12 @@ public class JpaBettingHouseRepository implements BettingHouseRepository {
 		Page<BettingHouseJpaEntity> result = jpaRepository.findAll(PageRequest.of(page, size));
 		return new PagedResult<>(result.getContent().stream().map(JpaBettingHouseRepository::toDomain).toList(),
 				result.getNumber(), result.getSize(), result.getTotalElements(), result.getTotalPages());
+	}
+
+	@Override
+	public BigDecimal sumInitialBalance() {
+		BigDecimal sum = jpaRepository.sumInitialBalance();
+		return sum != null ? sum : BigDecimal.ZERO;
 	}
 
 	private static BettingHouse toDomain(BettingHouseJpaEntity entity) {

@@ -70,6 +70,25 @@ class JpaBettingHouseRepositoryIntegrationTest extends TenantSchemaIntegrationSu
 	}
 
 	@Test
+	void sumInitialBalanceShouldAddAllHousesRegardlessOfName() {
+		try (var _ = TenantContextScope.open(schema)) {
+			bettingHouseRepository.save(new BettingHouse(UUID.randomUUID(), "House-" + UUID.randomUUID(),
+					BigDecimal.valueOf(100), Instant.now()));
+			bettingHouseRepository.save(new BettingHouse(UUID.randomUUID(), "House-" + UUID.randomUUID(),
+					BigDecimal.valueOf(50), Instant.now()));
+
+			assertThat(bettingHouseRepository.sumInitialBalance()).isEqualByComparingTo("150");
+		}
+	}
+
+	@Test
+	void sumInitialBalanceShouldReturnZeroWhenNoHousesExist() {
+		try (var _ = TenantContextScope.open(schema)) {
+			assertThat(bettingHouseRepository.sumInitialBalance()).isEqualByComparingTo("0");
+		}
+	}
+
+	@Test
 	void shouldIsolateRowsBetweenTenantSchemas() {
 		String otherSlug = "test-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
 		TenantSchemaName otherSchema = TenantSchemaName.fromSlug(otherSlug);

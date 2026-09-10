@@ -48,6 +48,12 @@ public class JpaTransactionRepository implements TransactionRepository {
 		return netAmountById;
 	}
 
+	@Override
+	public BigDecimal sumNetAmountUpTo(Instant at) {
+		BigDecimal sum = jpaRepository.sumNetAmountUpTo(at);
+		return sum != null ? sum : BigDecimal.ZERO;
+	}
+
 	private static PagedResult<Transaction> toPagedResult(Page<TransactionJpaEntity> result) {
 		return new PagedResult<>(result.getContent().stream().map(JpaTransactionRepository::toDomain).toList(),
 				result.getNumber(), result.getSize(), result.getTotalElements(), result.getTotalPages());

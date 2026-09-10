@@ -1,5 +1,6 @@
 package com.stakevault.betting.bets.adapter.out.persistence;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -28,4 +29,8 @@ interface TransactionSpringDataRepository extends JpaRepository<TransactionJpaEn
 			+ "THEN t.amount ELSE -t.amount END) FROM TransactionJpaEntity t "
 			+ "WHERE t.bettingHouseId IN :bettingHouseIds GROUP BY t.bettingHouseId")
 	List<Object[]> sumNetAmountByBettingHouseIds(@Param("bettingHouseIds") Collection<UUID> bettingHouseIds);
+
+	@Query("SELECT SUM(CASE WHEN t.type = com.stakevault.betting.bets.domain.model.TransactionType.DEPOSIT "
+			+ "THEN t.amount ELSE -t.amount END) FROM TransactionJpaEntity t WHERE t.createdAt < :at")
+	BigDecimal sumNetAmountUpTo(@Param("at") Instant at);
 }
