@@ -229,6 +229,32 @@ class BetsControllerIntegrationTest extends TenantSchemaIntegrationSupport {
 	}
 
 	@Test
+	void shouldCreateBetWithLowercaseBetTypeEnumValue() throws Exception {
+		References refs = newReferences();
+		String body = "{\"bettingHouseId\":\"" + refs.bettingHouseId() + "\",\"sportId\":\"" + refs.sportId()
+				+ "\",\"leagueId\":\"" + refs.leagueId() + "\",\"marketId\":\"" + refs.marketId()
+				+ "\",\"betType\":\"pre\",\"stake\":100,\"odd\":1.5,\"betDate\":\"2026-09-05T12:00:00Z\"}";
+
+		HttpResponse<String> response = post(body, UUID.randomUUID().toString(), null);
+
+		assertThat(response.statusCode()).isEqualTo(201);
+		assertThat(response.body()).contains("\"betType\":\"pre\"");
+	}
+
+	@Test
+	void shouldReturn400ForBetTypeOutsideTheEnumDomain() throws Exception {
+		References refs = newReferences();
+		String body = "{\"bettingHouseId\":\"" + refs.bettingHouseId() + "\",\"sportId\":\"" + refs.sportId()
+				+ "\",\"leagueId\":\"" + refs.leagueId() + "\",\"marketId\":\"" + refs.marketId()
+				+ "\",\"betType\":\"live-and-pre\",\"stake\":100,\"odd\":1.5,\"betDate\":\"2026-09-05T12:00:00Z\"}";
+
+		HttpResponse<String> response = post(body, UUID.randomUUID().toString(), null);
+
+		assertThat(response.statusCode()).isEqualTo(400);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/validation-failed\"");
+	}
+
+	@Test
 	void shouldReturn422ForInvalidOdd() throws Exception {
 		References refs = newReferences();
 

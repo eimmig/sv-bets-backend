@@ -20,6 +20,7 @@ import com.networknt.schema.SpecVersion;
 import com.stakevault.betting.bets.TestcontainersConfiguration;
 import com.stakevault.betting.bets.config.TenantContextScope;
 import com.stakevault.betting.bets.domain.model.BetStatus;
+import com.stakevault.betting.bets.domain.model.BetType;
 import com.stakevault.betting.bets.domain.model.BettingHouse;
 import com.stakevault.betting.bets.domain.model.InvalidStatusTransitionException;
 import com.stakevault.betting.bets.domain.model.League;
@@ -60,6 +61,10 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 	}
 
 	private BetFixture newCommand(UUID callerId, String idempotencyKey) {
+		return newCommand(callerId, idempotencyKey, null);
+	}
+
+	private BetFixture newCommand(UUID callerId, String idempotencyKey, BetType betType) {
 		String suffix = UUID.randomUUID().toString();
 		String bettingHouseName = "House-" + suffix;
 		String sportName = "Sport-" + suffix;
@@ -71,7 +76,7 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 		UUID leagueId = leagueRepository.save(new League(UUID.randomUUID(), leagueName)).id();
 		UUID marketId = marketRepository.save(new Market(UUID.randomUUID(), marketName)).id();
 		CreateBetCommand command = new CreateBetCommand(callerId, bettingHouseId, sportId, leagueId, marketId, null,
-				null, null, null, null, null, null, BigDecimal.valueOf(100), BigDecimal.valueOf(1.5),
+				null, null, null, null, betType, null, BigDecimal.valueOf(100), BigDecimal.valueOf(1.5),
 				Instant.parse("2026-09-06T12:00:00Z"), idempotencyKey);
 		return new BetFixture(command, bettingHouseName, sportName, leagueName, marketName);
 	}
@@ -115,6 +120,21 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 			assertThat(payload.get("marketName").asText()).isEqualTo(fixture.marketName());
 			assertThat(message.getMessageProperties().getReceivedDeliveryMode())
 					.isEqualTo(org.springframework.amqp.core.MessageDeliveryMode.PERSISTENT);
+		}
+	}
+
+	@Test
+	void shouldPublishBetTypeAsLowercaseEnumValueMatchingTheSchema() throws Exception {
+		try (var _ = TenantContextScope.open(schema)) {
+			var fixture = newCommand(UUID.randomUUID(), null, BetType.PRE);
+
+			bets.create(fixture.command());
+
+			Message message = rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000);
+			assertThat(message).isNotNull();
+			JsonNode event = validateAgainstSchema(message.getBody(), "/contracts/bet-created.schema.json");
+
+			assertThat(event.get("payload").get("betType").asText()).isEqualTo("pre");
 		}
 	}
 

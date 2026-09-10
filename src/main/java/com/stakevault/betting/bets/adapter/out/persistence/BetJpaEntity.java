@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import com.stakevault.betting.bets.domain.model.Bet;
 import com.stakevault.betting.bets.domain.model.BetStatus;
+import com.stakevault.betting.bets.domain.model.BetType;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -47,7 +48,7 @@ public class BetJpaEntity extends AbstractJpaEntity {
 	private String description;
 
 	@Column(name = "bet_type")
-	private String betType;
+	private BetType betType;
 
 	@Column(name = "play_type")
 	private String playType;

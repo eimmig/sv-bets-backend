@@ -98,4 +98,29 @@ class JpaTransactionRepositoryIntegrationTest extends TenantSchemaIntegrationSup
 			assertThat(transactionRepository.sumNetAmountByBettingHouseIds(List.of())).isEmpty();
 		}
 	}
+
+	@Test
+	void sumNetAmountUpToShouldAggregateAcrossAllHousesAndExcludeAfterCutoff() {
+		try (var _ = TenantContextScope.open(schema)) {
+			UUID houseA = newBettingHouseId();
+			UUID houseB = newBettingHouseId();
+			Instant cutoff = Instant.parse("2026-09-10T12:00:00Z");
+
+			transactionRepository.save(new Transaction(UUID.randomUUID(), houseA, TransactionType.DEPOSIT,
+					BigDecimal.valueOf(100), cutoff.minusSeconds(1)));
+			transactionRepository.save(new Transaction(UUID.randomUUID(), houseB, TransactionType.WITHDRAWAL,
+					BigDecimal.valueOf(20), cutoff.minusSeconds(1)));
+			transactionRepository.save(new Transaction(UUID.randomUUID(), houseA, TransactionType.DEPOSIT,
+					BigDecimal.valueOf(1000), cutoff));
+
+			assertThat(transactionRepository.sumNetAmountUpTo(cutoff)).isEqualByComparingTo("80");
+		}
+	}
+
+	@Test
+	void sumNetAmountUpToShouldReturnZeroWhenNoTransactionsExist() {
+		try (var _ = TenantContextScope.open(schema)) {
+			assertThat(transactionRepository.sumNetAmountUpTo(Instant.now())).isEqualByComparingTo("0");
+		}
+	}
 }

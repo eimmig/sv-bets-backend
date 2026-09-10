@@ -93,6 +93,29 @@ class JpaBetResultRepositoryIntegrationTest extends TenantSchemaIntegrationSuppo
 	}
 
 	@Test
+	void sumProfitUpToShouldAggregateAcrossAllHousesAndExcludeAfterCutoff() {
+		try (var _ = TenantContextScope.open(schema)) {
+			Instant cutoff = Instant.parse("2026-09-10T12:00:00Z");
+
+			betResultRepository.save(new BetResult(UUID.randomUUID(), newBetId(), UUID.randomUUID(),
+					BigDecimal.valueOf(50), cutoff.minusSeconds(1)));
+			betResultRepository.save(new BetResult(UUID.randomUUID(), newBetId(), UUID.randomUUID(),
+					BigDecimal.valueOf(-10), cutoff.minusSeconds(1)));
+			betResultRepository.save(new BetResult(UUID.randomUUID(), newBetId(), UUID.randomUUID(),
+					BigDecimal.valueOf(1000), cutoff));
+
+			assertThat(betResultRepository.sumProfitUpTo(cutoff)).isEqualByComparingTo("40");
+		}
+	}
+
+	@Test
+	void sumProfitUpToShouldReturnZeroWhenNoResultsExist() {
+		try (var _ = TenantContextScope.open(schema)) {
+			assertThat(betResultRepository.sumProfitUpTo(Instant.now())).isEqualByComparingTo("0");
+		}
+	}
+
+	@Test
 	void betResultsShouldBeIsolatedBetweenTenants() {
 		UUID betId;
 		try (var _ = TenantContextScope.open(schema)) {
