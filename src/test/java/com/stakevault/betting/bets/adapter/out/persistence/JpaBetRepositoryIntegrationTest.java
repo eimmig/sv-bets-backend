@@ -12,6 +12,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import com.stakevault.betting.bets.config.TenantContextScope;
 import com.stakevault.betting.bets.domain.model.Bet;
 import com.stakevault.betting.bets.domain.model.BetStatus;
+import com.stakevault.betting.bets.domain.model.BetType;
 import com.stakevault.betting.bets.domain.model.BettingHouse;
 import com.stakevault.betting.bets.domain.model.League;
 import com.stakevault.betting.bets.domain.model.Market;
@@ -74,7 +75,7 @@ class JpaBetRepositoryIntegrationTest extends TenantSchemaIntegrationSupport {
 	void shouldSaveAndFindWithAllFieldsFilled() {
 		try (var _ = TenantContextScope.open(schema)) {
 			Bet bet = new Bet(UUID.randomUUID(), newBettingHouseId(), newSportId(), newLeagueId(), newMarketId(),
-					newTipsterId(), UUID.randomUUID(), "TICKET-1", "Team A", "Team B", "final match", "match-winner",
+					newTipsterId(), UUID.randomUUID(), "TICKET-1", "Team A", "Team B", "final match", BetType.PRE,
 					"single", BigDecimal.valueOf(100), BigDecimal.valueOf(1.5), BetStatus.PENDING, Instant.now(),
 					"idem-key-1");
 
@@ -83,6 +84,7 @@ class JpaBetRepositoryIntegrationTest extends TenantSchemaIntegrationSupport {
 			Bet found = betRepository.findById(bet.id()).orElseThrow();
 			assertThat(found.tipsterId()).isEqualTo(bet.tipsterId());
 			assertThat(found.team1()).isEqualTo("Team A");
+			assertThat(found.betType()).isEqualTo(BetType.PRE);
 			assertThat(found.stake()).isEqualByComparingTo("100");
 			assertThat(found.odd()).isEqualByComparingTo("1.5");
 			assertThat(found.status()).isEqualTo(BetStatus.PENDING);
