@@ -1290,7 +1290,7 @@
           ],
           "validation": "./init.sh raiz e do servico saem 0; evidence da feature preenchida.",
           "owner": "agente",
-          "status": "not-started",
+          "status": "in-progress",
           "jira": "SV-321"
         }
       ],
