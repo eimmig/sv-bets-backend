@@ -36,18 +36,31 @@ antes de `feat-001`.
   implemente exatamente os cálculos e validações descritos, não aproxime.
 - O endpoint `POST /api/v1/bets` é usado tanto pelo formulário web (`apps/web`) quanto pelo
   `services/telegram-integration` (via `api-gateway`) — não crie um endpoint separado para a
-  captura automática. Aceita header `Idempotency-Key` (ver `../../docs/API-CONTRACTS.md`). Todas
-  as rotas deste serviço (`/api/v1/betting-houses`, `/api/v1/bets`, `/api/v1/transactions`) e
-  seus query params são sempre em inglês — ver `../../docs/API-CONTRACTS.md`.
+  captura automática. Aceita header `Idempotency-Key` (ver `../../docs/API-CONTRACTS.md`).
+  `GET /api/v1/bets/{id}` (recurso único, sem paginação — histórico paginado é `feat-007`) e
+  `PATCH /api/v1/bets/{id}/status` (RF12 — só `pending -> won|lost|void` é transição válida,
+  transição atômica condicional, não `findById`+`save`; exige `X-User-Id` desde `feat-005`, vira
+  `BET_RESULT.settledByUserId`, calcula `profit` RN02/RN03 e reflete no `balance` de
+  `GET /api/v1/betting-houses` na mesma transação) completam o ciclo de vida mínimo da aposta. Todas
+  as rotas deste serviço (`/api/v1/betting-houses`, `/api/v1/bets`, `/api/v1/transactions`,
+  `/api/v1/sports`, `/api/v1/leagues`, `/api/v1/markets`, `/api/v1/tipsters`) e seus query
+  params são sempre em inglês — ver `../../docs/API-CONTRACTS.md`. Os 4 catálogos (`feat-002`)
+  só têm `POST`/`GET` paginado (criação e listagem) — nasce vazio por tenant, cada organização
+  cadastra os próprios (ver `docs/DECISIONS-LOG.md` item 8), sem `PUT`/`DELETE`.
 - Campo `status` de `BET` (e nos eventos) usa valores em inglês: `pending`/`won`/`lost`/`void`
   (correspondem a pendente/ganha/perdida/devolvida em RF12/RN06 — a especificação em si, ver
   `../../docs/REQUIREMENTS.md`, continua em português; só a codificação técnica é inglês).
 - Publique **dois eventos distintos**, não um único evento reaproveitado: `BetCreated` no
-  registro inicial (`../../docs/contracts/bet-created.schema.json`) e `BetSettled` na
-  liquidação (`../../docs/contracts/bet-settled.schema.json`) — ver
-  `../../docs/API-CONTRACTS.md`. Mudanças de payload em qualquer um dos dois atualizam o schema
-  correspondente, `../../docs/services/bets-service.md` e `../../docs/services/stats-service.md`
-  no mesmo commit.
+  registro inicial (`../../docs/contracts/bet-created.schema.json`, `feat-006`, implementado) e
+  `BetSettled` na liquidação (`../../docs/contracts/bet-settled.schema.json`, `feat-008`,
+  implementado — payload SEM os campos descritivos de `BET`, diferente de `BetCreated`) — ver
+  `../../docs/API-CONTRACTS.md`. Mudanças de payload em qualquer um dos
+  dois atualizam o schema correspondente, `../../docs/services/bets-service.md` e
+  `../../docs/services/stats-service.md` no mesmo commit — **e a cópia vendorizada em
+  `src/test/resources/contracts/` deste repositório** (o schema mora em `sv-harness`, repositório
+  separado que a CI daqui não faz checkout, ver `../../docs/API-CONTRACTS.md` seção "Cópias
+  vendorizadas do schema"). Mensagens marcadas `PERSISTENT` (`MessageDeliveryMode`) - fila de
+  produção é durable mas isso não basta sozinho.
 - **Maven** (não Gradle) e **arquitetura hexagonal** (`domain/`, `application/`, `adapter/`) —
   decisões já tomadas em `../../docs/CONVENTIONS.md`, não reabrir. O publicador do evento vive
   em `adapter/out/messaging/`, implementando um `port/out` do domínio.

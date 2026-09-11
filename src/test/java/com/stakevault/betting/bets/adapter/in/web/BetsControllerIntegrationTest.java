@@ -1,0 +1,476 @@
+package com.stakevault.betting.bets.adapter.in.web;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.UUID;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import com.stakevault.betting.bets.domain.port.in.ProvisionTenantSchemaUseCase;
+import com.stakevault.betting.bets.support.TenantSchemaIntegrationSupport;
+
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+class BetsControllerIntegrationTest extends TenantSchemaIntegrationSupport {
+
+	@LocalServerPort
+	private int port;
+
+	private final HttpClient httpClient = HttpClient.newHttpClient();
+
+	BetsControllerIntegrationTest(ProvisionTenantSchemaUseCase provisionTenantSchema, JdbcTemplate jdbcTemplate) {
+		super(provisionTenantSchema, jdbcTemplate);
+	}
+
+	private String extractId(String body) {
+		int start = body.indexOf("\"id\":\"") + 6;
+		return body.substring(start, body.indexOf('"', start));
+	}
+
+	private String newCatalogId(String path, String name) throws Exception {
+		HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+				.header("Content-Type", "application/json")
+				.header("X-Tenant-Id", tenantSlug)
+				.POST(HttpRequest.BodyPublishers.ofString("{\"name\":\"" + name + "\"}"))
+				.build();
+		return extractId(httpClient.send(request, HttpResponse.BodyHandlers.ofString()).body());
+	}
+
+	private String newBettingHouseId() throws Exception {
+		HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/betting-houses"))
+				.header("Content-Type", "application/json")
+				.header("X-Tenant-Id", tenantSlug)
+				.POST(HttpRequest.BodyPublishers.ofString("{\"name\":\"House-" + UUID.randomUUID() + "\",\"initialBalance\":0}"))
+				.build();
+		return extractId(httpClient.send(request, HttpResponse.BodyHandlers.ofString()).body());
+	}
+
+	private record References(String bettingHouseId, String sportId, String leagueId, String marketId) {
+	}
+
+	private References newReferences() throws Exception {
+		return new References(newBettingHouseId(), newCatalogId("/api/v1/sports", "Sport-" + UUID.randomUUID()),
+				newCatalogId("/api/v1/leagues", "League-" + UUID.randomUUID()),
+				newCatalogId("/api/v1/markets", "Market-" + UUID.randomUUID()));
+	}
+
+	private String bodyFor(References refs, String tipsterId, String odd, String stake) {
+		return bodyFor(refs, tipsterId, odd, stake, "2026-09-05T12:00:00Z");
+	}
+
+	private String bodyFor(References refs, String tipsterId, String odd, String stake, String betDate) {
+		return "{\"bettingHouseId\":\"" + refs.bettingHouseId() + "\",\"sportId\":\"" + refs.sportId()
+				+ "\",\"leagueId\":\"" + refs.leagueId() + "\",\"marketId\":\"" + refs.marketId() + "\","
+				+ (tipsterId != null ? "\"tipsterId\":\"" + tipsterId + "\"," : "") + "\"stake\":" + stake + ",\"odd\":"
+				+ odd + ",\"betDate\":\"" + betDate + "\"}";
+	}
+
+	private HttpResponse<String> list(String query) throws Exception {
+		HttpRequest request = HttpRequest
+				.newBuilder(URI.create("http://localhost:" + port + "/api/v1/bets" + query))
+				.header("X-Tenant-Id", tenantSlug)
+				.GET()
+				.build();
+		return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+	}
+
+	private HttpResponse<String> post(String body, String callerId, String idempotencyKey) throws Exception {
+		HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/bets"))
+				.header("Content-Type", "application/json")
+				.header("X-Tenant-Id", tenantSlug)
+				.POST(HttpRequest.BodyPublishers.ofString(body));
+		if (callerId != null) {
+			builder.header("X-User-Id", callerId);
+		}
+		if (idempotencyKey != null) {
+			builder.header("Idempotency-Key", idempotencyKey);
+		}
+		return httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+	}
+
+	private HttpResponse<String> get(String id, String tenantSlugHeader) throws Exception {
+		HttpRequest.Builder builder = HttpRequest
+				.newBuilder(URI.create("http://localhost:" + port + "/api/v1/bets/" + id)).GET();
+		if (tenantSlugHeader != null) {
+			builder.header("X-Tenant-Id", tenantSlugHeader);
+		}
+		return httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+	}
+
+	private HttpResponse<String> patchStatus(String id, String status) throws Exception {
+		return patchStatus(id, status, UUID.randomUUID().toString());
+	}
+
+	private HttpResponse<String> patchStatus(String id, String status, String callerId) throws Exception {
+		HttpRequest.Builder builder = HttpRequest
+				.newBuilder(URI.create("http://localhost:" + port + "/api/v1/bets/" + id + "/status"))
+				.header("Content-Type", "application/json")
+				.header("X-Tenant-Id", tenantSlug)
+				.method("PATCH", HttpRequest.BodyPublishers.ofString("{\"status\":\"" + status + "\"}"));
+		if (callerId != null) {
+			builder.header("X-User-Id", callerId);
+		}
+		return httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+	}
+
+	private String createBetId() throws Exception {
+		References refs = newReferences();
+		HttpResponse<String> response = post(bodyFor(refs, null, "1.5", "100"), UUID.randomUUID().toString(), null);
+		return extractId(response.body());
+	}
+
+	@Test
+	void shouldCreateBetWithAllFields() throws Exception {
+		References refs = newReferences();
+		String tipsterId = newCatalogId("/api/v1/tipsters", "Tipster-" + UUID.randomUUID());
+
+		HttpResponse<String> response = post(bodyFor(refs, tipsterId, "1.5", "100"), UUID.randomUUID().toString(), null);
+
+		assertThat(response.statusCode()).isEqualTo(201);
+		assertThat(response.body()).contains("\"status\":\"pending\"");
+	}
+
+	@Test
+	void shouldCreateBetWithoutOptionalTipster() throws Exception {
+		References refs = newReferences();
+
+		HttpResponse<String> response = post(bodyFor(refs, null, "1.5", "100"), UUID.randomUUID().toString(), null);
+
+		assertThat(response.statusCode()).isEqualTo(201);
+	}
+
+	@Test
+	void shouldReturn401WhenCallerHeaderMissing() throws Exception {
+		References refs = newReferences();
+
+		HttpResponse<String> response = post(bodyFor(refs, null, "1.5", "100"), null, null);
+
+		assertThat(response.statusCode()).isEqualTo(401);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/missing-caller-context\"");
+	}
+
+	@Test
+	void shouldReturn401WhenCallerHeaderIsMalformed() throws Exception {
+		References refs = newReferences();
+
+		HttpResponse<String> response = post(bodyFor(refs, null, "1.5", "100"), "not-a-uuid", null);
+
+		assertThat(response.statusCode()).isEqualTo(401);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/missing-caller-context\"");
+	}
+
+	@Test
+	void shouldReturn404WhenSportDoesNotExist() throws Exception {
+		References refs = newReferences();
+		String body = "{\"bettingHouseId\":\"" + refs.bettingHouseId() + "\",\"sportId\":\"" + UUID.randomUUID()
+				+ "\",\"leagueId\":\"" + refs.leagueId() + "\",\"marketId\":\"" + refs.marketId()
+				+ "\",\"stake\":100,\"odd\":1.5,\"betDate\":\"2026-09-05T12:00:00Z\"}";
+
+		HttpResponse<String> response = post(body, UUID.randomUUID().toString(), null);
+
+		assertThat(response.statusCode()).isEqualTo(404);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/sport-not-found\"");
+	}
+
+	@Test
+	void shouldReturn404WhenLeagueDoesNotExist() throws Exception {
+		References refs = newReferences();
+		String body = "{\"bettingHouseId\":\"" + refs.bettingHouseId() + "\",\"sportId\":\"" + refs.sportId()
+				+ "\",\"leagueId\":\"" + UUID.randomUUID() + "\",\"marketId\":\"" + refs.marketId()
+				+ "\",\"stake\":100,\"odd\":1.5,\"betDate\":\"2026-09-05T12:00:00Z\"}";
+
+		HttpResponse<String> response = post(body, UUID.randomUUID().toString(), null);
+
+		assertThat(response.statusCode()).isEqualTo(404);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/league-not-found\"");
+	}
+
+	@Test
+	void shouldReturn404WhenMarketDoesNotExist() throws Exception {
+		References refs = newReferences();
+		String body = "{\"bettingHouseId\":\"" + refs.bettingHouseId() + "\",\"sportId\":\"" + refs.sportId()
+				+ "\",\"leagueId\":\"" + refs.leagueId() + "\",\"marketId\":\"" + UUID.randomUUID()
+				+ "\",\"stake\":100,\"odd\":1.5,\"betDate\":\"2026-09-05T12:00:00Z\"}";
+
+		HttpResponse<String> response = post(body, UUID.randomUUID().toString(), null);
+
+		assertThat(response.statusCode()).isEqualTo(404);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/market-not-found\"");
+	}
+
+	@Test
+	void shouldReturn404WhenBettingHouseDoesNotExist() throws Exception {
+		References refs = newReferences();
+		String body = "{\"bettingHouseId\":\"" + UUID.randomUUID() + "\",\"sportId\":\"" + refs.sportId()
+				+ "\",\"leagueId\":\"" + refs.leagueId() + "\",\"marketId\":\"" + refs.marketId()
+				+ "\",\"stake\":100,\"odd\":1.5,\"betDate\":\"2026-09-05T12:00:00Z\"}";
+
+		HttpResponse<String> response = post(body, UUID.randomUUID().toString(), null);
+
+		assertThat(response.statusCode()).isEqualTo(404);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/betting-house-not-found\"");
+	}
+
+	@Test
+	void shouldReturn404WhenTipsterDoesNotExist() throws Exception {
+		References refs = newReferences();
+
+		HttpResponse<String> response = post(bodyFor(refs, UUID.randomUUID().toString(), "1.5", "100"),
+				UUID.randomUUID().toString(), null);
+
+		assertThat(response.statusCode()).isEqualTo(404);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/tipster-not-found\"");
+	}
+
+	@Test
+	void shouldCreateBetWithLowercaseBetTypeEnumValue() throws Exception {
+		References refs = newReferences();
+		String body = "{\"bettingHouseId\":\"" + refs.bettingHouseId() + "\",\"sportId\":\"" + refs.sportId()
+				+ "\",\"leagueId\":\"" + refs.leagueId() + "\",\"marketId\":\"" + refs.marketId()
+				+ "\",\"betType\":\"pre\",\"stake\":100,\"odd\":1.5,\"betDate\":\"2026-09-05T12:00:00Z\"}";
+
+		HttpResponse<String> response = post(body, UUID.randomUUID().toString(), null);
+
+		assertThat(response.statusCode()).isEqualTo(201);
+		assertThat(response.body()).contains("\"betType\":\"pre\"");
+	}
+
+	@Test
+	void shouldReturn400ForBetTypeOutsideTheEnumDomain() throws Exception {
+		References refs = newReferences();
+		String body = "{\"bettingHouseId\":\"" + refs.bettingHouseId() + "\",\"sportId\":\"" + refs.sportId()
+				+ "\",\"leagueId\":\"" + refs.leagueId() + "\",\"marketId\":\"" + refs.marketId()
+				+ "\",\"betType\":\"live-and-pre\",\"stake\":100,\"odd\":1.5,\"betDate\":\"2026-09-05T12:00:00Z\"}";
+
+		HttpResponse<String> response = post(body, UUID.randomUUID().toString(), null);
+
+		assertThat(response.statusCode()).isEqualTo(400);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/validation-failed\"");
+	}
+
+	@Test
+	void shouldReturn422ForInvalidOdd() throws Exception {
+		References refs = newReferences();
+
+		HttpResponse<String> response = post(bodyFor(refs, null, "0.95", "100"), UUID.randomUUID().toString(), null);
+
+		assertThat(response.statusCode()).isEqualTo(422);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/invalid-odd\"");
+	}
+
+	@Test
+	void shouldReturn422ForInvalidStake() throws Exception {
+		References refs = newReferences();
+
+		HttpResponse<String> response = post(bodyFor(refs, null, "1.5", "0"), UUID.randomUUID().toString(), null);
+
+		assertThat(response.statusCode()).isEqualTo(422);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/invalid-stake\"");
+	}
+
+	@Test
+	void shouldReplayIdempotencyKeyInsteadOfDuplicating() throws Exception {
+		References refs = newReferences();
+		String idempotencyKey = "idem-" + UUID.randomUUID();
+
+		HttpResponse<String> first = post(bodyFor(refs, null, "1.5", "100"), UUID.randomUUID().toString(), idempotencyKey);
+		HttpResponse<String> second = post(bodyFor(refs, null, "1.5", "200"), UUID.randomUUID().toString(),
+				idempotencyKey);
+
+		assertThat(first.statusCode()).isEqualTo(201);
+		assertThat(second.statusCode()).isEqualTo(200);
+		assertThat(extractId(first.body())).isEqualTo(extractId(second.body()));
+	}
+
+	@Test
+	void shouldGetBetById() throws Exception {
+		String betId = createBetId();
+
+		HttpResponse<String> response = get(betId, tenantSlug);
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body()).contains("\"id\":\"" + betId + "\"");
+	}
+
+	@Test
+	void shouldReturn404WhenGettingUnknownBet() throws Exception {
+		HttpResponse<String> response = get(UUID.randomUUID().toString(), tenantSlug);
+
+		assertThat(response.statusCode()).isEqualTo(404);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/bet-not-found\"");
+	}
+
+	@Test
+	void shouldTransitionPendingToWon() throws Exception {
+		String betId = createBetId();
+
+		HttpResponse<String> response = patchStatus(betId, "won");
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body()).contains("\"status\":\"won\"");
+	}
+
+	@Test
+	void shouldTransitionPendingToLostAndVoid() throws Exception {
+		assertThat(patchStatus(createBetId(), "lost").statusCode()).isEqualTo(200);
+		assertThat(patchStatus(createBetId(), "void").statusCode()).isEqualTo(200);
+	}
+
+	@Test
+	void shouldRejectTransitionFromAlreadySettledBet() throws Exception {
+		String betId = createBetId();
+		patchStatus(betId, "won");
+
+		HttpResponse<String> response = patchStatus(betId, "lost");
+
+		assertThat(response.statusCode()).isEqualTo(422);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/invalid-status-transition\"");
+	}
+
+	@Test
+	void shouldRejectTransitionBackToPending() throws Exception {
+		String betId = createBetId();
+
+		HttpResponse<String> response = patchStatus(betId, "pending");
+
+		assertThat(response.statusCode()).isEqualTo(422);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/invalid-status-transition\"");
+	}
+
+	@Test
+	void shouldReturn401WhenSettlingWithoutCallerHeader() throws Exception {
+		String betId = createBetId();
+
+		HttpResponse<String> response = patchStatus(betId, "won", null);
+
+		assertThat(response.statusCode()).isEqualTo(401);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/missing-caller-context\"");
+	}
+
+	@Test
+	void shouldAllowOnlyOneOfTwoConcurrentSettlementsForTheSameBet() throws Exception {
+		String betId = createBetId();
+		var executor = java.util.concurrent.Executors.newFixedThreadPool(2);
+		try {
+			var callable = (java.util.concurrent.Callable<Integer>) () -> patchStatus(betId, "won").statusCode();
+			var future1 = executor.submit(callable);
+			var future2 = executor.submit(callable);
+
+			int status1 = future1.get();
+			int status2 = future2.get();
+
+			assertThat(java.util.List.of(status1, status2)).containsExactlyInAnyOrder(200, 422);
+		} finally {
+			executor.shutdown();
+		}
+	}
+
+	@Test
+	void shouldListAllBetsForTenantWithoutFilters() throws Exception {
+		References refs = newReferences();
+		String betId1 = extractId(post(bodyFor(refs, null, "1.5", "100"), UUID.randomUUID().toString(), null).body());
+		String betId2 = extractId(post(bodyFor(refs, null, "1.5", "100"), UUID.randomUUID().toString(), null).body());
+
+		HttpResponse<String> response = list("?page=0&size=20");
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body()).contains(betId1).contains(betId2);
+	}
+
+	@Test
+	void shouldFilterByBettingHouseId() throws Exception {
+		References refsA = newReferences();
+		References refsB = newReferences();
+		String betInHouseA = extractId(post(bodyFor(refsA, null, "1.5", "100"), UUID.randomUUID().toString(), null).body());
+		String betInHouseB = extractId(post(bodyFor(refsB, null, "1.5", "100"), UUID.randomUUID().toString(), null).body());
+
+		HttpResponse<String> response = list("?bettingHouseId=" + refsA.bettingHouseId() + "&page=0&size=20");
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body()).contains(betInHouseA).doesNotContain(betInHouseB);
+	}
+
+	@Test
+	void shouldFilterBySportId() throws Exception {
+		References refsA = newReferences();
+		References refsB = newReferences();
+		String betWithSportA = extractId(post(bodyFor(refsA, null, "1.5", "100"), UUID.randomUUID().toString(), null).body());
+		String betWithSportB = extractId(post(bodyFor(refsB, null, "1.5", "100"), UUID.randomUUID().toString(), null).body());
+
+		HttpResponse<String> response = list("?sportId=" + refsA.sportId() + "&page=0&size=20");
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body()).contains(betWithSportA).doesNotContain(betWithSportB);
+	}
+
+	@Test
+	void shouldCombineBettingHouseAndSportFilters() throws Exception {
+		References refs = newReferences();
+		String matching = extractId(post(bodyFor(refs, null, "1.5", "100"), UUID.randomUUID().toString(), null).body());
+		References other = newReferences();
+		String nonMatching = extractId(post(bodyFor(other, null, "1.5", "100"), UUID.randomUUID().toString(), null).body());
+
+		HttpResponse<String> response = list(
+				"?bettingHouseId=" + refs.bettingHouseId() + "&sportId=" + refs.sportId() + "&page=0&size=20");
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body()).contains(matching).doesNotContain(nonMatching);
+	}
+
+	@Test
+	void shouldFilterByDateRange() throws Exception {
+		References refs = newReferences();
+		String early = extractId(
+				post(bodyFor(refs, null, "1.5", "100", "2026-01-01T12:00:00Z"), UUID.randomUUID().toString(), null).body());
+		String late = extractId(
+				post(bodyFor(refs, null, "1.5", "100", "2026-06-01T12:00:00Z"), UUID.randomUUID().toString(), null).body());
+
+		HttpResponse<String> response = list("?from=2026-05-01T00:00:00Z&to=2026-07-01T00:00:00Z&page=0&size=20");
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body()).contains(late).doesNotContain(early);
+	}
+
+	@Test
+	void shouldReturnEmptyListWhenFilterMatchesNothing() throws Exception {
+		HttpResponse<String> response = list("?bettingHouseId=" + UUID.randomUUID() + "&page=0&size=20");
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body()).contains("\"totalElements\":0");
+	}
+
+	@Test
+	void shouldClampNegativePageAndNonPositiveSizeForBetsList() throws Exception {
+		HttpResponse<String> response = list("?page=-5&size=0");
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body()).contains("\"page\":0");
+	}
+
+	@Test
+	void shouldIsolateBetsListBetweenTenantSchemas() throws Exception {
+		References refs = newReferences();
+		String betId = extractId(post(bodyFor(refs, null, "1.5", "100"), UUID.randomUUID().toString(), null).body());
+
+		String otherSlug = "test-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+		provisionTenantSchema.ensureSchemaExists(otherSlug);
+		try {
+			HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/bets?page=0&size=20"))
+					.header("X-Tenant-Id", otherSlug)
+					.GET()
+					.build();
+			HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+			assertThat(response.statusCode()).isEqualTo(200);
+			assertThat(response.body()).doesNotContain(betId).contains("\"totalElements\":0");
+		} finally {
+			jdbcTemplate.execute("DROP SCHEMA IF EXISTS \"tenant_" + otherSlug + "\" CASCADE");
+		}
+	}
+}

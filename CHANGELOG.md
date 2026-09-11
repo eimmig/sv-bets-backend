@@ -1,8 +1,77 @@
 # Changelog
 
-Todas as mudanças notáveis deste serviço são documentadas neste arquivo. Formato baseado em
-[Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Toda feature que altera este
-serviço adiciona uma entrada em `[Unreleased]` — verificado automaticamente pela pipeline de CI
-(ver `docs/CI-CD.md`).
+Cada linha de `[Unreleased]` é um link para a issue do Jira que a gerou (story ou subtask),
+formato `- [chave](url) - título` — sem prosa, sem categoria. Escrita automaticamente por
+`tools/jira_story.py` no momento em que a issue é criada (ver `docs/CI-CD.md` seção "Changelog
+por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de commit, não aqui.
 
 ## [Unreleased]
+
+- [SV-9](https://stakevault.atlassian.net/browse/SV-9) - Alinhar as chaves de projeto ao padrão do SonarCloud
+- [SV-60](https://stakevault.atlassian.net/browse/SV-60) - Setup do projeto
+- [SV-61](https://stakevault.atlassian.net/browse/SV-61) - Endurecer pipeline de CI antes do bootstrap (porta o padrao ja validado de auth-service)
+- [SV-62](https://stakevault.atlassian.net/browse/SV-62) - Bootstrap do pom.xml e esqueleto hexagonal
+- [SV-63](https://stakevault.atlassian.net/browse/SV-63) - Conexao Postgres com profiles dev/test/prod
+- [SV-64](https://stakevault.atlassian.net/browse/SV-64) - Provisionamento de schema de tenant (Flyway lazy) + filtro X-Tenant-Id + rota admin X-Admin-Api-Key
+- [SV-65](https://stakevault.atlassian.net/browse/SV-65) - Gate de cobertura JaCoCo 80%
+- [SV-66](https://stakevault.atlassian.net/browse/SV-66) - Scaffold de i18n (MessageSource) e teste smoke
+- [SV-67](https://stakevault.atlassian.net/browse/SV-67) - Health checks do Actuator
+- [SV-68](https://stakevault.atlassian.net/browse/SV-68) - .env.example e logging estruturado
+- [SV-69](https://stakevault.atlassian.net/browse/SV-69) - CHANGELOG e verificacao final
+- [SV-70](https://stakevault.atlassian.net/browse/SV-70) - Catalogos base
+- [SV-71](https://stakevault.atlassian.net/browse/SV-71) - Migration Flyway dos 4 catalogos
+- [SV-72](https://stakevault.atlassian.net/browse/SV-72) - Multi-tenancy do Hibernate + enforcement de X-Tenant-Id
+- [SV-73](https://stakevault.atlassian.net/browse/SV-73) - Entidades JPA e persistencia (domain + adapter)
+- [SV-74](https://stakevault.atlassian.net/browse/SV-74) - Endpoints REST (POST + GET paginado) dos 4 catalogos
+- [SV-75](https://stakevault.atlassian.net/browse/SV-75) - CHANGELOG e verificacao final
+- [SV-76](https://stakevault.atlassian.net/browse/SV-76) - RF03/RF13 - Casas de apostas e movimentacoes
+- [SV-77](https://stakevault.atlassian.net/browse/SV-77) - Migration Flyway de betting_house e transaction
+- [SV-78](https://stakevault.atlassian.net/browse/SV-78) - Dominio, TransactionType, entidades JPA e persistencia
+- [SV-79](https://stakevault.atlassian.net/browse/SV-79) - Endpoints REST (POST + GET paginado) de betting-houses e transactions
+- [SV-80](https://stakevault.atlassian.net/browse/SV-80) - CHANGELOG e verificacao final
+- [SV-81](https://stakevault.atlassian.net/browse/SV-81) - RF04/RF12 - Registro e ciclo de vida da aposta
+- [SV-82](https://stakevault.atlassian.net/browse/SV-82) - Migration Flyway da tabela bet
+- [SV-83](https://stakevault.atlassian.net/browse/SV-83) - Dominio, BetStatus, entidades JPA e persistencia (+ existsById nos catalogos)
+- [SV-84](https://stakevault.atlassian.net/browse/SV-84) - Endpoint POST /api/v1/bets
+- [SV-85](https://stakevault.atlassian.net/browse/SV-85) - Endpoints GET /api/v1/bets/{id} e PATCH /api/v1/bets/{id}/status (RF12)
+- [SV-86](https://stakevault.atlassian.net/browse/SV-86) - CHANGELOG e verificacao final
+- [SV-87](https://stakevault.atlassian.net/browse/SV-87) - RF06/RF07 - Processamento de resultado e bankroll consolidado
+- [SV-88](https://stakevault.atlassian.net/browse/SV-88) - Migration Flyway da tabela bet_result
+- [SV-89](https://stakevault.atlassian.net/browse/SV-89) - Dominio BetResult e persistencia
+- [SV-90](https://stakevault.atlassian.net/browse/SV-90) - Liquidacao atomica: transicao condicional + BET_RESULT + X-User-Id no PATCH
+- [SV-91](https://stakevault.atlassian.net/browse/SV-91) - Balance de betting-houses passa a incluir profit de apostas liquidadas (RN01/RN05)
+- [SV-92](https://stakevault.atlassian.net/browse/SV-92) - CHANGELOG e verificacao final
+- [SV-93](https://stakevault.atlassian.net/browse/SV-93) - Publicacao do evento BetCreated
+- [SV-94](https://stakevault.atlassian.net/browse/SV-94) - Dependencias, config RabbitMQ e schema vendorizado
+- [SV-95](https://stakevault.atlassian.net/browse/SV-95) - BetEventPublisher e hook em BetService
+- [SV-96](https://stakevault.atlassian.net/browse/SV-96) - Testes: publicacao real via Testcontainers + validacao contra o schema
+- [SV-97](https://stakevault.atlassian.net/browse/SV-97) - CHANGELOG e verificacao final
+- [SV-98](https://stakevault.atlassian.net/browse/SV-98) - Publicacao do evento BetSettled
+- [SV-99](https://stakevault.atlassian.net/browse/SV-99) - BetSettledPayload, publishSettled e hook em BetService.updateStatus
+- [SV-100](https://stakevault.atlassian.net/browse/SV-100) - Testes: publicacao real via Testcontainers + validacao contra o schema bet-settled
+- [SV-101](https://stakevault.atlassian.net/browse/SV-101) - CHANGELOG e verificacao final
+- [SV-102](https://stakevault.atlassian.net/browse/SV-102) - RF08 - Historico paginado de apostas e movimentacoes
+- [SV-103](https://stakevault.atlassian.net/browse/SV-103) - GET /api/v1/bets (listagem paginada com filtros)
+- [SV-104](https://stakevault.atlassian.net/browse/SV-104) - GET /api/v1/transactions ganha from/to
+- [SV-105](https://stakevault.atlassian.net/browse/SV-105) - Testes dos 2 endpoints com filtros combinados
+- [SV-106](https://stakevault.atlassian.net/browse/SV-106) - CHANGELOG e verificacao final
+- [SV-107](https://stakevault.atlassian.net/browse/SV-107) - Pipeline de CI (GitHub Actions + SonarCloud)
+- [SV-108](https://stakevault.atlassian.net/browse/SV-108) - Auditoria do pipeline real vs description da feature
+- [SV-109](https://stakevault.atlassian.net/browse/SV-109) - CHANGELOG e verificacao final
+- [SV-121](https://stakevault.atlassian.net/browse/SV-121) - Denormalizar nomes das dimensoes em BetCreated/BetSettled
+- [SV-122](https://stakevault.atlassian.net/browse/SV-122) - Resolver e publicar nomes das dimensoes em BetCreated/BetSettled
+- [SV-123](https://stakevault.atlassian.net/browse/SV-123) - CHANGELOG e verificacao final
+- [SV-161](https://stakevault.atlassian.net/browse/SV-161) - Porta HTTP fixa (8082)
+- [SV-162](https://stakevault.atlassian.net/browse/SV-162) - server.port fixo, CHANGELOG e verificacao final
+- [SV-172](https://stakevault.atlassian.net/browse/SV-172) - Corrigir avisos do compilador/IDE (RabbitMQContainer deprecado, varargs generico)
+- [SV-173](https://stakevault.atlassian.net/browse/SV-173) - Trocar import de RabbitMQContainer, suprimir warning de varargs, CHANGELOG e verificacao final
+- [SV-278](https://stakevault.atlassian.net/browse/SV-278) - Dockerfile para imagem de producao
+- [SV-279](https://stakevault.atlassian.net/browse/SV-279) - Dockerfile multi-stage + verificacao real do container contra a infra
+- [SV-317](https://stakevault.atlassian.net/browse/SV-317) - epic-013: saldo consolidado, betType enum, config de unidade
+- [SV-318](https://stakevault.atlassian.net/browse/SV-318) - TENANT_SETTINGS + GET/PATCH /api/v1/settings (admin-only)
+- [SV-319](https://stakevault.atlassian.net/browse/SV-319) - BET.betType: texto livre -> enum PRE/LIVE
+- [SV-320](https://stakevault.atlassian.net/browse/SV-320) - GET /api/v1/bankroll/balance?at=
+- [SV-321](https://stakevault.atlassian.net/browse/SV-321) - CHANGELOG e verificacao final
+- [SV-348](https://stakevault.atlassian.net/browse/SV-348) - CI: build e push da imagem Docker pro GHCR
+- [SV-349](https://stakevault.atlassian.net/browse/SV-349) - Job build-and-push-image no ci.yml
+- [SV-350](https://stakevault.atlassian.net/browse/SV-350) - CHANGELOG e verificacao final
