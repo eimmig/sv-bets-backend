@@ -1297,6 +1297,54 @@
         }
       ],
       "evidence": "epic-013 fechada - 3 mudancas independentes entregues e verificadas: (1) GET/PATCH /api/v1/settings (feat-014.1, TENANT_SETTINGS schema-per-tenant, admin-only via X-User-Role - fechou tambem um achado cross-service, auth-service emitia a claim role em uppercase por engano, corrigido em auth-service feat-013 antes de qualquer consumidor real depender do valor errado); (2) BET.betType texto livre -> enum PRE/LIVE (feat-014.2, migration normaliza e nula valores fora do dominio antes do CHECK constraint, evento BetCreated republicado com o campo tipado); (3) GET /api/v1/bankroll/balance?at= (feat-014.3, saldo consolidado de todas as casas do tenant, corte de tempo usando fim do dia civil brasileiro America/Sao_Paulo como limite superior exclusivo, nao UTC ingenuo, provado por teste de integracao dedicado). Definicao de Pronto cumprida em feat-014.4: ./init.sh do servico e da raiz verdes, Delivery Reviewer + Test Suite Auditor + Persistence Auditor rodados em paralelo (3 subagentes, contexto isolado) contra feature/SV-317 vs develop - todos os achados reais corrigidos (transaction boundary em BankrollService, indices em transaction.created_at/bet_result.settled_at, teste de isolamento de tenant_settings, testes HTTP de betType valido/invalido, desvio de teste de migration documentado em feat-014.2); 1 achado (CHANGELOG ausente) verificado e rejeitado como falso positivo. mvn -B verify verde (155 testes) apos as correcoes. Unico desvio conhecido e aceito do plano original: o teste de integracao provando que uma linha bet_type pre-existente fora do dominio vira NULL pos-migration nao foi escrito (TenantSchemaIntegrationSupport sempre reaplica o historico de migrations inteiro num schema novo, sem como inserir dado 'sujo' num estado anterior a uma migration especifica sem contornar a abstracao lazy por tenant) - avaliado como aceitavel por 2 skills de auditoria independentes dado que a migration e 2 linhas de SQL revisaveis a olho e o round-trip test ja prova que valores validos persistem. Vault atualizado no mesmo commit das mudancas: docs/services/bets-service.md, docs/API-CONTRACTS.md, docs/contracts/bet-created.schema.json, docs/DECISIONS-LOG.md (claim role no PASETO)."
+    },
+    {
+      "id": "feat-015",
+      "name": "CI: build e push da imagem Docker pro GHCR",
+      "goal": "Publicar a imagem deste servico em ghcr.io/eimmig/sv-bets-backend a cada push estavel em main, pra viabilizar deploy real fora do cluster kind local - ultimo dos 5 backend a ganhar isso (os outros 4 ja publicam desde feat-011/feat-014/feat-009 dos respectivos repositorios).",
+      "scope": [
+        "Job novo build-and-push-image no ci.yml, condicionado a pipeline ja ter passado e a branch ser main",
+        "Guard de sonar.qualitygate.wait corrigido proativamente pra qualquer push direto (nao so develop) - licao ja aprendida nos outros 4 repositorios, aplicada aqui desde o inicio",
+        "Nao inclui gerar o PAT/imagePullSecrets do cluster que vai consumir a imagem - acao no lado do servidor de deploy, fora deste repositorio"
+      ],
+      "description": "Ate agora a imagem deste servico so existia como ghcr.io/eimmig/sv-bets-backend:local, carregada manualmente num cluster kind de teste (infra/feat-004, epic-010 da raiz). Dockerfile e mvnw (bit de execucao) ja confirmados corretos nesta sessao antes de codificar - docker build local passou de primeira.",
+      "dependencies": [
+        "feat-013"
+      ],
+      "status": "in-progress",
+      "plan_review": "2026-09-11 - mesmo padrao mecanico ja aplicado e validado em 4 repositorios irmaos (api-gateway feat-011, auth-service feat-014, stats-service feat-014, telegram-integration feat-009), com as 2 licoes reais ja incorporadas desde o primeiro commit (actions pinadas por SHA completo - SonarCloud S7637; guard de qualitygate.wait cobrindo qualquer push direto, nao so develop). docker build local ja confirmado verde antes de abrir PR. Risco residual conhecido: primeiro develop->main de verdade deste repositorio pode expor achado pre-existente na janela de new code do SonarCloud (aconteceu nos outros 4) - se acontecer, corrigir inline como precedente ja estabelecido.",
+      "jira": "SV-348",
+      "subtasks": [
+        {
+          "id": "feat-015.1",
+          "name": "Job build-and-push-image no ci.yml",
+          "detail": "Mesmo padrao dos outros 4 repositorios, ja com SHA pin e guard amplo desde o inicio - sem repetir o ciclo de descoberta.",
+          "checklist": [
+            "docker/setup-buildx-action + docker/login-action + docker/build-push-action, todas pinadas por SHA completo",
+            "needs: pipeline + if restrito a push em main",
+            "Guard de qualitygate.wait (passo 5/6) cobrindo qualquer push direto"
+          ],
+          "validation": "docker build local verde (ja feito); push em main dispara o job, imagem aparece em ghcr.io/eimmig/sv-bets-backend.",
+          "owner": "agente",
+          "status": "done",
+          "jira": "SV-349"
+        },
+        {
+          "id": "feat-015.2",
+          "name": "CHANGELOG e verificacao final",
+          "detail": "Fechamento formal: CHANGELOG.md, init.sh, e o item fixo de vault desta feature.",
+          "checklist": [
+            "Entrada em CHANGELOG.md (Unreleased)",
+            "./init.sh do servico e da raiz verdes",
+            "Vault (docs/) revisado: alguma descoberta desta feature - mecanismo reaproveitavel, gotcha de lib/config, lacuna de especificacao, decisao que diverge do ja documentado - sem nota correspondente? Se sim, atualizar/criar a nota do assunto (nao docs/DECISIONS-LOG.md a menos que divirja do TCC1) no mesmo commit"
+          ],
+          "validation": "Push real em main confirmado no GitHub Actions (job verde) e imagem visivel no pacote do repositorio.",
+          "owner": "agente",
+          "status": "not-started",
+          "jira": "SV-350"
+        }
+      ],
+      "evidence": ""
     }
   ]
 }
