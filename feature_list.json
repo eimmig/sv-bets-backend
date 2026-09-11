@@ -1311,7 +1311,7 @@
       "dependencies": [
         "feat-013"
       ],
-      "status": "in-progress",
+      "status": "done",
       "plan_review": "2026-09-11 - mesmo padrao mecanico ja aplicado e validado em 4 repositorios irmaos (api-gateway feat-011, auth-service feat-014, stats-service feat-014, telegram-integration feat-009), com as 2 licoes reais ja incorporadas desde o primeiro commit (actions pinadas por SHA completo - SonarCloud S7637; guard de qualitygate.wait cobrindo qualquer push direto, nao so develop). docker build local ja confirmado verde antes de abrir PR. Risco residual conhecido: primeiro develop->main de verdade deste repositorio pode expor achado pre-existente na janela de new code do SonarCloud (aconteceu nos outros 4) - se acontecer, corrigir inline como precedente ja estabelecido.",
       "jira": "SV-348",
       "subtasks": [
@@ -1344,7 +1344,7 @@
           "jira": "SV-350"
         }
       ],
-      "evidence": ""
+      "evidence": "Fechada em 2026-09-11. Ultimo dos 6 repositorios de aplicacao a publicar imagem no GHCR - job build-and-push-image publicando de verdade em ghcr.io/eimmig/sv-bets-backend, confirmado via log real (containerimage.digest: sha256:9dc26ed...). Actions ja pinadas por SHA completo e guard de sonar.qualitygate.wait ja corrigido proativamente desde o primeiro commit (licoes dos outros 4 repositorios aplicadas sem repetir o ciclo de descoberta) - SonarCloud passou de primeira tanto no PR feature->develop quanto no primeiro develop->main de verdade deste repositorio (nenhum achado pre-existente surgiu, diferente do que aconteceu nos outros 4). Dockerfile e mvnw (bit de execucao) ja confirmados corretos antes de codificar, docker build local verde de primeira. Delivery Reviewer: PASS. ./init.sh do servico e da raiz verdes. Fecha o conjunto: as 6 imagens de aplicacao (api-gateway, auth-service, bets-service, stats-service, telegram-integration, web) agora publicam de verdade no GHCR a cada push estavel em main."
     }
   ]
 }
