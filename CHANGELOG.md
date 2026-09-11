@@ -72,3 +72,6 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 - [SV-319](https://stakevault.atlassian.net/browse/SV-319) - BET.betType: texto livre -> enum PRE/LIVE
 - [SV-320](https://stakevault.atlassian.net/browse/SV-320) - GET /api/v1/bankroll/balance?at=
 - [SV-321](https://stakevault.atlassian.net/browse/SV-321) - CHANGELOG e verificacao final
+- [SV-348](https://stakevault.atlassian.net/browse/SV-348) - CI: build e push da imagem Docker pro GHCR
+- [SV-349](https://stakevault.atlassian.net/browse/SV-349) - Job build-and-push-image no ci.yml
+- [SV-350](https://stakevault.atlassian.net/browse/SV-350) - CHANGELOG e verificacao final
