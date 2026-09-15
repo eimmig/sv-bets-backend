@@ -1468,7 +1468,7 @@
       "dependencies": [
         "feat-015"
       ],
-      "status": "in-progress",
+      "status": "done",
       "plan_review": "Plan Reviewer (2026-09-15): READY WITH CONCERNS. Plano original (job deploy com azure/setup-kubectl + kubectl rollout restart deployment/bets-service, sem namespace) confirmado contra infra/k8s/bets-service.yaml (Deployment 'bets-service', sem namespace - cluster inteiro roda em default) e infra/k8s/ci-deployer-rbac.yaml (RBAC ja escopado por resourceNames a este Deployment). KUBE_CONFIG confirmado presente no repositorio GitHub (gh secret list, gravado 2026-09-15 por infra/feat-007). 2 achados MINOR corrigidos no plano antes de codificar: (1) azure/setup-kubectl e desnecessario - kubectl 1.37.0 ja vem preinstalado no runner ubuntu-latest (confirmado contra actions/runner-images Ubuntu2404-Readme.md), remover o step e chamar kubectl direto evita action de terceiro sem ganho; (2) job deploy nao usa GITHUB_TOKEN mas herdaria a permissao write default do repositorio (gh api .../actions/permissions/workflow) - adicionar permissions: {} explicito, mesmo padrao de least-privilege ja usado no job build-and-push-image deste arquivo. Sem risco de corrida (build-and-push-image ja publica a tag antes do deploy iniciar, via needs). Sem BLOCKER.",
       "jira": "SV-423",
       "subtasks": [
@@ -1481,11 +1481,11 @@
         {
           "id": "feat-018.2",
           "name": "CHANGELOG e verificacao final",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-425"
         }
       ],
-      "evidence": ""
+      "evidence": "Fechada em 2026-09-15 (story SV-423, subtasks SV-424/SV-425, PRs #67/#68/#69, CI+SonarCloud verdes, merge feature/SV-423 -> develop concluido). Job deploy novo em ci.yml (needs: build-and-push-image, if push em main, permissions: {} explicito) roda kubectl rollout restart deployment/bets-service contra o secret KUBE_CONFIG (ci-deployer ServiceAccount, infra/feat-007, ja confirmado presente neste repositorio via gh secret list). Plan Reviewer (READY WITH CONCERNS) corrigiu 2 MINOR antes de codificar: removida a action de terceiro azure/setup-kubectl (kubectl 1.37.0 ja vem preinstalado no runner ubuntu-latest, confirmado contra actions/runner-images) e adicionado permissions: {} explicito (job nao usa GITHUB_TOKEN, repositorio tem default_workflow_permissions=write que seria herdado sem essa linha). Delivery Reviewer: PASS (sem achados). Test Suite Auditor: PASS/N/A (mudanca isolada a workflow de CI, sem superficie de teste de aplicacao - kubectl rollout restart nao tem oraculo unitario/integracao significativo, a unica prova credivel e a execucao real em CI). Persistence Auditor: N/A (nenhuma superficie de persistencia tocada). ./init.sh verde. Guard se comportou como esperado: job deploy/build-and-push-image corretamente 'skipping' nos eventos de PR (runs 35007759577, 35008325709, 35008820978), provando a condicao if sem tocar o cluster real. **Disparo real do job adiado deliberadamente**: main deste repositorio esta 35 commits atras de develop (inclui feat-016/feat-017, ja done mas nao promovidos) - feat-017 introduziu quebra conhecida e ja documentada do contrato REST sincrono de POST /api/v1/bets pra quem ainda envia team1/team2 como texto livre (apps/web so corrige em feat-021, ainda not-started). Promover develop->main agora forcaria essa quebra em producao so pra provar o job deploy nesta sessao - decisao correta e evitar (nao e responsabilidade desta feature desbloquear a promocao, e o Delivery Reviewer classificou a falta de disparo real como risco residual aceitavel, nao bloqueante). O job vai disparar de verdade e ficar provado no proximo develop->main legitimo deste repositorio (quando apps/web feat-021 destravar essa promocao) - registrar a confirmacao real (log do Actions com o rollout de verdade) em docs/services/infra.md nessa ocasiao. Fecha a parte de bets-service do epic-028 da raiz (5 dos 6 repositorios de aplicacao ainda pendentes: auth-service feat-016, stats-service feat-019, api-gateway feat-014, telegram-integration feat-010, web feat-030)."
     }
   ]
 }
