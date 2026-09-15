@@ -1354,7 +1354,7 @@
         "feat-002",
         "feat-004"
       ],
-      "status": "in-progress",
+      "status": "done",
       "plan_review": "Plan Reviewer 2026-09-15: READY WITH CONCERNS. Feature e de avaliacao/decisao (sem codigo de producao), plano coerente - team1/team2 hoje sao varchar livre em Bet/BetJpaEntity/CreateBetRequest/BetResponse/BetCreatedPayload/BetSettledPayload (confirmado por grep), sem catalogo. Evidencia cross-service relevante: stats-service ja tem DIM_TEAM com sportId + chave natural (name, sportId) desde epic-011/epic-014 (migrations V20260910120000/V20260910130000, decisao do usuario na epoca) - a avaliacao desta feature deve tratar isso como precedente forte (mesma chave natural nome+esporte ja provada em producao), nao redecidir do zero. MAJOR: esta feature e a fonte de verdade da decisao (bets-service e o dono do catalogo, conforme description do epic-024); stats-service feat-018 e apps/web feat-021 dependem do resultado de feat-016.3 mas nenhuma dependencia formal liga os dois harnesses no feature_list.json (impossivel expressar cross-repo no campo dependencies) - subtask feat-016.3 deve produzir o documento de decisao ANTES de qualquer sessao comecar stats-service feat-018 ou apps/web feat-021/feat-020, e o documento deve ser referenciado explicitamente (caminho/commit) na evidence desta feature para as outras sessoes lerem. Sem isso ha risco real de 2 decisoes divergentes sobre a mesma chave natural.",
       "jira": "SV-407",
       "subtasks": [
@@ -1411,11 +1411,11 @@
           ],
           "validation": "Avaliacao registrada, sem codigo de producao alterado sem decisao correspondente.",
           "owner": "agente",
-          "status": "not-started",
+          "status": "done",
           "jira": "SV-411"
         }
       ],
-      "evidence": ""
+      "evidence": "Fechada em 2026-09-15 (branch feature/SV-407, story SV-407, subtasks SV-408/409/410/411, PR #63, fast-forward, CI verde). Feature de avaliacao/decisao, sem codigo de producao alterado (por desenho - description exige aprovacao antes de implementar). Decisao 1: TEAM vira catalogo em bets-service, chave natural (name, sportId) - mesma chave ja provada em producao por stats-service/dim_team (migrations V20260910120000/V20260910130000), nao redecidida do zero. Decisao 2: PLAYER fica fora desta rodada (decisao delegada ao usuario via AskUserQuestion no inicio da sessao) - nenhum RF pede, registrado como extensao futura documentada, nao omissao silenciosa. Plano de contratos: team1/team2 (String) viram team1Id/team2Id (UUID nullable); BetCreatedPayload/BetSettledPayload ganham team1Id/team1Name/team2Id/team2Name seguindo o MESMO mecanismo de denormalizacao ja usado pelas outras 5 dimensoes desde feat-010 (BetDimensionNames) - nao e um padrao novo. Sem backfill (mesmo precedente do stats-service - catalogo nunca usado em tenant real). Decisao completa registrada em docs/DECISIONS-LOG.md (raiz) 2026-09-15, com apontamento em docs/services/bets-service.md. Implementacao real rastreada como feat-017 (nao iniciada) neste mesmo arquivo - e a 'aprovacao' que a description do epic-024/feat-016 exigia antes de stats-service feat-018 ou apps/web feat-021 comecarem a codificar. ./init.sh do servico e da raiz verdes."
     },
     {
       "id": "feat-017",
