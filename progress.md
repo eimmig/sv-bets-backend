@@ -49,6 +49,14 @@ pendentes (`auth-service feat-016`, `stats-service feat-019`, `api-gateway feat-
 `telegram-integration feat-010`, `web feat-030`), cada um feature própria e independente no seu
 próprio repositório.
 
+**Atualização, mesmo dia**: `epic-028` fechou por completo (os 6 repositórios) mais tarde nesta
+mesma sessão. Na sequência, a pedido explícito do usuário ("corrija isso primeiro" antes de
+qualquer deploy em massa em produção), `api-gateway feat-015` (rota `/api/v1/teams`, achado desta
+mesma feat-017) e `apps/web feat-020`/`feat-021` também fecharam — o segundo corrigindo de fato a
+quebra de contrato citada acima (`register-bet.ts` trocou os inputs de texto livre por selects
+`team1Id`/`team2Id`). A razão que motivava adiar a promoção `develop -> main` deste repositório
+deixou de existir — ver `services/bets-service/session-handoff.md` para o estado atualizado.
+
 ## `feat-017` fechada — catálogo TEAM + migração de Bet.team1/team2 (2026-09-15)
 
 Implementação da decisão de `feat-016` (`epic-024` da raiz). `Plan Reviewer` (antes de codificar)
