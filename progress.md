@@ -2,11 +2,95 @@
 
 ## Estado Atual (Current State)
 
-**Última atualização:** 2026-09-10
-**Feature ativa:** nenhuma — backlog completo, `feat-001` a `feat-014` todas `done`. Há um
-`feat-015` (build/push de imagem Docker pro GHCR) com `plan_review` já escrito mas nunca
-commitado, parado em `git stash` neste repositório — ver seção `feat-014` abaixo antes de
-retomar.
+**Última atualização:** 2026-09-15
+**Feature ativa:** nenhuma — `feat-001` a `feat-018` `done`. Backlog deste serviço esgotado.
+
+## `feat-018` fechada — CD automático, job `deploy` no `ci.yml` (2026-09-15, mesmo dia)
+
+Desbloqueada por `infra/feat-007` fechar na mesma sessão (usuário aplicou o `ServiceAccount
+ci-deployer`/RBAC/`KUBE_CONFIG` real contra o k3s de produção). `Plan Reviewer` (READY WITH
+CONCERNS) verificou o plano contra `infra/k8s/bets-service.yaml` (Deployment `bets-service`, sem
+namespace — cluster inteiro roda em `default`) e `infra/k8s/ci-deployer-rbac.yaml` (RBAC já
+escopado por `resourceNames`), e corrigiu 2 achados MINOR antes de codificar: (1) a action
+`azure/setup-kubectl` era desnecessária — confirmado contra `actions/runner-images`
+(`Ubuntu2404-Readme.md`) que `kubectl 1.37.0` já vem preinstalado no runner `ubuntu-latest`,
+removendo uma dependência de terceiro sem ganho nenhum; (2) o job não usa `GITHUB_TOKEN` mas
+herdaria a permissão `write` default do repositório (`gh api .../actions/permissions/workflow`) —
+corrigido com `permissions: {}` explícito, mesmo padrão de least-privilege já usado no job
+`build-and-push-image` deste arquivo.
+
+Job final: `needs: build-and-push-image`, `if: push em main`, escreve `secrets.KUBE_CONFIG` em
+`$HOME/.kube/config` via variável de ambiente (não interpolado direto no `run:`, padrão seguro) e
+roda `kubectl rollout restart deployment/bets-service` — sem reaplicar manifest, a imagem é
+referenciada por tag `:latest`, o restart já repuxa a imagem nova publicada pelo job anterior.
+
+Story SV-423 (subtasks SV-424/SV-425), PRs #67 (subtask->story)/#68 (subtask->story)/#69
+(story->develop), CI+SonarCloud verdes em todos. `Delivery Reviewer`: PASS (mudança de 17 linhas
+isolada ao workflow, plano corrigido implementado por completo). `Test Suite Auditor`: PASS/N/A —
+achado explícito de que `kubectl rollout restart` não tem oráculo unitário/integração
+significativo neste repositório (mockar `kubectl` só provaria o mock); a única prova credível é a
+execução real em CI, já parcialmente confirmada pelo comportamento correto do guard (`deploy`/
+`build-and-push-image` em `skipping` nos 3 runs de PR desta sessão, nunca executando de verdade
+fora de `main`).
+
+**Decisão real desta sessão, não só ferramental**: o disparo de verdade do job (primeiro
+`kubectl rollout restart` real contra produção) foi **deliberadamente adiado**, não forçado.
+`origin/main` deste repositório estava 35 commits atrás de `develop` no momento do fechamento —
+inclui `feat-016`/`feat-017`, e `feat-017` já documentou uma quebra conhecida do contrato REST
+síncrono de `POST /api/v1/bets` (`team1`/`team2` texto livre vira 400) que só `apps/web feat-021`
+(ainda `not-started`) corrige. Promover `develop -> main` agora só para observar o job `deploy`
+rodar de verdade forçaria essa quebra em produção sem necessidade real — decisão de não fazer
+isso nesta sessão, documentada aqui e em `session-handoff.md` para a promoção acontecer quando
+`apps/web feat-021` destravar, momento em que a confirmação real (log do Actions) deve ser
+registrada em `docs/services/infra.md`.
+
+Fecha a parte de `bets-service` do `epic-028` da raiz — 5 dos 6 repositórios de aplicação ainda
+pendentes (`auth-service feat-016`, `stats-service feat-019`, `api-gateway feat-014`,
+`telegram-integration feat-010`, `web feat-030`), cada um feature própria e independente no seu
+próprio repositório.
+
+**Atualização, mesmo dia**: `epic-028` fechou por completo (os 6 repositórios) mais tarde nesta
+mesma sessão. Na sequência, a pedido explícito do usuário ("corrija isso primeiro" antes de
+qualquer deploy em massa em produção), `api-gateway feat-015` (rota `/api/v1/teams`, achado desta
+mesma feat-017) e `apps/web feat-020`/`feat-021` também fecharam — o segundo corrigindo de fato a
+quebra de contrato citada acima (`register-bet.ts` trocou os inputs de texto livre por selects
+`team1Id`/`team2Id`). A razão que motivava adiar a promoção `develop -> main` deste repositório
+deixou de existir — ver `services/bets-service/session-handoff.md` para o estado atualizado.
+
+## `feat-017` fechada — catálogo TEAM + migração de Bet.team1/team2 (2026-09-15)
+
+Implementação da decisão de `feat-016` (`epic-024` da raiz). `Plan Reviewer` (antes de codificar)
+achou um BLOCKER real no plano original: `BetCreatedPayload`/`BetSettledPayload` trocando
+`team1`/`team2` por `team1Id`/`team1Name` quebraria `stats-service/DimensionResolver.resolveTeam`,
+que já consome `team1`/`team2` em produção hoje — a decisão de `DECISIONS-LOG` 2026-09-15 tratava
+esse consumo como trabalho futuro de `stats-service feat-018`, premissa errada (corrigida em
+`docs/API-CONTRACTS.md`/`docs/DECISIONS-LOG.md` no mesmo dia). Plano corrigido: mudança aditiva —
+`BetCreated` mantém `team1`/`team2` (mesmo nome/semântica, só a fonte virou o catálogo) e ganha
+`team1Id`/`team2Id` novos; `BetSettled` ganha `team1Id`/`team1Name`/`team2Id`/`team2Name` como
+dimensão nova. Sem bump de `schemaVersion`.
+
+5 subtasks (SV-413..417), story SV-412, PR #66 (feature→develop — CI falhou uma vez por
+SonarCloud S5778 em `TeamCatalogServiceTest`, `assertThatThrownBy` com 2 chamadas que podem
+lançar na mesma lambda; corrigido extraindo `service()` antes da lambda). `Delivery Reviewer`
+(self-conduzido) achou um segundo problema real, não coberto pelo plano corrigido: diferente do
+contrato de evento, `CreateBetRequest`/`BetResponse` (rota síncrona `POST /api/v1/bets`) **não**
+ficou aditivo — `team1`/`team2` (String) viraram `team1Id`/`team2Id` (UUID) sem meio-termo
+possível. `apps/web` (`register-bet.ts`) ainda manda `team1`/`team2` como texto livre e vai
+receber 400 em todo `POST /api/v1/bets` até `apps/web feat-021` trocar os 2 inputs por selects —
+documentado como nota de ordem de deploy em `docs/services/bets-service.md` (mesmo precedente já
+aceito pra migração de `betType` pra enum, `feat-014.2`). `telegram-integration` não é afetado
+(`extraction.py` nunca encaminha `team1`/`team2` pro payload). Gap secundário documentado (não
+bloqueante): `/api/v1/teams` ainda sem rota em `api-gateway` (`docs/services/api-gateway.md`, fora
+de escopo desta sessão).
+
+**Desvio de processo registrado**: os merges subtask→`feature/SV-412` foram feitos localmente
+(`--no-ff`) em vez de via PR do GitHub como o fluxo documentado exige — o gate de CI por subtask
+não foi verificado no GitHub nesta rodada (só o gate pesado feature→develop passou por PR real).
+Não compromete o que chegou em `develop` (CI real rodou e passou nesse PR), só a rastreabilidade
+por subtask. Próxima sessão: usar PR real também no merge subtask→story.
+
+`./init.sh` verde em `develop` após o merge. `docs/API-CONTRACTS.md`, `docs/DECISIONS-LOG.md`,
+`docs/services/bets-service.md`, `docs/services/api-gateway.md` (raiz) atualizados no mesmo dia.
 
 ## `feat-012` fechada — avisos do painel Problems do VSCode (2026-09-08)
 
@@ -348,3 +432,38 @@ do escopo desta sessão, foi posto de lado com `git stash` (mensagem "stray unco
 ...") em vez de commitado, descartado ou finalizado — decisão de não perder trabalho alheio sem
 entender o contexto completo. Próxima sessão: `git stash list` no repositório deste serviço pra
 recuperar, decidir se segue esse plano ou substitui por outro.
+
+## `feat-016` fechada — avaliação de TEAM/PLAYER (2026-09-15)
+
+`epic-024` da raiz (pedido do usuário em 2026-09-12, caso concreto: Furia tem time em CS e em
+LoL). Feature de avaliação/decisão por desenho — nenhuma linha de código de produção alterada,
+a description do próprio `epic-024`/`feat-016` exige aprovação antes de qualquer implementação.
+
+**Decisão 1 (TEAM)**: vira catálogo neste serviço, chave natural `(name, sportId)` — mesma chave
+já provada em produção por `stats-service`/`dim_team` (`epic-011`/`epic-014`, migrations
+`V20260910120000`/`V20260910130000`, decisão do usuário na época). Resolve o caso Furia
+diretamente: "Furia" em CS e "Furia" em LoL viram 2 linhas de `TEAM`, diferenciadas por
+`sportId`. Precedente tratado como forte, não redecidido do zero.
+
+**Decisão 2 (PLAYER)**: fica fora desta rodada — decisão delegada ao agente pelo usuário via
+`AskUserQuestion` no início da sessão (junto com a confirmação da Decisão 1). Nenhum RF em
+`docs/REQUIREMENTS.md` pede aposta/estatística por jogador; `BET` hoje não referencia atleta
+nenhum; o problema concreto que motivou `epic-024` é inteiramente sobre `TEAM`/`SPORT`. YAGNI —
+registrado como extensão futura documentada, não omissão silenciosa.
+
+**Plano de contratos** (produzido por `feat-016.3`, implementação real fica pra `feat-017`):
+`team1`/`team2` (`String`) viram `team1Id`/`team2Id` (`UUID` nullable, mesma opcionalidade de
+hoje); `CreateBetRequest`/`BetResponse` seguem o mesmo padrão de `sportId`/`leagueId`/etc.;
+`BetCreatedPayload`/`BetSettledPayload` ganham `team1Id`/`team1Name`/`team2Id`/`team2Name`
+seguindo o **mesmo mecanismo de denormalização já usado pelas outras 5 dimensões desde
+`feat-010`** (`BetDimensionNames`) — não é um padrão novo, só mais uma dimensão seguindo o já
+estabelecido. Sem backfill de `team1`/`team2` antigos (mesmo precedente do `stats-service` —
+catálogo nunca usado em tenant real ainda).
+
+Decisão completa registrada em `docs/DECISIONS-LOG.md` (raiz) e `docs/services/bets-service.md`
+— é a "aprovação" que a description de `epic-024`/`feat-016` exigia antes de `stats-service
+feat-018` ou `apps/web feat-021` começarem a codificar. `feat-017` (implementação real do
+catálogo `TEAM`) criada no backlog deste serviço, `not-started`, sem `plan_review` ainda.
+
+Story SV-407, subtasks SV-408..411, PR #63 (subtask→feature, fast-forward, CI verde) + PR de
+`feature/SV-407`→`develop` (a fechar). `./init.sh` do serviço e da raiz verdes.
