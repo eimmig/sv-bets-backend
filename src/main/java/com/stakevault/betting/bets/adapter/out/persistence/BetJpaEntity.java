@@ -41,9 +41,11 @@ public class BetJpaEntity extends AbstractJpaEntity {
 	@Column(name = "ticket_number")
 	private String ticketNumber;
 
-	private String team1;
+	@Column(name = "team1_id")
+	private UUID team1Id;
 
-	private String team2;
+	@Column(name = "team2_id")
+	private UUID team2Id;
 
 	private String description;
 
@@ -77,8 +79,8 @@ public class BetJpaEntity extends AbstractJpaEntity {
 		this.tipsterId = bet.tipsterId();
 		this.createdByUserId = bet.createdByUserId();
 		this.ticketNumber = bet.ticketNumber();
-		this.team1 = bet.team1();
-		this.team2 = bet.team2();
+		this.team1Id = bet.team1Id();
+		this.team2Id = bet.team2Id();
 		this.description = bet.description();
 		this.betType = bet.betType();
 		this.playType = bet.playType();

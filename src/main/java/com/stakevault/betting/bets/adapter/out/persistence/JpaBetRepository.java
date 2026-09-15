@@ -52,7 +52,7 @@ public class JpaBetRepository implements BetRepository {
 	private static Bet toDomain(BetJpaEntity entity) {
 		return new Bet(entity.getId(), entity.getBettingHouseId(), entity.getSportId(), entity.getLeagueId(),
 				entity.getMarketId(), entity.getTipsterId(), entity.getCreatedByUserId(), entity.getTicketNumber(),
-				entity.getTeam1(), entity.getTeam2(), entity.getDescription(), entity.getBetType(),
+				entity.getTeam1Id(), entity.getTeam2Id(), entity.getDescription(), entity.getBetType(),
 				entity.getPlayType(), entity.getStake(), entity.getOdd(), entity.getStatus(), entity.getBetDate(),
 				entity.getIdempotencyKey());
 	}

@@ -22,6 +22,7 @@ import com.stakevault.betting.bets.domain.model.InvalidStatusTransitionException
 import com.stakevault.betting.bets.domain.model.LeagueNotFoundException;
 import com.stakevault.betting.bets.domain.model.MarketNotFoundException;
 import com.stakevault.betting.bets.domain.model.SportNotFoundException;
+import com.stakevault.betting.bets.domain.model.TeamNotFoundException;
 import com.stakevault.betting.bets.domain.model.TipsterNotFoundException;
 import com.stakevault.betting.bets.domain.port.in.BetCreationResult;
 import com.stakevault.betting.bets.domain.port.in.BetUseCase;
@@ -33,6 +34,7 @@ import com.stakevault.betting.bets.domain.port.out.BettingHouseRepository;
 import com.stakevault.betting.bets.domain.port.out.LeagueRepository;
 import com.stakevault.betting.bets.domain.port.out.MarketRepository;
 import com.stakevault.betting.bets.domain.port.out.SportRepository;
+import com.stakevault.betting.bets.domain.port.out.TeamRepository;
 import com.stakevault.betting.bets.domain.port.out.TipsterRepository;
 
 @Service
@@ -45,12 +47,13 @@ public class BetService implements BetUseCase {
 	private final LeagueRepository leagueRepository;
 	private final MarketRepository marketRepository;
 	private final TipsterRepository tipsterRepository;
+	private final TeamRepository teamRepository;
 	private final BetEventPublisher betEventPublisher;
 
 	public BetService(BetRepository betRepository, BetResultRepository betResultRepository,
 			BettingHouseRepository bettingHouseRepository, SportRepository sportRepository,
 			LeagueRepository leagueRepository, MarketRepository marketRepository, TipsterRepository tipsterRepository,
-			BetEventPublisher betEventPublisher) {
+			TeamRepository teamRepository, BetEventPublisher betEventPublisher) {
 		this.betRepository = betRepository;
 		this.betResultRepository = betResultRepository;
 		this.bettingHouseRepository = bettingHouseRepository;
@@ -58,6 +61,7 @@ public class BetService implements BetUseCase {
 		this.leagueRepository = leagueRepository;
 		this.marketRepository = marketRepository;
 		this.tipsterRepository = tipsterRepository;
+		this.teamRepository = teamRepository;
 		this.betEventPublisher = betEventPublisher;
 	}
 
@@ -74,8 +78,9 @@ public class BetService implements BetUseCase {
 		validateBusinessRules(command.stake(), command.odd());
 
 		Bet bet = new Bet(UUID.randomUUID(), command.bettingHouseId(), command.sportId(), command.leagueId(),
-				command.marketId(), command.tipsterId(), command.callerId(), command.ticketNumber(), command.team1(),
-				command.team2(), command.description(), command.betType(), command.playType(), command.stake(),
+				command.marketId(), command.tipsterId(), command.callerId(), command.ticketNumber(),
+				command.team1Id(), command.team2Id(), command.description(), command.betType(), command.playType(),
+				command.stake(),
 				command.odd(), BetStatus.PENDING, command.betDate() == null ? Instant.now() : command.betDate(),
 				command.idempotencyKey());
 
@@ -137,7 +142,12 @@ public class BetService implements BetUseCase {
 				.orElseThrow(() -> new MarketNotFoundException(bet.marketId())).name();
 		String tipsterName = bet.tipsterId() == null ? null : tipsterRepository.findById(bet.tipsterId())
 				.orElseThrow(() -> new TipsterNotFoundException(bet.tipsterId())).name();
-		return new BetDimensionNames(bettingHouseName, sportName, leagueName, marketName, tipsterName);
+		String team1Name = bet.team1Id() == null ? null : teamRepository.findById(bet.team1Id())
+				.orElseThrow(() -> new TeamNotFoundException(bet.team1Id())).name();
+		String team2Name = bet.team2Id() == null ? null : teamRepository.findById(bet.team2Id())
+				.orElseThrow(() -> new TeamNotFoundException(bet.team2Id())).name();
+		return new BetDimensionNames(bettingHouseName, sportName, leagueName, marketName, tipsterName, team1Name,
+				team2Name);
 	}
 
 	private void validateReferences(CreateBetCommand command) {
@@ -155,6 +165,12 @@ public class BetService implements BetUseCase {
 		}
 		if (command.tipsterId() != null && !tipsterRepository.existsById(command.tipsterId())) {
 			throw new TipsterNotFoundException(command.tipsterId());
+		}
+		if (command.team1Id() != null && !teamRepository.existsById(command.team1Id())) {
+			throw new TeamNotFoundException(command.team1Id());
+		}
+		if (command.team2Id() != null && !teamRepository.existsById(command.team2Id())) {
+			throw new TeamNotFoundException(command.team2Id());
 		}
 	}
 
