@@ -3,8 +3,45 @@
 ## Estado Atual (Current State)
 
 **Última atualização:** 2026-09-15
-**Feature ativa:** nenhuma — `feat-001` a `feat-016` `done`. `feat-017` (implementar catálogo
-`TEAM`, decidido em `feat-016`) `not-started`, sem `plan_review` ainda.
+**Feature ativa:** nenhuma — `feat-001` a `feat-017` `done`. Único item restante do backlog,
+`feat-018` (CD: job de deploy automático), está `not-started` mas bloqueado por dependência
+cross-repo (`infra/feat-007`, também `not-started`) — nenhuma feature elegível neste serviço até
+`infra/feat-007` fechar.
+
+## `feat-017` fechada — catálogo TEAM + migração de Bet.team1/team2 (2026-09-15)
+
+Implementação da decisão de `feat-016` (`epic-024` da raiz). `Plan Reviewer` (antes de codificar)
+achou um BLOCKER real no plano original: `BetCreatedPayload`/`BetSettledPayload` trocando
+`team1`/`team2` por `team1Id`/`team1Name` quebraria `stats-service/DimensionResolver.resolveTeam`,
+que já consome `team1`/`team2` em produção hoje — a decisão de `DECISIONS-LOG` 2026-09-15 tratava
+esse consumo como trabalho futuro de `stats-service feat-018`, premissa errada (corrigida em
+`docs/API-CONTRACTS.md`/`docs/DECISIONS-LOG.md` no mesmo dia). Plano corrigido: mudança aditiva —
+`BetCreated` mantém `team1`/`team2` (mesmo nome/semântica, só a fonte virou o catálogo) e ganha
+`team1Id`/`team2Id` novos; `BetSettled` ganha `team1Id`/`team1Name`/`team2Id`/`team2Name` como
+dimensão nova. Sem bump de `schemaVersion`.
+
+5 subtasks (SV-413..417), story SV-412, PR #66 (feature→develop — CI falhou uma vez por
+SonarCloud S5778 em `TeamCatalogServiceTest`, `assertThatThrownBy` com 2 chamadas que podem
+lançar na mesma lambda; corrigido extraindo `service()` antes da lambda). `Delivery Reviewer`
+(self-conduzido) achou um segundo problema real, não coberto pelo plano corrigido: diferente do
+contrato de evento, `CreateBetRequest`/`BetResponse` (rota síncrona `POST /api/v1/bets`) **não**
+ficou aditivo — `team1`/`team2` (String) viraram `team1Id`/`team2Id` (UUID) sem meio-termo
+possível. `apps/web` (`register-bet.ts`) ainda manda `team1`/`team2` como texto livre e vai
+receber 400 em todo `POST /api/v1/bets` até `apps/web feat-021` trocar os 2 inputs por selects —
+documentado como nota de ordem de deploy em `docs/services/bets-service.md` (mesmo precedente já
+aceito pra migração de `betType` pra enum, `feat-014.2`). `telegram-integration` não é afetado
+(`extraction.py` nunca encaminha `team1`/`team2` pro payload). Gap secundário documentado (não
+bloqueante): `/api/v1/teams` ainda sem rota em `api-gateway` (`docs/services/api-gateway.md`, fora
+de escopo desta sessão).
+
+**Desvio de processo registrado**: os merges subtask→`feature/SV-412` foram feitos localmente
+(`--no-ff`) em vez de via PR do GitHub como o fluxo documentado exige — o gate de CI por subtask
+não foi verificado no GitHub nesta rodada (só o gate pesado feature→develop passou por PR real).
+Não compromete o que chegou em `develop` (CI real rodou e passou nesse PR), só a rastreabilidade
+por subtask. Próxima sessão: usar PR real também no merge subtask→story.
+
+`./init.sh` verde em `develop` após o merge. `docs/API-CONTRACTS.md`, `docs/DECISIONS-LOG.md`,
+`docs/services/bets-service.md`, `docs/services/api-gateway.md` (raiz) atualizados no mesmo dia.
 
 ## `feat-012` fechada — avisos do painel Problems do VSCode (2026-09-08)
 

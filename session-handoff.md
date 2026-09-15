@@ -7,29 +7,31 @@
 
 ## Objetivo atual
 
-`feat-001`..`feat-016` `done`. `feat-016` (avaliação TEAM/PLAYER, `epic-024` da raiz) fechou
-nesta sessão — feature de decisão, sem código de produção alterado. `feat-017` (implementação
-real do catálogo `TEAM`) criada no backlog, `not-started`, sem `plan_review` ainda.
+`feat-001`..`feat-017` `done`. Nenhuma feature elegível neste serviço agora — o único item do
+backlog, `feat-018` (CD: job de deploy automático `kubectl rollout restart`), depende de
+`infra/feat-007` (ServiceAccount de CI + kubeconfig), ainda `not-started` naquele repositório.
 
 ## Concluído nesta sessão (2026-09-15)
 
-- [x] `feat-016` fechada (4 subtasks, story SV-407, PR #63). Decisão 1: `TEAM` vira catálogo
-      escopado por esporte, chave natural `(name, sportId)` — mesma chave já provada em produção
-      por `stats-service`/`dim_team`. Decisão 2: `PLAYER` fica fora desta rodada (decisão
-      delegada ao agente pelo usuário). Plano de contratos completo em
-      `docs/DECISIONS-LOG.md` (raiz). Ver `progress.md` para o detalhe completo.
+- [x] `feat-017` fechada (5 subtasks, story SV-412, PR #66 merged em `develop`). Catálogo `TEAM`
+      escopado por esporte (`POST`/`GET /api/v1/teams`); `Bet.team1`/`team2` migrados de texto
+      livre para `team1Id`/`team2Id` (FK). Contrato de evento mantido aditivo (`Plan Reviewer`
+      corrigiu o plano original antes de codificar — ver `progress.md` para o achado completo).
+      `Delivery Reviewer` achou um segundo risco real (contrato REST síncrono não é aditivo,
+      `apps/web` vai quebrar até `feat-021` de lá trocar os inputs) — documentado, não bloqueante
+      pra fechar esta feature.
 
 ## Bloqueios / Riscos
 
-Nenhum.
+- **Nenhum bloqueio deste serviço.** Risco externo documentado: não fazer deploy deste `develop`
+  (quando `epic-028`/CD automático existir) para um ambiente com usuário real de `apps/web` antes
+  de `apps/web feat-021` estar pronta — `POST /api/v1/bets` vindo do formulário atual vai
+  devolver 400 (ver `docs/services/bets-service.md` seção "Registro e ciclo de vida da aposta").
 
 ## Próxima sessão — por onde começar
 
 1. Rodar `./init.sh` (precisa de Docker rodando, Testcontainers).
-2. `feat-017` (implementar catálogo `TEAM`) está no backlog, `not-started`, sem `plan_review` —
-   rodar o Plan Reviewer antes de codificar, como de costume. A decisão de design já está
-   registrada em `docs/DECISIONS-LOG.md` (2026-09-15) — não redecidir a chave natural nem reabrir
-   a discussão de `PLAYER` sem novo pedido do usuário.
-3. `feat-017` desbloqueia `apps/web feat-021` (tela de cadastro de time, hoje `BLOCKED` no
-   `plan_review` esperando exatamente esta decisão) e `stats-service feat-018` (ainda sem
-   `plan_review`).
+2. Nenhuma feature elegível aqui até `infra/feat-007` fechar (desbloqueia `feat-018`, CD). Se
+   `infra/feat-007` já estiver `done`, `feat-018` pode começar — plan_review próprio, ainda vazio.
+3. Considerar trabalhar num harness diferente enquanto isso (WIP máximo 1 por serviço, paralelismo
+   entre serviços permitido) — ver `feature_list.json` da raiz para epics elegíveis.
