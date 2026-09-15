@@ -48,8 +48,9 @@ class TeamCatalogServiceTest {
 	void shouldRejectWhenSportDoesNotExist() {
 		UUID sportId = UUID.randomUUID();
 		when(sportRepository.existsById(sportId)).thenReturn(false);
+		TeamCatalogService service = service();
 
-		assertThatThrownBy(() -> service().create("Furia", sportId)).isInstanceOf(SportNotFoundException.class);
+		assertThatThrownBy(() -> service.create("Furia", sportId)).isInstanceOf(SportNotFoundException.class);
 	}
 
 	@Test
@@ -57,8 +58,9 @@ class TeamCatalogServiceTest {
 		UUID sportId = UUID.randomUUID();
 		when(sportRepository.existsById(sportId)).thenReturn(true);
 		when(teamRepository.existsByNameAndSportId("Furia", sportId)).thenReturn(true);
+		TeamCatalogService service = service();
 
-		assertThatThrownBy(() -> service().create("Furia", sportId))
+		assertThatThrownBy(() -> service.create("Furia", sportId))
 				.isInstanceOf(CatalogAlreadyRegisteredException.class);
 	}
 
@@ -68,8 +70,9 @@ class TeamCatalogServiceTest {
 		when(sportRepository.existsById(sportId)).thenReturn(true);
 		when(teamRepository.existsByNameAndSportId("Furia", sportId)).thenReturn(false);
 		when(teamRepository.save(any(Team.class))).thenThrow(new DataIntegrityViolationException("conflict"));
+		TeamCatalogService service = service();
 
-		assertThatThrownBy(() -> service().create("Furia", sportId))
+		assertThatThrownBy(() -> service.create("Furia", sportId))
 				.isInstanceOf(CatalogAlreadyRegisteredException.class);
 	}
 }
