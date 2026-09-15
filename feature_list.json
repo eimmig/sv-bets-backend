@@ -1475,13 +1475,13 @@
         {
           "id": "feat-018.1",
           "name": "Job deploy no ci.yml + push real em main",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-424"
         },
         {
           "id": "feat-018.2",
           "name": "CHANGELOG e verificacao final",
-          "status": "not-started",
+          "status": "in-progress",
           "jira": "SV-425"
         }
       ],
