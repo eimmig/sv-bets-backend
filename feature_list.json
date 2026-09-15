@@ -1431,7 +1431,7 @@
         {
           "id": "feat-017.1",
           "name": "Catalogo TEAM: migration + dominio + persistencia",
-          "status": "not-started",
+          "status": "in-progress",
           "jira": "SV-413"
         },
         {
