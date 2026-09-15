@@ -3,10 +3,51 @@
 ## Estado Atual (Current State)
 
 **Última atualização:** 2026-09-15
-**Feature ativa:** nenhuma — `feat-001` a `feat-017` `done`. Único item restante do backlog,
-`feat-018` (CD: job de deploy automático), está `not-started` mas bloqueado por dependência
-cross-repo (`infra/feat-007`, também `not-started`) — nenhuma feature elegível neste serviço até
-`infra/feat-007` fechar.
+**Feature ativa:** nenhuma — `feat-001` a `feat-018` `done`. Backlog deste serviço esgotado.
+
+## `feat-018` fechada — CD automático, job `deploy` no `ci.yml` (2026-09-15, mesmo dia)
+
+Desbloqueada por `infra/feat-007` fechar na mesma sessão (usuário aplicou o `ServiceAccount
+ci-deployer`/RBAC/`KUBE_CONFIG` real contra o k3s de produção). `Plan Reviewer` (READY WITH
+CONCERNS) verificou o plano contra `infra/k8s/bets-service.yaml` (Deployment `bets-service`, sem
+namespace — cluster inteiro roda em `default`) e `infra/k8s/ci-deployer-rbac.yaml` (RBAC já
+escopado por `resourceNames`), e corrigiu 2 achados MINOR antes de codificar: (1) a action
+`azure/setup-kubectl` era desnecessária — confirmado contra `actions/runner-images`
+(`Ubuntu2404-Readme.md`) que `kubectl 1.37.0` já vem preinstalado no runner `ubuntu-latest`,
+removendo uma dependência de terceiro sem ganho nenhum; (2) o job não usa `GITHUB_TOKEN` mas
+herdaria a permissão `write` default do repositório (`gh api .../actions/permissions/workflow`) —
+corrigido com `permissions: {}` explícito, mesmo padrão de least-privilege já usado no job
+`build-and-push-image` deste arquivo.
+
+Job final: `needs: build-and-push-image`, `if: push em main`, escreve `secrets.KUBE_CONFIG` em
+`$HOME/.kube/config` via variável de ambiente (não interpolado direto no `run:`, padrão seguro) e
+roda `kubectl rollout restart deployment/bets-service` — sem reaplicar manifest, a imagem é
+referenciada por tag `:latest`, o restart já repuxa a imagem nova publicada pelo job anterior.
+
+Story SV-423 (subtasks SV-424/SV-425), PRs #67 (subtask->story)/#68 (subtask->story)/#69
+(story->develop), CI+SonarCloud verdes em todos. `Delivery Reviewer`: PASS (mudança de 17 linhas
+isolada ao workflow, plano corrigido implementado por completo). `Test Suite Auditor`: PASS/N/A —
+achado explícito de que `kubectl rollout restart` não tem oráculo unitário/integração
+significativo neste repositório (mockar `kubectl` só provaria o mock); a única prova credível é a
+execução real em CI, já parcialmente confirmada pelo comportamento correto do guard (`deploy`/
+`build-and-push-image` em `skipping` nos 3 runs de PR desta sessão, nunca executando de verdade
+fora de `main`).
+
+**Decisão real desta sessão, não só ferramental**: o disparo de verdade do job (primeiro
+`kubectl rollout restart` real contra produção) foi **deliberadamente adiado**, não forçado.
+`origin/main` deste repositório estava 35 commits atrás de `develop` no momento do fechamento —
+inclui `feat-016`/`feat-017`, e `feat-017` já documentou uma quebra conhecida do contrato REST
+síncrono de `POST /api/v1/bets` (`team1`/`team2` texto livre vira 400) que só `apps/web feat-021`
+(ainda `not-started`) corrige. Promover `develop -> main` agora só para observar o job `deploy`
+rodar de verdade forçaria essa quebra em produção sem necessidade real — decisão de não fazer
+isso nesta sessão, documentada aqui e em `session-handoff.md` para a promoção acontecer quando
+`apps/web feat-021` destravar, momento em que a confirmação real (log do Actions) deve ser
+registrada em `docs/services/infra.md`.
+
+Fecha a parte de `bets-service` do `epic-028` da raiz — 5 dos 6 repositórios de aplicação ainda
+pendentes (`auth-service feat-016`, `stats-service feat-019`, `api-gateway feat-014`,
+`telegram-integration feat-010`, `web feat-030`), cada um feature própria e independente no seu
+próprio repositório.
 
 ## `feat-017` fechada — catálogo TEAM + migração de Bet.team1/team2 (2026-09-15)
 
