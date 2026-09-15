@@ -80,3 +80,9 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 - [SV-409](https://stakevault.atlassian.net/browse/SV-409) - Avaliar entidade PLAYER e relacao com TEAM
 - [SV-410](https://stakevault.atlassian.net/browse/SV-410) - Plano de contratos, migracao e compatibilidade
 - [SV-411](https://stakevault.atlassian.net/browse/SV-411) - CHANGELOG e verificacao final da avaliacao
+- [SV-412](https://stakevault.atlassian.net/browse/SV-412) - Implementar catalogo TEAM escopado por esporte e migrar team1/team2 de Bet
+- [SV-413](https://stakevault.atlassian.net/browse/SV-413) - Catalogo TEAM: migration + dominio + persistencia
+- [SV-414](https://stakevault.atlassian.net/browse/SV-414) - Catalogo TEAM: endpoints REST + i18n
+- [SV-415](https://stakevault.atlassian.net/browse/SV-415) - Bet.team1/team2 (String) migram para team1Id/team2Id (UUID)
+- [SV-416](https://stakevault.atlassian.net/browse/SV-416) - BetCreated/BetSettled ganham team1Id/team2Id (aditivo) + schemas + docs
+- [SV-417](https://stakevault.atlassian.net/browse/SV-417) - CHANGELOG e verificacao final
