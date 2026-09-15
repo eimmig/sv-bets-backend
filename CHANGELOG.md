@@ -75,3 +75,8 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 - [SV-348](https://stakevault.atlassian.net/browse/SV-348) - CI: build e push da imagem Docker pro GHCR
 - [SV-349](https://stakevault.atlassian.net/browse/SV-349) - Job build-and-push-image no ci.yml
 - [SV-350](https://stakevault.atlassian.net/browse/SV-350) - CHANGELOG e verificacao final
+- [SV-407](https://stakevault.atlassian.net/browse/SV-407) - Avaliar entidades de time, jogador e vinculo com esporte
+- [SV-408](https://stakevault.atlassian.net/browse/SV-408) - Mapear dominio atual e alternativas de TEAM
+- [SV-409](https://stakevault.atlassian.net/browse/SV-409) - Avaliar entidade PLAYER e relacao com TEAM
+- [SV-410](https://stakevault.atlassian.net/browse/SV-410) - Plano de contratos, migracao e compatibilidade
+- [SV-411](https://stakevault.atlassian.net/browse/SV-411) - CHANGELOG e verificacao final da avaliacao

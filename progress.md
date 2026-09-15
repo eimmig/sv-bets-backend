@@ -2,11 +2,9 @@
 
 ## Estado Atual (Current State)
 
-**Última atualização:** 2026-09-10
-**Feature ativa:** nenhuma — backlog completo, `feat-001` a `feat-014` todas `done`. Há um
-`feat-015` (build/push de imagem Docker pro GHCR) com `plan_review` já escrito mas nunca
-commitado, parado em `git stash` neste repositório — ver seção `feat-014` abaixo antes de
-retomar.
+**Última atualização:** 2026-09-15
+**Feature ativa:** nenhuma — `feat-001` a `feat-016` `done`. `feat-017` (implementar catálogo
+`TEAM`, decidido em `feat-016`) `not-started`, sem `plan_review` ainda.
 
 ## `feat-012` fechada — avisos do painel Problems do VSCode (2026-09-08)
 
@@ -348,3 +346,38 @@ do escopo desta sessão, foi posto de lado com `git stash` (mensagem "stray unco
 ...") em vez de commitado, descartado ou finalizado — decisão de não perder trabalho alheio sem
 entender o contexto completo. Próxima sessão: `git stash list` no repositório deste serviço pra
 recuperar, decidir se segue esse plano ou substitui por outro.
+
+## `feat-016` fechada — avaliação de TEAM/PLAYER (2026-09-15)
+
+`epic-024` da raiz (pedido do usuário em 2026-09-12, caso concreto: Furia tem time em CS e em
+LoL). Feature de avaliação/decisão por desenho — nenhuma linha de código de produção alterada,
+a description do próprio `epic-024`/`feat-016` exige aprovação antes de qualquer implementação.
+
+**Decisão 1 (TEAM)**: vira catálogo neste serviço, chave natural `(name, sportId)` — mesma chave
+já provada em produção por `stats-service`/`dim_team` (`epic-011`/`epic-014`, migrations
+`V20260910120000`/`V20260910130000`, decisão do usuário na época). Resolve o caso Furia
+diretamente: "Furia" em CS e "Furia" em LoL viram 2 linhas de `TEAM`, diferenciadas por
+`sportId`. Precedente tratado como forte, não redecidido do zero.
+
+**Decisão 2 (PLAYER)**: fica fora desta rodada — decisão delegada ao agente pelo usuário via
+`AskUserQuestion` no início da sessão (junto com a confirmação da Decisão 1). Nenhum RF em
+`docs/REQUIREMENTS.md` pede aposta/estatística por jogador; `BET` hoje não referencia atleta
+nenhum; o problema concreto que motivou `epic-024` é inteiramente sobre `TEAM`/`SPORT`. YAGNI —
+registrado como extensão futura documentada, não omissão silenciosa.
+
+**Plano de contratos** (produzido por `feat-016.3`, implementação real fica pra `feat-017`):
+`team1`/`team2` (`String`) viram `team1Id`/`team2Id` (`UUID` nullable, mesma opcionalidade de
+hoje); `CreateBetRequest`/`BetResponse` seguem o mesmo padrão de `sportId`/`leagueId`/etc.;
+`BetCreatedPayload`/`BetSettledPayload` ganham `team1Id`/`team1Name`/`team2Id`/`team2Name`
+seguindo o **mesmo mecanismo de denormalização já usado pelas outras 5 dimensões desde
+`feat-010`** (`BetDimensionNames`) — não é um padrão novo, só mais uma dimensão seguindo o já
+estabelecido. Sem backfill de `team1`/`team2` antigos (mesmo precedente do `stats-service` —
+catálogo nunca usado em tenant real ainda).
+
+Decisão completa registrada em `docs/DECISIONS-LOG.md` (raiz) e `docs/services/bets-service.md`
+— é a "aprovação" que a description de `epic-024`/`feat-016` exigia antes de `stats-service
+feat-018` ou `apps/web feat-021` começarem a codificar. `feat-017` (implementação real do
+catálogo `TEAM`) criada no backlog deste serviço, `not-started`, sem `plan_review` ainda.
+
+Story SV-407, subtasks SV-408..411, PR #63 (subtask→feature, fast-forward, CI verde) + PR de
+`feature/SV-407`→`develop` (a fechar). `./init.sh` do serviço e da raiz verdes.
