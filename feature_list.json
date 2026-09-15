@@ -1345,6 +1345,77 @@
         }
       ],
       "evidence": "Fechada em 2026-09-11. Ultimo dos 6 repositorios de aplicacao a publicar imagem no GHCR - job build-and-push-image publicando de verdade em ghcr.io/eimmig/sv-bets-backend, confirmado via log real (containerimage.digest: sha256:9dc26ed...). Actions ja pinadas por SHA completo e guard de sonar.qualitygate.wait ja corrigido proativamente desde o primeiro commit (licoes dos outros 4 repositorios aplicadas sem repetir o ciclo de descoberta) - SonarCloud passou de primeira tanto no PR feature->develop quanto no primeiro develop->main de verdade deste repositorio (nenhum achado pre-existente surgiu, diferente do que aconteceu nos outros 4). Dockerfile e mvnw (bit de execucao) ja confirmados corretos antes de codificar, docker build local verde de primeira. Delivery Reviewer: PASS. ./init.sh do servico e da raiz verdes. Fecha o conjunto: as 6 imagens de aplicacao (api-gateway, auth-service, bets-service, stats-service, telegram-integration, web) agora publicam de verdade no GHCR a cada push estavel em main."
+    },
+    {
+      "id": "feat-016",
+      "name": "Avaliar entidades de time, jogador e vinculo com esporte",
+      "description": "Avaliar a evolucao do dominio de apostas atualmente baseado em team1/team2 como texto livre. O estudo deve definir se TEAM vira catalogo/entidade reutilizavel, se PLAYER deve ser uma nova entidade, como representar time da mesma organizacao em esportes diferentes (ex.: Furia no CS e no LoL) e qual deve ser a chave de negocio entre TEAM e SPORT. Incluir impacto em BET, catalogos, validacoes, API, eventos BetCreated/BetSettled e compatibilidade com dados existentes; nao implementar a migracao antes das decisoes serem aprovadas.",
+      "dependencies": [
+        "feat-002",
+        "feat-004"
+      ],
+      "status": "in-progress",
+      "plan_review": "Plan Reviewer 2026-09-15: READY WITH CONCERNS. Feature e de avaliacao/decisao (sem codigo de producao), plano coerente - team1/team2 hoje sao varchar livre em Bet/BetJpaEntity/CreateBetRequest/BetResponse/BetCreatedPayload/BetSettledPayload (confirmado por grep), sem catalogo. Evidencia cross-service relevante: stats-service ja tem DIM_TEAM com sportId + chave natural (name, sportId) desde epic-011/epic-014 (migrations V20260910120000/V20260910130000, decisao do usuario na epoca) - a avaliacao desta feature deve tratar isso como precedente forte (mesma chave natural nome+esporte ja provada em producao), nao redecidir do zero. MAJOR: esta feature e a fonte de verdade da decisao (bets-service e o dono do catalogo, conforme description do epic-024); stats-service feat-018 e apps/web feat-021 dependem do resultado de feat-016.3 mas nenhuma dependencia formal liga os dois harnesses no feature_list.json (impossivel expressar cross-repo no campo dependencies) - subtask feat-016.3 deve produzir o documento de decisao ANTES de qualquer sessao comecar stats-service feat-018 ou apps/web feat-021/feat-020, e o documento deve ser referenciado explicitamente (caminho/commit) na evidence desta feature para as outras sessoes lerem. Sem isso ha risco real de 2 decisoes divergentes sobre a mesma chave natural.",
+      "jira": "SV-407",
+      "subtasks": [
+        {
+          "id": "feat-016.1",
+          "name": "Mapear dominio atual e alternativas de TEAM",
+          "detail": "Documentar o uso atual de team1/team2 como texto e comparar entidade global, entidade por esporte e chave natural composta nome+esporte.",
+          "checklist": [
+            "Mapear tabelas, DTOs, endpoints, eventos e consumidores que usam team1/team2.",
+            "Avaliar identificador, unicidade, aliases e nomes repetidos entre esportes.",
+            "Definir estrategia de migracao para apostas antigas com texto livre."
+          ],
+          "validation": "Documento de decisao com alternativa escolhida, trade-offs e impacto de compatibilidade.",
+          "owner": "agente",
+          "status": "not-started",
+          "jira": "SV-408"
+        },
+        {
+          "id": "feat-016.2",
+          "name": "Avaliar entidade PLAYER e relacao com TEAM",
+          "detail": "Determinar se jogador pertence ao escopo do produto atual e se a relacao jogador-time precisa suportar historico, transferencias ou apenas cadastro atual.",
+          "checklist": [
+            "Listar casos de uso que exigiriam jogador na aposta ou nas estatisticas.",
+            "Avaliar TEAM_PLAYER, periodo de vinculacao e identificacao por esporte.",
+            "Registrar explicitamente se PLAYER entra agora ou fica como extensao futura."
+          ],
+          "validation": "Decisao de escopo registrada antes de qualquer alteracao de schema ou contrato.",
+          "owner": "agente",
+          "status": "not-started",
+          "jira": "SV-409"
+        },
+        {
+          "id": "feat-016.3",
+          "name": "Plano de contratos, migracao e compatibilidade",
+          "detail": "Consolidar o plano caso a avaliacao aprove entidades novas, incluindo API de catalogo, payloads de evento e transicao dos campos antigos.",
+          "checklist": [
+            "Definir campos novos e estrategia de deprecacao para team1/team2.",
+            "Avaliar impacto no stats-service, web, telegram-integration e schemas de eventos.",
+            "Separar trabalho de decisao de produto das features de implementacao futuras."
+          ],
+          "validation": "Plano de implementacao dividido em features executaveis, com dependencias e contratos identificados.",
+          "owner": "agente",
+          "status": "not-started",
+          "jira": "SV-410"
+        },
+        {
+          "id": "feat-016.4",
+          "name": "CHANGELOG e verificacao final da avaliacao",
+          "detail": "Fechar a avaliacao com os artefatos de rastreabilidade e a revisao das notas do vault.",
+          "checklist": [
+            "Entrada em CHANGELOG.md.",
+            "./init.sh do servico e da raiz verdes.",
+            "Vault (docs/) revisado: alguma descoberta desta feature - mecanismo reaproveitavel, gotcha de lib/config, lacuna de especificacao, decisao que diverge do ja documentado - sem nota correspondente? Se sim, atualizar/criar a nota do assunto no mesmo commit"
+          ],
+          "validation": "Avaliacao registrada, sem codigo de producao alterado sem decisao correspondente.",
+          "owner": "agente",
+          "status": "not-started",
+          "jira": "SV-411"
+        }
+      ],
+      "evidence": ""
     }
   ]
 }
