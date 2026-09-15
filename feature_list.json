@@ -1443,7 +1443,7 @@
         {
           "id": "feat-017.3",
           "name": "Bet.team1/team2 (String) migram para team1Id/team2Id (UUID)",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-415"
         },
         {

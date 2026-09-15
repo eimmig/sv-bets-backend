@@ -9,12 +9,12 @@ import com.stakevault.betting.bets.domain.model.BetStatus;
 import com.stakevault.betting.bets.domain.model.BetType;
 
 public record BetResponse(UUID id, UUID bettingHouseId, UUID sportId, UUID leagueId, UUID marketId, UUID tipsterId,
-		UUID createdByUserId, String ticketNumber, String team1, String team2, String description, BetType betType,
+		UUID createdByUserId, String ticketNumber, UUID team1Id, UUID team2Id, String description, BetType betType,
 		String playType, BigDecimal stake, BigDecimal odd, BetStatus status, Instant betDate) {
 
 	static BetResponse from(Bet bet) {
 		return new BetResponse(bet.id(), bet.bettingHouseId(), bet.sportId(), bet.leagueId(), bet.marketId(),
-				bet.tipsterId(), bet.createdByUserId(), bet.ticketNumber(), bet.team1(), bet.team2(),
+				bet.tipsterId(), bet.createdByUserId(), bet.ticketNumber(), bet.team1Id(), bet.team2Id(),
 				bet.description(), bet.betType(), bet.playType(), bet.stake(), bet.odd(), bet.status(), bet.betDate());
 	}
 }

@@ -37,6 +37,7 @@ import com.stakevault.betting.bets.domain.port.out.BettingHouseRepository;
 import com.stakevault.betting.bets.domain.port.out.LeagueRepository;
 import com.stakevault.betting.bets.domain.port.out.MarketRepository;
 import com.stakevault.betting.bets.domain.port.out.SportRepository;
+import com.stakevault.betting.bets.domain.port.out.TeamRepository;
 import com.stakevault.betting.bets.domain.port.out.TipsterRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -57,13 +58,15 @@ class BetServiceTest {
 	@Mock
 	private TipsterRepository tipsterRepository;
 	@Mock
+	private TeamRepository teamRepository;
+	@Mock
 	private BetEventPublisher betEventPublisher;
 
 	private BetService service;
 
 	private BetService service() {
 		return new BetService(betRepository, betResultRepository, bettingHouseRepository, sportRepository,
-				leagueRepository, marketRepository, tipsterRepository, betEventPublisher);
+				leagueRepository, marketRepository, tipsterRepository, teamRepository, betEventPublisher);
 	}
 
 	private Bet pendingBet(BigDecimal stake, BigDecimal odd) {
@@ -147,7 +150,7 @@ class BetServiceTest {
 
 		assertThat(result.created()).isTrue();
 		verify(betEventPublisher).publishCreated(result.bet(),
-				new BetDimensionNames("House", "Sport", "League", "Market", null));
+				new BetDimensionNames("House", "Sport", "League", "Market", null, null, null));
 	}
 
 	@Test
@@ -231,7 +234,7 @@ class BetServiceTest {
 
 		ArgumentCaptor<BetResult> captor = ArgumentCaptor.forClass(BetResult.class);
 		verify(betEventPublisher).publishSettled(eq(bet), captor.capture(),
-				eq(new BetDimensionNames("House", "Sport", "League", "Market", null)));
+				eq(new BetDimensionNames("House", "Sport", "League", "Market", null, null, null)));
 		assertThat(captor.getValue().settledByUserId()).isEqualTo(settledByUserId);
 	}
 
