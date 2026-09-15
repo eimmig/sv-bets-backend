@@ -1449,7 +1449,7 @@
         {
           "id": "feat-017.4",
           "name": "BetCreated/BetSettled ganham team1Id/team2Id (aditivo) + schemas + docs",
-          "status": "in-progress",
+          "status": "done",
           "jira": "SV-416"
         },
         {
