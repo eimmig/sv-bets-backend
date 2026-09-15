@@ -1468,10 +1468,23 @@
       "dependencies": [
         "feat-015"
       ],
-      "status": "not-started",
-      "plan_review": "",
-      "jira": "",
-      "subtasks": [],
+      "status": "in-progress",
+      "plan_review": "Plan Reviewer (2026-09-15): READY WITH CONCERNS. Plano original (job deploy com azure/setup-kubectl + kubectl rollout restart deployment/bets-service, sem namespace) confirmado contra infra/k8s/bets-service.yaml (Deployment 'bets-service', sem namespace - cluster inteiro roda em default) e infra/k8s/ci-deployer-rbac.yaml (RBAC ja escopado por resourceNames a este Deployment). KUBE_CONFIG confirmado presente no repositorio GitHub (gh secret list, gravado 2026-09-15 por infra/feat-007). 2 achados MINOR corrigidos no plano antes de codificar: (1) azure/setup-kubectl e desnecessario - kubectl 1.37.0 ja vem preinstalado no runner ubuntu-latest (confirmado contra actions/runner-images Ubuntu2404-Readme.md), remover o step e chamar kubectl direto evita action de terceiro sem ganho; (2) job deploy nao usa GITHUB_TOKEN mas herdaria a permissao write default do repositorio (gh api .../actions/permissions/workflow) - adicionar permissions: {} explicito, mesmo padrao de least-privilege ja usado no job build-and-push-image deste arquivo. Sem risco de corrida (build-and-push-image ja publica a tag antes do deploy iniciar, via needs). Sem BLOCKER.",
+      "jira": "SV-423",
+      "subtasks": [
+        {
+          "id": "feat-018.1",
+          "name": "Job deploy no ci.yml + push real em main",
+          "status": "done",
+          "jira": "SV-424"
+        },
+        {
+          "id": "feat-018.2",
+          "name": "CHANGELOG e verificacao final",
+          "status": "in-progress",
+          "jira": "SV-425"
+        }
+      ],
       "evidence": ""
     }
   ]
