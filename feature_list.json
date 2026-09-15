@@ -1437,7 +1437,7 @@
         {
           "id": "feat-017.2",
           "name": "Catalogo TEAM: endpoints REST + i18n",
-          "status": "not-started",
+          "status": "done",
           "jira": "SV-414"
         },
         {
