@@ -86,3 +86,6 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 - [SV-415](https://stakevault.atlassian.net/browse/SV-415) - Bet.team1/team2 (String) migram para team1Id/team2Id (UUID)
 - [SV-416](https://stakevault.atlassian.net/browse/SV-416) - BetCreated/BetSettled ganham team1Id/team2Id (aditivo) + schemas + docs
 - [SV-417](https://stakevault.atlassian.net/browse/SV-417) - CHANGELOG e verificacao final
+- [SV-423](https://stakevault.atlassian.net/browse/SV-423) - CD: job de deploy automatico (kubectl rollout restart) no ci.yml
+- [SV-424](https://stakevault.atlassian.net/browse/SV-424) - Job deploy no ci.yml + push real em main
+- [SV-425](https://stakevault.atlassian.net/browse/SV-425) - CHANGELOG e verificacao final
