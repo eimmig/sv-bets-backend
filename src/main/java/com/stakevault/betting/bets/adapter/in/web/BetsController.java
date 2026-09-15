@@ -45,9 +45,9 @@ public class BetsController {
 		UUID callerId = parseCallerId(callerIdHeader);
 
 		CreateBetCommand command = new CreateBetCommand(callerId, request.bettingHouseId(), request.sportId(),
-				request.leagueId(), request.marketId(), request.tipsterId(), request.ticketNumber(), request.team1(),
-				request.team2(), request.description(), request.betType(), request.playType(), request.stake(),
-				request.odd(), request.betDate(), idempotencyKey);
+				request.leagueId(), request.marketId(), request.tipsterId(), request.ticketNumber(),
+				request.team1Id(), request.team2Id(), request.description(), request.betType(), request.playType(),
+				request.stake(), request.odd(), request.betDate(), idempotencyKey);
 
 		BetCreationResult result = bets.create(command);
 		HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;

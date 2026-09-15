@@ -9,16 +9,23 @@ import com.stakevault.betting.bets.domain.model.BetDimensionNames;
 import com.stakevault.betting.bets.domain.model.BetStatus;
 import com.stakevault.betting.bets.domain.model.BetType;
 
+// team1/team2 (String) mantem o mesmo nome/semantica de antes (nome do time) por compatibilidade
+// com o consumidor ja em producao (stats-service/DimensionResolver.resolveTeam) - so a fonte
+// mudou, de texto livre para Team.name resolvido via team1Id/team2Id. team1Id/team2Id sao
+// aditivos (nullable), sem bump de schemaVersion - ver docs/API-CONTRACTS.md "Nota sobre
+// schemaVersion" e docs/DECISIONS-LOG.md 2026-09-15.
 public record BetCreatedPayload(UUID betId, UUID bettingHouseId, String bettingHouseName, UUID sportId,
 		String sportName, UUID leagueId, String leagueName, UUID marketId, String marketName, UUID tipsterId,
-		String tipsterName, String ticketNumber, String team1, String team2, String description, BetType betType,
-		String playType, BigDecimal stake, BigDecimal odd, BetStatus status, Instant betDate) {
+		String tipsterName, String ticketNumber, UUID team1Id, String team1, UUID team2Id, String team2,
+		String description, BetType betType, String playType, BigDecimal stake, BigDecimal odd, BetStatus status,
+		Instant betDate) {
 
 	static BetCreatedPayload from(Bet bet, BetDimensionNames dimensionNames) {
 		return new BetCreatedPayload(bet.id(), bet.bettingHouseId(), dimensionNames.bettingHouseName(),
 				bet.sportId(), dimensionNames.sportName(), bet.leagueId(), dimensionNames.leagueName(),
 				bet.marketId(), dimensionNames.marketName(), bet.tipsterId(), dimensionNames.tipsterName(),
-				bet.ticketNumber(), bet.team1(), bet.team2(), bet.description(), bet.betType(), bet.playType(),
-				bet.stake(), bet.odd(), BetStatus.PENDING, bet.betDate());
+				bet.ticketNumber(), bet.team1Id(), dimensionNames.team1Name(), bet.team2Id(),
+				dimensionNames.team2Name(), bet.description(), bet.betType(), bet.playType(), bet.stake(), bet.odd(),
+				BetStatus.PENDING, bet.betDate());
 	}
 }

@@ -17,6 +17,7 @@ import com.stakevault.betting.bets.domain.model.BettingHouse;
 import com.stakevault.betting.bets.domain.model.League;
 import com.stakevault.betting.bets.domain.model.Market;
 import com.stakevault.betting.bets.domain.model.Sport;
+import com.stakevault.betting.bets.domain.model.Team;
 import com.stakevault.betting.bets.domain.model.TenantSchemaName;
 import com.stakevault.betting.bets.domain.model.Tipster;
 import com.stakevault.betting.bets.domain.port.in.ProvisionTenantSchemaUseCase;
@@ -25,6 +26,7 @@ import com.stakevault.betting.bets.domain.port.out.BettingHouseRepository;
 import com.stakevault.betting.bets.domain.port.out.LeagueRepository;
 import com.stakevault.betting.bets.domain.port.out.MarketRepository;
 import com.stakevault.betting.bets.domain.port.out.SportRepository;
+import com.stakevault.betting.bets.domain.port.out.TeamRepository;
 import com.stakevault.betting.bets.domain.port.out.TipsterRepository;
 import com.stakevault.betting.bets.support.TenantSchemaIntegrationSupport;
 
@@ -36,10 +38,12 @@ class JpaBetRepositoryIntegrationTest extends TenantSchemaIntegrationSupport {
 	private final LeagueRepository leagueRepository;
 	private final MarketRepository marketRepository;
 	private final TipsterRepository tipsterRepository;
+	private final TeamRepository teamRepository;
 
 	JpaBetRepositoryIntegrationTest(ProvisionTenantSchemaUseCase provisionTenantSchema, JdbcTemplate jdbcTemplate,
 			BetRepository betRepository, BettingHouseRepository bettingHouseRepository, SportRepository sportRepository,
-			LeagueRepository leagueRepository, MarketRepository marketRepository, TipsterRepository tipsterRepository) {
+			LeagueRepository leagueRepository, MarketRepository marketRepository, TipsterRepository tipsterRepository,
+			TeamRepository teamRepository) {
 		super(provisionTenantSchema, jdbcTemplate);
 		this.betRepository = betRepository;
 		this.bettingHouseRepository = bettingHouseRepository;
@@ -47,6 +51,7 @@ class JpaBetRepositoryIntegrationTest extends TenantSchemaIntegrationSupport {
 		this.leagueRepository = leagueRepository;
 		this.marketRepository = marketRepository;
 		this.tipsterRepository = tipsterRepository;
+		this.teamRepository = teamRepository;
 	}
 
 	private UUID newBettingHouseId() {
@@ -71,19 +76,24 @@ class JpaBetRepositoryIntegrationTest extends TenantSchemaIntegrationSupport {
 		return tipsterRepository.save(new Tipster(UUID.randomUUID(), "Tipster-" + UUID.randomUUID())).id();
 	}
 
+	private UUID newTeamId(UUID sportId) {
+		return teamRepository.save(new Team(UUID.randomUUID(), "Team-" + UUID.randomUUID(), sportId)).id();
+	}
+
 	@Test
 	void shouldSaveAndFindWithAllFieldsFilled() {
 		try (var _ = TenantContextScope.open(schema)) {
-			Bet bet = new Bet(UUID.randomUUID(), newBettingHouseId(), newSportId(), newLeagueId(), newMarketId(),
-					newTipsterId(), UUID.randomUUID(), "TICKET-1", "Team A", "Team B", "final match", BetType.PRE,
-					"single", BigDecimal.valueOf(100), BigDecimal.valueOf(1.5), BetStatus.PENDING, Instant.now(),
-					"idem-key-1");
+			UUID sportId = newSportId();
+			Bet bet = new Bet(UUID.randomUUID(), newBettingHouseId(), sportId, newLeagueId(), newMarketId(),
+					newTipsterId(), UUID.randomUUID(), "TICKET-1", newTeamId(sportId), newTeamId(sportId),
+					"final match", BetType.PRE, "single", BigDecimal.valueOf(100), BigDecimal.valueOf(1.5),
+					BetStatus.PENDING, Instant.now(), "idem-key-1");
 
 			betRepository.save(bet);
 
 			Bet found = betRepository.findById(bet.id()).orElseThrow();
 			assertThat(found.tipsterId()).isEqualTo(bet.tipsterId());
-			assertThat(found.team1()).isEqualTo("Team A");
+			assertThat(found.team1Id()).isEqualTo(bet.team1Id());
 			assertThat(found.betType()).isEqualTo(BetType.PRE);
 			assertThat(found.stake()).isEqualByComparingTo("100");
 			assertThat(found.odd()).isEqualByComparingTo("1.5");
@@ -102,7 +112,7 @@ class JpaBetRepositoryIntegrationTest extends TenantSchemaIntegrationSupport {
 
 			Bet found = betRepository.findById(bet.id()).orElseThrow();
 			assertThat(found.tipsterId()).isNull();
-			assertThat(found.team1()).isNull();
+			assertThat(found.team1Id()).isNull();
 			assertThat(found.idempotencyKey()).isNull();
 		}
 	}
