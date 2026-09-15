@@ -1369,7 +1369,7 @@
           ],
           "validation": "Documento de decisao com alternativa escolhida, trade-offs e impacto de compatibilidade.",
           "owner": "agente",
-          "status": "not-started",
+          "status": "done",
           "jira": "SV-408"
         },
         {
@@ -1383,7 +1383,7 @@
           ],
           "validation": "Decisao de escopo registrada antes de qualquer alteracao de schema ou contrato.",
           "owner": "agente",
-          "status": "not-started",
+          "status": "done",
           "jira": "SV-409"
         },
         {
@@ -1397,7 +1397,7 @@
           ],
           "validation": "Plano de implementacao dividido em features executaveis, com dependencias e contratos identificados.",
           "owner": "agente",
-          "status": "not-started",
+          "status": "done",
           "jira": "SV-410"
         },
         {
@@ -1415,6 +1415,19 @@
           "jira": "SV-411"
         }
       ],
+      "evidence": ""
+    },
+    {
+      "id": "feat-017",
+      "name": "Implementar catalogo TEAM escopado por esporte e migrar team1/team2 de Bet",
+      "description": "Implementacao da decisao registrada em docs/DECISIONS-LOG.md (2026-09-15, feat-016): nova entidade TEAM (id, name, sportId FK, chave natural unica (name, sportId) - mesmo desenho de dim_team em stats-service). Bet.team1/team2 (String) viram team1Id/team2Id (UUID, nullable, mesma opcionalidade de hoje). CreateBetRequest/BetResponse trocam team1/team2 por team1Id/team2Id. BetCreatedPayload/BetSettledPayload ganham team1Id/team1Name/team2Id/team2Name seguindo o MESMO padrao de denormalizacao ja usado pelos outros 5 dimensoes desde feat-010 (BetDimensionNames ganha team1Name/team2Name). Sem backfill de team1/team2 antigos (nenhum tenant real usa o catalogo ainda). PLAYER fica fora - nao reabrir essa discussao sem novo RF.",
+      "dependencies": [
+        "feat-016"
+      ],
+      "status": "not-started",
+      "plan_review": "",
+      "jira": "",
+      "subtasks": [],
       "evidence": ""
     }
   ]
