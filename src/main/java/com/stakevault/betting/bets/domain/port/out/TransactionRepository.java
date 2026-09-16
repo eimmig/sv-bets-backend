@@ -19,6 +19,6 @@ public interface TransactionRepository {
 	Map<UUID, BigDecimal> sumNetAmountByBettingHouseIds(Collection<UUID> bettingHouseIds);
 
 	// Todas as casas do tenant, nao agrupado - "at" e o limite superior exclusivo ja resolvido
-	// (fim do dia civil brasileiro convertido pra Instant/UTC). Usado por feat-014.3.
+	// (fim do dia civil brasileiro convertido pra Instant/UTC).
 	BigDecimal sumNetAmountUpTo(Instant at);
 }

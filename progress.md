@@ -5,6 +5,46 @@
 **Última atualização:** 2026-09-15
 **Feature ativa:** nenhuma — `feat-001` a `feat-018` `done`. Backlog deste serviço esgotado.
 
+## `develop -> main` promovido, primeiro disparo real do job `deploy` — FALHOU por infraestrutura (2026-09-15, mais tarde no mesmo dia)
+
+Depois de `apps/web feat-021` corrigir a quebra de contrato de `POST /api/v1/bets`, promovido
+`develop -> main` (PR #70) de propósito para provar o job `deploy` de `feat-018` rodando de
+verdade pela primeira vez — a pedido explícito do usuário ("dar deploy em tudo").
+
+`build-and-push-image` funcionou normalmente (imagem nova publicada em
+`ghcr.io/eimmig/sv-bets-backend`). `Reiniciar deployment` (`kubectl rollout restart`) falhou:
+
+```
+E0915 20:48:59.286373 memcache.go:381] "Couldn't get current server API group list" err="Get
+\"https://127.0.0.1:6443/api?timeout=32s\": dial tcp 127.0.0.1:6443: connect: connection refused"
+The connection to the server 127.0.0.1:6443 was refused
+```
+
+**Causa raiz, não é bug de código**: o `KUBE_CONFIG` gerado por `tools/kube_deploy_setup.py`
+(`infra/feat-007`) capturou o `server:` do contexto `kubectl` local do usuário no momento da
+geração — que era o túnel SSH (`ssh -L 6443:127.0.0.1:6443 eduardo@192.168.2.123`), não o
+endereço real do servidor k3s. Um runner hospedado do GitHub Actions é uma máquina totalmente
+diferente sem esse túnel — `127.0.0.1:6443` ali é loopback pra si mesmo, nada escutando. O job
+`deploy` em si (o `ci.yml` deste repositório) está correto; a credencial distribuída é que não
+serve pro ambiente que a consome. Falha idêntica esperada nos outros 5 repositórios de
+`epic-028` (mesmo secret, mesma sessão de geração) — **promoções `develop -> main` dos outros 5
+pausadas de propósito**, não repetido.
+
+**Sem dano ao cluster real**: o comando nunca chegou a se conectar, então nunca enviou o patch de
+restart — o `Deployment bets-service` em produção continua rodando a imagem antiga, sem
+interrupção nenhuma. Só a imagem nova ficou publicada no GHCR sem ser puxada ainda.
+
+**3 caminhos possíveis de correção, nenhum decidido** (decisão de topologia de rede do usuário,
+não algo pra esta sessão decidir sozinha — mesma categoria dos bloqueios de acesso de produção já
+recusados pelo classificador de auto-mode antes nesta sessão): (1) regenerar o certificado TLS do
+servidor k3s com `--tls-san <endereço alcançável>` e expor a porta 6443 pra fora da rede local;
+(2) runner self-hosted do GitHub Actions dentro da rede do usuário, alcançando o k3s pela LAN sem
+expor nada; (3) túnel/relay seguro alcançável por runners hospedados (Tailscale, Cloudflare
+Tunnel). Detalhe completo em `docs/services/infra.md` "CD automático via CI".
+
+`./init.sh` deste repositório continua verde — a falha é inteiramente do lado da infraestrutura de
+deploy, não do código da aplicação.
+
 ## `feat-018` fechada — CD automático, job `deploy` no `ci.yml` (2026-09-15, mesmo dia)
 
 Desbloqueada por `infra/feat-007` fechar na mesma sessão (usuário aplicou o `ServiceAccount
