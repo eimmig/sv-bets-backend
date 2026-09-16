@@ -7,6 +7,11 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 
 ## [Unreleased]
 
+- Registro do primeiro disparo real do job `deploy` (`epic-028`) contra produção: falhou por
+  `KUBE_CONFIG` inatingível, achado documentado em `progress.md` (sem story própria - manutenção).
+- Remoção de blocos de comentário narrativos (histórico de bug/feat-ID) do código Java —
+  esse contexto pertence à mensagem de commit/Jira/vault, não ao código-fonte (sem story própria
+  - manutenção).
 - [SV-9](https://stakevault.atlassian.net/browse/SV-9) - Alinhar as chaves de projeto ao padrão do SonarCloud
 - [SV-60](https://stakevault.atlassian.net/browse/SV-60) - Setup do projeto
 - [SV-61](https://stakevault.atlassian.net/browse/SV-61) - Endurecer pipeline de CI antes do bootstrap (porta o padrao ja validado de auth-service)
