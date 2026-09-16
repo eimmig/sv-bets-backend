@@ -19,6 +19,6 @@ public interface BettingHouseRepository {
 
 	PagedResult<BettingHouse> findAll(int page, int size);
 
-	// Todas as casas do tenant, nao agrupado - usado por GET /api/v1/bankroll/balance (feat-014.3).
+	// Todas as casas do tenant, nao agrupado.
 	BigDecimal sumInitialBalance();
 }
