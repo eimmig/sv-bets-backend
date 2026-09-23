@@ -96,3 +96,6 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 - [SV-423](https://stakevault.atlassian.net/browse/SV-423) - CD: job de deploy automatico (kubectl rollout restart) no ci.yml
 - [SV-424](https://stakevault.atlassian.net/browse/SV-424) - Job deploy no ci.yml + push real em main
 - [SV-425](https://stakevault.atlassian.net/browse/SV-425) - CHANGELOG e verificacao final
+- [SV-552](https://stakevault.atlassian.net/browse/SV-552) - Reformulacao de marca: StakeVault -> Arka (pom.xml description)
+- [SV-553](https://stakevault.atlassian.net/browse/SV-553) - pom.xml: description 'StakeVault' -> 'Arka'
+- [SV-554](https://stakevault.atlassian.net/browse/SV-554) - CHANGELOG, verificacao final e revisao do vault
