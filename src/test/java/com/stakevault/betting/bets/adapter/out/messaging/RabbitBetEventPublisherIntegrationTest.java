@@ -27,6 +27,7 @@ import com.stakevault.betting.bets.domain.model.League;
 import com.stakevault.betting.bets.domain.model.Market;
 import com.stakevault.betting.bets.domain.model.Sport;
 import com.stakevault.betting.bets.domain.model.Team;
+import com.stakevault.betting.bets.domain.port.in.BetDetails;
 import com.stakevault.betting.bets.domain.port.in.BetUseCase;
 import com.stakevault.betting.bets.domain.port.in.CreateBetCommand;
 import com.stakevault.betting.bets.domain.port.in.ProvisionTenantSchemaUseCase;
@@ -80,9 +81,10 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 		UUID sportId = sportRepository.save(new Sport(UUID.randomUUID(), sportName)).id();
 		UUID leagueId = leagueRepository.save(new League(UUID.randomUUID(), leagueName)).id();
 		UUID marketId = marketRepository.save(new Market(UUID.randomUUID(), marketName)).id();
-		CreateBetCommand command = new CreateBetCommand(callerId, bettingHouseId, sportId, leagueId, marketId, null,
-				null, null, null, null, betType, null, BigDecimal.valueOf(100), BigDecimal.valueOf(1.5),
-				Instant.parse("2026-09-06T12:00:00Z"), idempotencyKey);
+		CreateBetCommand command = new CreateBetCommand(callerId,
+				new BetDetails(bettingHouseId, sportId, leagueId, marketId, null, null, null, null, null, betType,
+						null, BigDecimal.valueOf(100), BigDecimal.valueOf(1.5), Instant.parse("2026-09-06T12:00:00Z")),
+				idempotencyKey);
 		return new BetFixture(command, bettingHouseName, sportName, leagueName, marketName);
 	}
 
@@ -100,9 +102,10 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 		String team2Name = "Loud-" + suffix;
 		UUID team1Id = teamRepository.save(new Team(UUID.randomUUID(), team1Name, sportId)).id();
 		UUID team2Id = teamRepository.save(new Team(UUID.randomUUID(), team2Name, sportId)).id();
-		CreateBetCommand command = new CreateBetCommand(callerId, bettingHouseId, sportId, leagueId, marketId, null,
-				null, team1Id, team2Id, null, null, null, BigDecimal.valueOf(100), BigDecimal.valueOf(1.5),
-				Instant.parse("2026-09-06T12:00:00Z"), null);
+		CreateBetCommand command = new CreateBetCommand(callerId,
+				new BetDetails(bettingHouseId, sportId, leagueId, marketId, null, null, team1Id, team2Id, null, null,
+						null, BigDecimal.valueOf(100), BigDecimal.valueOf(1.5), Instant.parse("2026-09-06T12:00:00Z")),
+				null);
 		return new TeamsFixture(command, team1Name, team2Name);
 	}
 

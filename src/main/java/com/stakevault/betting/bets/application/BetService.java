@@ -26,6 +26,7 @@ import com.stakevault.betting.bets.domain.model.TeamNotFoundException;
 import com.stakevault.betting.bets.domain.model.TipsterNotFoundException;
 import com.stakevault.betting.bets.domain.model.BetConcurrentlyModifiedException;
 import com.stakevault.betting.bets.domain.port.in.BetCreationResult;
+import com.stakevault.betting.bets.domain.port.in.BetDetails;
 import com.stakevault.betting.bets.domain.port.in.BetUseCase;
 import com.stakevault.betting.bets.domain.port.in.CreateBetCommand;
 import com.stakevault.betting.bets.domain.port.in.UpdateBetCommand;
@@ -76,16 +77,15 @@ public class BetService implements BetUseCase {
 			}
 		}
 
-		validateReferences(command.bettingHouseId(), command.sportId(), command.leagueId(), command.marketId(),
-				command.tipsterId(), command.team1Id(), command.team2Id());
-		validateBusinessRules(command.stake(), command.odd());
+		BetDetails d = command.details();
+		validateReferences(d.bettingHouseId(), d.sportId(), d.leagueId(), d.marketId(), d.tipsterId(), d.team1Id(),
+				d.team2Id());
+		validateBusinessRules(d.stake(), d.odd());
 
-		Bet bet = new Bet(UUID.randomUUID(), command.bettingHouseId(), command.sportId(), command.leagueId(),
-				command.marketId(), command.tipsterId(), command.callerId(), command.ticketNumber(),
-				command.team1Id(), command.team2Id(), command.description(), command.betType(), command.playType(),
-				command.stake(),
-				command.odd(), BetStatus.PENDING, command.betDate() == null ? Instant.now() : command.betDate(),
-				command.idempotencyKey());
+		Bet bet = new Bet(UUID.randomUUID(), d.bettingHouseId(), d.sportId(), d.leagueId(), d.marketId(),
+				d.tipsterId(), command.callerId(), d.ticketNumber(), d.team1Id(), d.team2Id(), d.description(),
+				d.betType(), d.playType(), d.stake(), d.odd(), BetStatus.PENDING,
+				d.betDate() == null ? Instant.now() : d.betDate(), command.idempotencyKey());
 
 		try {
 			Bet saved = betRepository.save(bet);
@@ -125,9 +125,10 @@ public class BetService implements BetUseCase {
 	public Bet update(UUID id, UpdateBetCommand command) {
 		Bet current = findById(id);
 
-		validateReferences(command.bettingHouseId(), command.sportId(), command.leagueId(), command.marketId(),
-				command.tipsterId(), command.team1Id(), command.team2Id());
-		validateBusinessRules(command.stake(), command.odd());
+		BetDetails d = command.details();
+		validateReferences(d.bettingHouseId(), d.sportId(), d.leagueId(), d.marketId(), d.tipsterId(), d.team1Id(),
+				d.team2Id());
+		validateBusinessRules(d.stake(), d.odd());
 
 		boolean wasPending = current.status() == BetStatus.PENDING;
 		boolean staysPending = command.status() == BetStatus.PENDING;
@@ -135,10 +136,9 @@ public class BetService implements BetUseCase {
 			throw new InvalidStatusTransitionException(current.status(), command.status());
 		}
 
-		Bet updated = new Bet(id, command.bettingHouseId(), command.sportId(), command.leagueId(),
-				command.marketId(), command.tipsterId(), current.createdByUserId(), command.ticketNumber(),
-				command.team1Id(), command.team2Id(), command.description(), command.betType(), command.playType(),
-				command.stake(), command.odd(), command.status(), command.betDate(), current.idempotencyKey());
+		Bet updated = new Bet(id, d.bettingHouseId(), d.sportId(), d.leagueId(), d.marketId(), d.tipsterId(),
+				current.createdByUserId(), d.ticketNumber(), d.team1Id(), d.team2Id(), d.description(), d.betType(),
+				d.playType(), d.stake(), d.odd(), command.status(), d.betDate(), current.idempotencyKey());
 
 		if (betRepository.updateFields(updated, current.status()) == 0) {
 			throw new BetConcurrentlyModifiedException(id);

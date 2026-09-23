@@ -30,6 +30,7 @@ import com.stakevault.betting.bets.domain.model.League;
 import com.stakevault.betting.bets.domain.model.Market;
 import com.stakevault.betting.bets.domain.model.Sport;
 import com.stakevault.betting.bets.domain.model.BetConcurrentlyModifiedException;
+import com.stakevault.betting.bets.domain.port.in.BetDetails;
 import com.stakevault.betting.bets.domain.port.in.CreateBetCommand;
 import com.stakevault.betting.bets.domain.port.in.UpdateBetCommand;
 import com.stakevault.betting.bets.domain.port.out.BetEventPublisher;
@@ -84,8 +85,8 @@ class BetServiceTest {
 	}
 
 	private UpdateBetCommand updateCommand(Bet bet, BigDecimal stake, BigDecimal odd, BetStatus status) {
-		return new UpdateBetCommand(bet.bettingHouseId(), bet.sportId(), bet.leagueId(), bet.marketId(), null, null,
-				null, null, null, null, null, stake, odd, bet.betDate(), status);
+		return new UpdateBetCommand(new BetDetails(bet.bettingHouseId(), bet.sportId(), bet.leagueId(),
+				bet.marketId(), null, null, null, null, null, null, null, stake, odd, bet.betDate()), status);
 	}
 
 	private void stubReferencesExist() {
@@ -112,9 +113,11 @@ class BetServiceTest {
 				UUID.randomUUID(), null, UUID.randomUUID(), null, null, null, null, null, null, BigDecimal.TEN,
 				BigDecimal.valueOf(1.5), BetStatus.PENDING, Instant.now(), "dup-key");
 
-		CreateBetCommand command = new CreateBetCommand(UUID.randomUUID(), existing.bettingHouseId(),
-				existing.sportId(), existing.leagueId(), existing.marketId(), null, null, null, null, null, null,
-				null, BigDecimal.TEN, BigDecimal.valueOf(1.5), Instant.now(), "dup-key");
+		CreateBetCommand command = new CreateBetCommand(UUID.randomUUID(),
+				new BetDetails(existing.bettingHouseId(), existing.sportId(), existing.leagueId(),
+						existing.marketId(), null, null, null, null, null, null, null, BigDecimal.TEN,
+						BigDecimal.valueOf(1.5), Instant.now()),
+				"dup-key");
 
 		when(betRepository.findByIdempotencyKey("dup-key")).thenReturn(Optional.empty(), Optional.of(existing));
 		when(bettingHouseRepository.existsById(any())).thenReturn(true);
@@ -134,9 +137,11 @@ class BetServiceTest {
 	void shouldReturnExistingBetWithoutPublishingWhenIdempotencyKeyAlreadyExists() {
 		service = service();
 		Bet existing = pendingBet(BigDecimal.TEN, BigDecimal.valueOf(1.5));
-		CreateBetCommand command = new CreateBetCommand(UUID.randomUUID(), existing.bettingHouseId(),
-				existing.sportId(), existing.leagueId(), existing.marketId(), null, null, null, null, null, null,
-				null, BigDecimal.TEN, BigDecimal.valueOf(1.5), Instant.now(), "already-used-key");
+		CreateBetCommand command = new CreateBetCommand(UUID.randomUUID(),
+				new BetDetails(existing.bettingHouseId(), existing.sportId(), existing.leagueId(),
+						existing.marketId(), null, null, null, null, null, null, null, BigDecimal.TEN,
+						BigDecimal.valueOf(1.5), Instant.now()),
+				"already-used-key");
 		when(betRepository.findByIdempotencyKey("already-used-key")).thenReturn(Optional.of(existing));
 
 		var result = service.create(command);
@@ -152,9 +157,10 @@ class BetServiceTest {
 		UUID sportId = UUID.randomUUID();
 		UUID leagueId = UUID.randomUUID();
 		UUID marketId = UUID.randomUUID();
-		CreateBetCommand command = new CreateBetCommand(UUID.randomUUID(), bettingHouseId, sportId, leagueId,
-				marketId, null, null, null, null, null, null, null, BigDecimal.TEN, BigDecimal.valueOf(1.5),
-				Instant.now(), null);
+		CreateBetCommand command = new CreateBetCommand(UUID.randomUUID(),
+				new BetDetails(bettingHouseId, sportId, leagueId, marketId, null, null, null, null, null, null, null,
+						BigDecimal.TEN, BigDecimal.valueOf(1.5), Instant.now()),
+				null);
 		when(bettingHouseRepository.existsById(any())).thenReturn(true);
 		when(sportRepository.existsById(any())).thenReturn(true);
 		when(leagueRepository.existsById(any())).thenReturn(true);
