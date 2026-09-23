@@ -2,13 +2,10 @@ package com.stakevault.betting.bets.domain.model;
 
 import java.math.BigDecimal;
 
-public class InvalidOddException extends RuntimeException implements LocalizedDomainException {
-
-	private final BigDecimal odd;
+public class InvalidOddException extends LocalizedRuntimeException {
 
 	public InvalidOddException(BigDecimal odd) {
-		super("invalid odd: " + odd);
-		this.odd = odd;
+		super("invalid odd: " + odd, odd);
 	}
 
 	@Override
@@ -19,10 +16,5 @@ public class InvalidOddException extends RuntimeException implements LocalizedDo
 	@Override
 	public int httpStatusCode() {
 		return 422;
-	}
-
-	@Override
-	public Object[] messageArgs() {
-		return new Object[] { odd };
 	}
 }

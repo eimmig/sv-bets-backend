@@ -2,13 +2,10 @@ package com.stakevault.betting.bets.domain.model;
 
 import java.util.UUID;
 
-public class MarketNotFoundException extends RuntimeException implements LocalizedDomainException {
-
-	private final UUID marketId;
+public class MarketNotFoundException extends LocalizedRuntimeException {
 
 	public MarketNotFoundException(UUID marketId) {
-		super("market not found: " + marketId);
-		this.marketId = marketId;
+		super("market not found: " + marketId, marketId);
 	}
 
 	@Override
@@ -19,10 +16,5 @@ public class MarketNotFoundException extends RuntimeException implements Localiz
 	@Override
 	public int httpStatusCode() {
 		return 404;
-	}
-
-	@Override
-	public Object[] messageArgs() {
-		return new Object[] { marketId };
 	}
 }

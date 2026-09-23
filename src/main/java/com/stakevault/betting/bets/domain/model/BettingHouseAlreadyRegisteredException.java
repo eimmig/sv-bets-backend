@@ -1,12 +1,9 @@
 package com.stakevault.betting.bets.domain.model;
 
-public class BettingHouseAlreadyRegisteredException extends RuntimeException implements LocalizedDomainException {
-
-	private final String name;
+public class BettingHouseAlreadyRegisteredException extends LocalizedRuntimeException {
 
 	public BettingHouseAlreadyRegisteredException(String name) {
-		super("betting house already registered: " + name);
-		this.name = name;
+		super("betting house already registered: " + name, name == null ? "" : name);
 	}
 
 	@Override
@@ -17,10 +14,5 @@ public class BettingHouseAlreadyRegisteredException extends RuntimeException imp
 	@Override
 	public int httpStatusCode() {
 		return 409;
-	}
-
-	@Override
-	public Object[] messageArgs() {
-		return new Object[] { name == null ? "" : name };
 	}
 }

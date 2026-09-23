@@ -1,14 +1,9 @@
 package com.stakevault.betting.bets.domain.model;
 
-public class InvalidStatusTransitionException extends RuntimeException implements LocalizedDomainException {
-
-	private final BetStatus from;
-	private final BetStatus to;
+public class InvalidStatusTransitionException extends LocalizedRuntimeException {
 
 	public InvalidStatusTransitionException(BetStatus from, BetStatus to) {
-		super("invalid bet status transition: " + from + " -> " + to);
-		this.from = from;
-		this.to = to;
+		super("invalid bet status transition: " + from + " -> " + to, from, to);
 	}
 
 	@Override
@@ -19,10 +14,5 @@ public class InvalidStatusTransitionException extends RuntimeException implement
 	@Override
 	public int httpStatusCode() {
 		return 422;
-	}
-
-	@Override
-	public Object[] messageArgs() {
-		return new Object[] { from, to };
 	}
 }
