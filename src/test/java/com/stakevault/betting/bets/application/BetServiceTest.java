@@ -304,11 +304,11 @@ class BetServiceTest {
 		service = service();
 		Bet bet = pendingBet(BigDecimal.TEN, BigDecimal.valueOf(1.5));
 		UpdateBetCommand command = updateCommand(bet, bet.stake(), bet.odd(), BetStatus.WON);
-		when(betRepository.findById(bet.id())).thenReturn(Optional.of(bet));
+		UUID id = bet.id();
+		when(betRepository.findById(id)).thenReturn(Optional.of(bet));
 		stubReferencesExist();
 
-		assertThatThrownBy(() -> service.update(bet.id(), command))
-				.isInstanceOf(InvalidStatusTransitionException.class);
+		assertThatThrownBy(() -> service.update(id, command)).isInstanceOf(InvalidStatusTransitionException.class);
 
 		verify(betRepository, never()).updateFields(any(), any());
 	}
@@ -319,11 +319,11 @@ class BetServiceTest {
 		Bet bet = pendingBet(BigDecimal.TEN, BigDecimal.valueOf(1.5));
 		Bet settled = settledBet(bet, BetStatus.WON);
 		UpdateBetCommand command = updateCommand(settled, settled.stake(), settled.odd(), BetStatus.PENDING);
-		when(betRepository.findById(settled.id())).thenReturn(Optional.of(settled));
+		UUID id = settled.id();
+		when(betRepository.findById(id)).thenReturn(Optional.of(settled));
 		stubReferencesExist();
 
-		assertThatThrownBy(() -> service.update(settled.id(), command))
-				.isInstanceOf(InvalidStatusTransitionException.class);
+		assertThatThrownBy(() -> service.update(id, command)).isInstanceOf(InvalidStatusTransitionException.class);
 
 		verify(betRepository, never()).updateFields(any(), any());
 	}
@@ -360,12 +360,12 @@ class BetServiceTest {
 		service = service();
 		Bet bet = pendingBet(BigDecimal.TEN, BigDecimal.valueOf(1.5));
 		UpdateBetCommand command = updateCommand(bet, bet.stake(), bet.odd(), BetStatus.PENDING);
-		when(betRepository.findById(bet.id())).thenReturn(Optional.of(bet));
+		UUID id = bet.id();
+		when(betRepository.findById(id)).thenReturn(Optional.of(bet));
 		stubReferencesExist();
 		when(betRepository.updateFields(any(), eq(BetStatus.PENDING))).thenReturn(0);
 
-		assertThatThrownBy(() -> service.update(bet.id(), command))
-				.isInstanceOf(BetConcurrentlyModifiedException.class);
+		assertThatThrownBy(() -> service.update(id, command)).isInstanceOf(BetConcurrentlyModifiedException.class);
 
 		verify(betEventPublisher, never()).publishCreated(any(), any());
 	}
