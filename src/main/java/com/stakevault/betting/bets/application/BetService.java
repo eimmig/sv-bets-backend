@@ -24,9 +24,12 @@ import com.stakevault.betting.bets.domain.model.MarketNotFoundException;
 import com.stakevault.betting.bets.domain.model.SportNotFoundException;
 import com.stakevault.betting.bets.domain.model.TeamNotFoundException;
 import com.stakevault.betting.bets.domain.model.TipsterNotFoundException;
+import com.stakevault.betting.bets.domain.model.BetConcurrentlyModifiedException;
 import com.stakevault.betting.bets.domain.port.in.BetCreationResult;
+import com.stakevault.betting.bets.domain.port.in.BetDetails;
 import com.stakevault.betting.bets.domain.port.in.BetUseCase;
 import com.stakevault.betting.bets.domain.port.in.CreateBetCommand;
+import com.stakevault.betting.bets.domain.port.in.UpdateBetCommand;
 import com.stakevault.betting.bets.domain.port.out.BetEventPublisher;
 import com.stakevault.betting.bets.domain.port.out.BetRepository;
 import com.stakevault.betting.bets.domain.port.out.BetResultRepository;
@@ -74,15 +77,15 @@ public class BetService implements BetUseCase {
 			}
 		}
 
-		validateReferences(command);
-		validateBusinessRules(command.stake(), command.odd());
+		BetDetails d = command.details();
+		validateReferences(d.bettingHouseId(), d.sportId(), d.leagueId(), d.marketId(), d.tipsterId(), d.team1Id(),
+				d.team2Id());
+		validateBusinessRules(d.stake(), d.odd());
 
-		Bet bet = new Bet(UUID.randomUUID(), command.bettingHouseId(), command.sportId(), command.leagueId(),
-				command.marketId(), command.tipsterId(), command.callerId(), command.ticketNumber(),
-				command.team1Id(), command.team2Id(), command.description(), command.betType(), command.playType(),
-				command.stake(),
-				command.odd(), BetStatus.PENDING, command.betDate() == null ? Instant.now() : command.betDate(),
-				command.idempotencyKey());
+		Bet bet = new Bet(UUID.randomUUID(), d.bettingHouseId(), d.sportId(), d.leagueId(), d.marketId(),
+				d.tipsterId(), command.callerId(), d.ticketNumber(), d.team1Id(), d.team2Id(), d.description(),
+				d.betType(), d.playType(), d.stake(), d.odd(), BetStatus.PENDING,
+				d.betDate() == null ? Instant.now() : d.betDate(), command.idempotencyKey());
 
 		try {
 			Bet saved = betRepository.save(bet);
@@ -118,6 +121,44 @@ public class BetService implements BetUseCase {
 	}
 
 	@Override
+	@Transactional
+	public Bet update(UUID id, UpdateBetCommand command) {
+		Bet current = findById(id);
+
+		BetDetails d = command.details();
+		validateReferences(d.bettingHouseId(), d.sportId(), d.leagueId(), d.marketId(), d.tipsterId(), d.team1Id(),
+				d.team2Id());
+		validateBusinessRules(d.stake(), d.odd());
+
+		boolean wasPending = current.status() == BetStatus.PENDING;
+		boolean staysPending = command.status() == BetStatus.PENDING;
+		if (wasPending != staysPending) {
+			throw new InvalidStatusTransitionException(current.status(), command.status());
+		}
+
+		Bet updated = new Bet(id, d.bettingHouseId(), d.sportId(), d.leagueId(), d.marketId(), d.tipsterId(),
+				current.createdByUserId(), d.ticketNumber(), d.team1Id(), d.team2Id(), d.description(), d.betType(),
+				d.playType(), d.stake(), d.odd(), command.status(), d.betDate(), current.idempotencyKey());
+
+		if (betRepository.updateFields(updated, current.status()) == 0) {
+			throw new BetConcurrentlyModifiedException(id);
+		}
+
+		if (staysPending) {
+			betEventPublisher.publishCreated(updated, resolveDimensionNames(updated));
+			return updated;
+		}
+
+		BetResult existingResult = betResultRepository.findByBetId(id).orElseThrow();
+		BigDecimal profit = computeProfit(updated, updated.status());
+		betResultRepository.updateProfit(id, profit);
+		BetResult updatedResult = new BetResult(existingResult.id(), id, existingResult.settledByUserId(), profit,
+				existingResult.settledAt());
+		betEventPublisher.publishSettled(updated, updatedResult, resolveDimensionNames(updated));
+		return updated;
+	}
+
+	@Override
 	public PagedResult<Bet> list(BetFilter filter, int page, int size) {
 		return betRepository.findFiltered(filter, page, size);
 	}
@@ -150,27 +191,28 @@ public class BetService implements BetUseCase {
 				team2Name);
 	}
 
-	private void validateReferences(CreateBetCommand command) {
-		if (!bettingHouseRepository.existsById(command.bettingHouseId())) {
-			throw new BettingHouseNotFoundException(command.bettingHouseId());
+	private void validateReferences(UUID bettingHouseId, UUID sportId, UUID leagueId, UUID marketId, UUID tipsterId,
+			UUID team1Id, UUID team2Id) {
+		if (!bettingHouseRepository.existsById(bettingHouseId)) {
+			throw new BettingHouseNotFoundException(bettingHouseId);
 		}
-		if (!sportRepository.existsById(command.sportId())) {
-			throw new SportNotFoundException(command.sportId());
+		if (!sportRepository.existsById(sportId)) {
+			throw new SportNotFoundException(sportId);
 		}
-		if (!leagueRepository.existsById(command.leagueId())) {
-			throw new LeagueNotFoundException(command.leagueId());
+		if (!leagueRepository.existsById(leagueId)) {
+			throw new LeagueNotFoundException(leagueId);
 		}
-		if (!marketRepository.existsById(command.marketId())) {
-			throw new MarketNotFoundException(command.marketId());
+		if (!marketRepository.existsById(marketId)) {
+			throw new MarketNotFoundException(marketId);
 		}
-		if (command.tipsterId() != null && !tipsterRepository.existsById(command.tipsterId())) {
-			throw new TipsterNotFoundException(command.tipsterId());
+		if (tipsterId != null && !tipsterRepository.existsById(tipsterId)) {
+			throw new TipsterNotFoundException(tipsterId);
 		}
-		if (command.team1Id() != null && !teamRepository.existsById(command.team1Id())) {
-			throw new TeamNotFoundException(command.team1Id());
+		if (team1Id != null && !teamRepository.existsById(team1Id)) {
+			throw new TeamNotFoundException(team1Id);
 		}
-		if (command.team2Id() != null && !teamRepository.existsById(command.team2Id())) {
-			throw new TeamNotFoundException(command.team2Id());
+		if (team2Id != null && !teamRepository.existsById(team2Id)) {
+			throw new TeamNotFoundException(team2Id);
 		}
 	}
 

@@ -29,7 +29,10 @@ import com.stakevault.betting.bets.domain.model.InvalidStatusTransitionException
 import com.stakevault.betting.bets.domain.model.League;
 import com.stakevault.betting.bets.domain.model.Market;
 import com.stakevault.betting.bets.domain.model.Sport;
+import com.stakevault.betting.bets.domain.model.BetConcurrentlyModifiedException;
+import com.stakevault.betting.bets.domain.port.in.BetDetails;
 import com.stakevault.betting.bets.domain.port.in.CreateBetCommand;
+import com.stakevault.betting.bets.domain.port.in.UpdateBetCommand;
 import com.stakevault.betting.bets.domain.port.out.BetEventPublisher;
 import com.stakevault.betting.bets.domain.port.out.BetRepository;
 import com.stakevault.betting.bets.domain.port.out.BetResultRepository;
@@ -75,6 +78,24 @@ class BetServiceTest {
 				Instant.now(), null);
 	}
 
+	private Bet settledBet(Bet source, BetStatus status) {
+		return new Bet(source.id(), source.bettingHouseId(), source.sportId(), source.leagueId(), source.marketId(),
+				null, source.createdByUserId(), null, null, null, null, null, null, source.stake(), source.odd(),
+				status, source.betDate(), null);
+	}
+
+	private UpdateBetCommand updateCommand(Bet bet, BigDecimal stake, BigDecimal odd, BetStatus status) {
+		return new UpdateBetCommand(new BetDetails(bet.bettingHouseId(), bet.sportId(), bet.leagueId(),
+				bet.marketId(), null, null, null, null, null, null, null, stake, odd, bet.betDate()), status);
+	}
+
+	private void stubReferencesExist() {
+		when(bettingHouseRepository.existsById(any())).thenReturn(true);
+		when(sportRepository.existsById(any())).thenReturn(true);
+		when(leagueRepository.existsById(any())).thenReturn(true);
+		when(marketRepository.existsById(any())).thenReturn(true);
+	}
+
 	private void stubDimensionNames(Bet bet) {
 		when(bettingHouseRepository.findById(bet.bettingHouseId()))
 				.thenReturn(Optional.of(new BettingHouse(bet.bettingHouseId(), "House", BigDecimal.ZERO, Instant.now())));
@@ -92,9 +113,11 @@ class BetServiceTest {
 				UUID.randomUUID(), null, UUID.randomUUID(), null, null, null, null, null, null, BigDecimal.TEN,
 				BigDecimal.valueOf(1.5), BetStatus.PENDING, Instant.now(), "dup-key");
 
-		CreateBetCommand command = new CreateBetCommand(UUID.randomUUID(), existing.bettingHouseId(),
-				existing.sportId(), existing.leagueId(), existing.marketId(), null, null, null, null, null, null,
-				null, BigDecimal.TEN, BigDecimal.valueOf(1.5), Instant.now(), "dup-key");
+		CreateBetCommand command = new CreateBetCommand(UUID.randomUUID(),
+				new BetDetails(existing.bettingHouseId(), existing.sportId(), existing.leagueId(),
+						existing.marketId(), null, null, null, null, null, null, null, BigDecimal.TEN,
+						BigDecimal.valueOf(1.5), Instant.now()),
+				"dup-key");
 
 		when(betRepository.findByIdempotencyKey("dup-key")).thenReturn(Optional.empty(), Optional.of(existing));
 		when(bettingHouseRepository.existsById(any())).thenReturn(true);
@@ -114,9 +137,11 @@ class BetServiceTest {
 	void shouldReturnExistingBetWithoutPublishingWhenIdempotencyKeyAlreadyExists() {
 		service = service();
 		Bet existing = pendingBet(BigDecimal.TEN, BigDecimal.valueOf(1.5));
-		CreateBetCommand command = new CreateBetCommand(UUID.randomUUID(), existing.bettingHouseId(),
-				existing.sportId(), existing.leagueId(), existing.marketId(), null, null, null, null, null, null,
-				null, BigDecimal.TEN, BigDecimal.valueOf(1.5), Instant.now(), "already-used-key");
+		CreateBetCommand command = new CreateBetCommand(UUID.randomUUID(),
+				new BetDetails(existing.bettingHouseId(), existing.sportId(), existing.leagueId(),
+						existing.marketId(), null, null, null, null, null, null, null, BigDecimal.TEN,
+						BigDecimal.valueOf(1.5), Instant.now()),
+				"already-used-key");
 		when(betRepository.findByIdempotencyKey("already-used-key")).thenReturn(Optional.of(existing));
 
 		var result = service.create(command);
@@ -132,9 +157,10 @@ class BetServiceTest {
 		UUID sportId = UUID.randomUUID();
 		UUID leagueId = UUID.randomUUID();
 		UUID marketId = UUID.randomUUID();
-		CreateBetCommand command = new CreateBetCommand(UUID.randomUUID(), bettingHouseId, sportId, leagueId,
-				marketId, null, null, null, null, null, null, null, BigDecimal.TEN, BigDecimal.valueOf(1.5),
-				Instant.now(), null);
+		CreateBetCommand command = new CreateBetCommand(UUID.randomUUID(),
+				new BetDetails(bettingHouseId, sportId, leagueId, marketId, null, null, null, null, null, null, null,
+						BigDecimal.TEN, BigDecimal.valueOf(1.5), Instant.now()),
+				null);
 		when(bettingHouseRepository.existsById(any())).thenReturn(true);
 		when(sportRepository.existsById(any())).thenReturn(true);
 		when(leagueRepository.existsById(any())).thenReturn(true);
@@ -250,5 +276,97 @@ class BetServiceTest {
 				.isInstanceOf(InvalidStatusTransitionException.class);
 
 		verify(betRepository, never()).transitionStatus(any(), any(), any());
+	}
+
+	@Test
+	void shouldUpdateFieldsAndRepublishCreatedWhenStayingPending() {
+		service = service();
+		Bet bet = pendingBet(BigDecimal.TEN, BigDecimal.valueOf(1.5));
+		UpdateBetCommand command = updateCommand(bet, BigDecimal.valueOf(20), BigDecimal.valueOf(2),
+				BetStatus.PENDING);
+		when(betRepository.findById(bet.id())).thenReturn(Optional.of(bet));
+		stubReferencesExist();
+		when(betRepository.updateFields(any(), eq(BetStatus.PENDING))).thenReturn(1);
+		stubDimensionNames(bet);
+
+		Bet result = service.update(bet.id(), command);
+
+		assertThat(result.stake()).isEqualByComparingTo("20");
+		assertThat(result.odd()).isEqualByComparingTo("2");
+		assertThat(result.status()).isEqualTo(BetStatus.PENDING);
+		verify(betEventPublisher).publishCreated(eq(result), any());
+		verify(betEventPublisher, never()).publishSettled(any(), any(), any());
+		verify(betResultRepository, never()).updateProfit(any(), any());
+	}
+
+	@Test
+	void shouldRejectUpdateFromPendingToSettledStatus() {
+		service = service();
+		Bet bet = pendingBet(BigDecimal.TEN, BigDecimal.valueOf(1.5));
+		UpdateBetCommand command = updateCommand(bet, bet.stake(), bet.odd(), BetStatus.WON);
+		UUID id = bet.id();
+		when(betRepository.findById(id)).thenReturn(Optional.of(bet));
+		stubReferencesExist();
+
+		assertThatThrownBy(() -> service.update(id, command)).isInstanceOf(InvalidStatusTransitionException.class);
+
+		verify(betRepository, never()).updateFields(any(), any());
+	}
+
+	@Test
+	void shouldRejectUpdateFromSettledToPendingStatus() {
+		service = service();
+		Bet bet = pendingBet(BigDecimal.TEN, BigDecimal.valueOf(1.5));
+		Bet settled = settledBet(bet, BetStatus.WON);
+		UpdateBetCommand command = updateCommand(settled, settled.stake(), settled.odd(), BetStatus.PENDING);
+		UUID id = settled.id();
+		when(betRepository.findById(id)).thenReturn(Optional.of(settled));
+		stubReferencesExist();
+
+		assertThatThrownBy(() -> service.update(id, command)).isInstanceOf(InvalidStatusTransitionException.class);
+
+		verify(betRepository, never()).updateFields(any(), any());
+	}
+
+	@Test
+	void shouldCorrectSettledBetProfitAndRepublishSettled() {
+		service = service();
+		Bet bet = pendingBet(BigDecimal.valueOf(100), BigDecimal.valueOf(2));
+		Bet settled = settledBet(bet, BetStatus.WON);
+		UUID settledByUserId = UUID.randomUUID();
+		Instant settledAt = Instant.now();
+		BetResult existingResult = new BetResult(UUID.randomUUID(), settled.id(), settledByUserId,
+				BigDecimal.valueOf(100), settledAt);
+		UpdateBetCommand command = updateCommand(settled, BigDecimal.valueOf(200), BigDecimal.valueOf(3),
+				BetStatus.WON);
+		when(betRepository.findById(settled.id())).thenReturn(Optional.of(settled));
+		stubReferencesExist();
+		when(betRepository.updateFields(any(), eq(BetStatus.WON))).thenReturn(1);
+		when(betResultRepository.findByBetId(settled.id())).thenReturn(Optional.of(existingResult));
+		stubDimensionNames(settled);
+
+		service.update(settled.id(), command);
+
+		verify(betResultRepository).updateProfit(settled.id(), BigDecimal.valueOf(400));
+		ArgumentCaptor<BetResult> captor = ArgumentCaptor.forClass(BetResult.class);
+		verify(betEventPublisher).publishSettled(any(), captor.capture(), any());
+		assertThat(captor.getValue().profit()).isEqualByComparingTo("400");
+		assertThat(captor.getValue().settledByUserId()).isEqualTo(settledByUserId);
+		assertThat(captor.getValue().settledAt()).isEqualTo(settledAt);
+	}
+
+	@Test
+	void shouldThrowConcurrentlyModifiedWhenUpdateFieldsLosesTheRace() {
+		service = service();
+		Bet bet = pendingBet(BigDecimal.TEN, BigDecimal.valueOf(1.5));
+		UpdateBetCommand command = updateCommand(bet, bet.stake(), bet.odd(), BetStatus.PENDING);
+		UUID id = bet.id();
+		when(betRepository.findById(id)).thenReturn(Optional.of(bet));
+		stubReferencesExist();
+		when(betRepository.updateFields(any(), eq(BetStatus.PENDING))).thenReturn(0);
+
+		assertThatThrownBy(() -> service.update(id, command)).isInstanceOf(BetConcurrentlyModifiedException.class);
+
+		verify(betEventPublisher, never()).publishCreated(any(), any());
 	}
 }

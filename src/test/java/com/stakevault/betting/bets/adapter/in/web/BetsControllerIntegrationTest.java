@@ -71,6 +71,12 @@ class BetsControllerIntegrationTest extends TenantSchemaIntegrationSupport {
 				+ odd + ",\"betDate\":\"" + betDate + "\"}";
 	}
 
+	private String bodyForUpdate(References refs, String odd, String stake, String status) {
+		return "{\"bettingHouseId\":\"" + refs.bettingHouseId() + "\",\"sportId\":\"" + refs.sportId()
+				+ "\",\"leagueId\":\"" + refs.leagueId() + "\",\"marketId\":\"" + refs.marketId() + "\",\"stake\":"
+				+ stake + ",\"odd\":" + odd + ",\"betDate\":\"2026-09-05T12:00:00Z\",\"status\":\"" + status + "\"}";
+	}
+
 	private HttpResponse<String> list(String query) throws Exception {
 		HttpRequest request = HttpRequest
 				.newBuilder(URI.create("http://localhost:" + port + "/api/v1/bets" + query))
@@ -120,9 +126,24 @@ class BetsControllerIntegrationTest extends TenantSchemaIntegrationSupport {
 	}
 
 	private String createBetId() throws Exception {
-		References refs = newReferences();
+		return createBetId(newReferences());
+	}
+
+	private String createBetId(References refs) throws Exception {
 		HttpResponse<String> response = post(bodyFor(refs, null, "1.5", "100"), UUID.randomUUID().toString(), null);
 		return extractId(response.body());
+	}
+
+	private HttpResponse<String> put(String id, String body, String callerId) throws Exception {
+		HttpRequest.Builder builder = HttpRequest
+				.newBuilder(URI.create("http://localhost:" + port + "/api/v1/bets/" + id))
+				.header("Content-Type", "application/json")
+				.header("X-Tenant-Id", tenantSlug)
+				.method("PUT", HttpRequest.BodyPublishers.ofString(body));
+		if (callerId != null) {
+			builder.header("X-User-Id", callerId);
+		}
+		return httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
 	}
 
 	@Test
@@ -472,5 +493,77 @@ class BetsControllerIntegrationTest extends TenantSchemaIntegrationSupport {
 		} finally {
 			jdbcTemplate.execute("DROP SCHEMA IF EXISTS \"tenant_" + otherSlug + "\" CASCADE");
 		}
+	}
+
+	@Test
+	void shouldUpdateFieldsOfAPendingBet() throws Exception {
+		References refs = newReferences();
+		String betId = createBetId(refs);
+
+		HttpResponse<String> response = put(betId, bodyForUpdate(refs, "2.0", "250", "pending"),
+				UUID.randomUUID().toString());
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body()).contains("\"stake\":250").contains("\"status\":\"pending\"");
+	}
+
+	@Test
+	void shouldRejectUpdateFromPendingToSettledStatus() throws Exception {
+		References refs = newReferences();
+		String betId = createBetId(refs);
+
+		HttpResponse<String> response = put(betId, bodyForUpdate(refs, "2.0", "250", "won"),
+				UUID.randomUUID().toString());
+
+		assertThat(response.statusCode()).isEqualTo(422);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/invalid-status-transition\"");
+	}
+
+	@Test
+	void shouldCorrectASettledBetKeepingItsStatus() throws Exception {
+		References refs = newReferences();
+		String betId = createBetId(refs);
+		patchStatus(betId, "won");
+
+		HttpResponse<String> response = put(betId, bodyForUpdate(refs, "3.0", "200", "won"),
+				UUID.randomUUID().toString());
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(response.body()).contains("\"stake\":200").contains("\"status\":\"won\"");
+	}
+
+	@Test
+	void shouldRejectUpdateFromSettledBackToPending() throws Exception {
+		References refs = newReferences();
+		String betId = createBetId(refs);
+		patchStatus(betId, "won");
+
+		HttpResponse<String> response = put(betId, bodyForUpdate(refs, "2.0", "250", "pending"),
+				UUID.randomUUID().toString());
+
+		assertThat(response.statusCode()).isEqualTo(422);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/invalid-status-transition\"");
+	}
+
+	@Test
+	void shouldReturn401WhenUpdatingWithoutCallerHeader() throws Exception {
+		References refs = newReferences();
+		String betId = createBetId(refs);
+
+		HttpResponse<String> response = put(betId, bodyForUpdate(refs, "2.0", "250", "pending"), null);
+
+		assertThat(response.statusCode()).isEqualTo(401);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/missing-caller-context\"");
+	}
+
+	@Test
+	void shouldReturn404WhenUpdatingUnknownBet() throws Exception {
+		References refs = newReferences();
+
+		HttpResponse<String> response = put(UUID.randomUUID().toString(), bodyForUpdate(refs, "2.0", "250", "pending"),
+				UUID.randomUUID().toString());
+
+		assertThat(response.statusCode()).isEqualTo(404);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/bet-not-found\"");
 	}
 }

@@ -15,5 +15,7 @@ public interface BetUseCase {
 
 	Bet updateStatus(UUID id, BetStatus newStatus, UUID settledByUserId);
 
+	Bet update(UUID id, UpdateBetCommand command);
+
 	PagedResult<Bet> list(BetFilter filter, int page, int size);
 }

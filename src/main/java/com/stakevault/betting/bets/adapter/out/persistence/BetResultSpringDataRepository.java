@@ -8,12 +8,17 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 interface BetResultSpringDataRepository extends JpaRepository<BetResultJpaEntity, UUID> {
 
 	Optional<BetResultJpaEntity> findByBetId(UUID betId);
+
+	@Modifying
+	@Query("UPDATE BetResultJpaEntity r SET r.profit = :profit WHERE r.betId = :betId")
+	int updateProfit(@Param("betId") UUID betId, @Param("profit") BigDecimal profit);
 
 	// bet_result has no betting_house_id column - implicit join to BetJpaEntity by id, same
 	// style as TransactionSpringDataRepository.sumNetAmountByBettingHouseIds.

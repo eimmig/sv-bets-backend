@@ -43,6 +43,11 @@ public class JpaBetRepository implements BetRepository {
 	}
 
 	@Override
+	public int updateFields(Bet updated, BetStatus expectedStatus) {
+		return jpaRepository.updateFields(updated, expectedStatus);
+	}
+
+	@Override
 	public PagedResult<Bet> findFiltered(BetFilter filter, int page, int size) {
 		Page<BetJpaEntity> result = jpaRepository.findFiltered(filter, PageRequest.of(page, size));
 		return new PagedResult<>(result.getContent().stream().map(JpaBetRepository::toDomain).toList(),

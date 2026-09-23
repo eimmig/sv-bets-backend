@@ -7,6 +7,8 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 
 ## [Unreleased]
 
+- `feat-019` - PUT /api/v1/bets/{id}: edição de aposta pending ou já liquidada, com guarda
+  atômica contra corrida concorrente com `PATCH /status` (sem story própria - fluxo direto).
 - Registro do primeiro disparo real do job `deploy` (`epic-028`) contra produção: falhou por
   `KUBE_CONFIG` inatingível, achado documentado em `progress.md` (sem story própria - manutenção).
 - Remoção de blocos de comentário narrativos (histórico de bug/feat-ID) do código Java —
@@ -94,3 +96,9 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 - [SV-423](https://stakevault.atlassian.net/browse/SV-423) - CD: job de deploy automatico (kubectl rollout restart) no ci.yml
 - [SV-424](https://stakevault.atlassian.net/browse/SV-424) - Job deploy no ci.yml + push real em main
 - [SV-425](https://stakevault.atlassian.net/browse/SV-425) - CHANGELOG e verificacao final
+- [SV-552](https://stakevault.atlassian.net/browse/SV-552) - Reformulacao de marca: StakeVault -> Arka (pom.xml description)
+- [SV-553](https://stakevault.atlassian.net/browse/SV-553) - pom.xml: description 'StakeVault' -> 'Arka'
+- [SV-554](https://stakevault.atlassian.net/browse/SV-554) - CHANGELOG, verificacao final e revisao do vault
+- [SV-564](https://stakevault.atlassian.net/browse/SV-564) - CI: gerar versao (semver + tag + Release + bump de pom.xml + corte de CHANGELOG) ao merge em main
+- [SV-565](https://stakevault.atlassian.net/browse/SV-565) - Job 'release' no ci.yml + .github/scripts/cut-changelog.py
+- [SV-566](https://stakevault.atlassian.net/browse/SV-566) - CHANGELOG e verificacao final

@@ -20,5 +20,7 @@ public interface BetRepository {
 	// writing anything if the current status no longer matches "from" (lost a concurrent race).
 	boolean transitionStatus(UUID id, BetStatus from, BetStatus to);
 
+	int updateFields(Bet updated, BetStatus expectedStatus);
+
 	PagedResult<Bet> findFiltered(BetFilter filter, int page, int size);
 }

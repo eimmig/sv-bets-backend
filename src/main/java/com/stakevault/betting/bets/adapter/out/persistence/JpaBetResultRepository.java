@@ -28,6 +28,11 @@ public class JpaBetResultRepository implements BetResultRepository {
 	}
 
 	@Override
+	public void updateProfit(UUID betId, BigDecimal profit) {
+		jpaRepository.updateProfit(betId, profit);
+	}
+
+	@Override
 	public Optional<BetResult> findByBetId(UUID betId) {
 		return jpaRepository.findByBetId(betId).map(JpaBetResultRepository::toDomain);
 	}

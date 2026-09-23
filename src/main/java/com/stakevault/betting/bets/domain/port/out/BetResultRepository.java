@@ -13,6 +13,8 @@ public interface BetResultRepository {
 
 	BetResult save(BetResult betResult);
 
+	void updateProfit(UUID betId, BigDecimal profit);
+
 	Optional<BetResult> findByBetId(UUID betId);
 
 	// One query for the whole page, not one per betting house.

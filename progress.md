@@ -507,3 +507,48 @@ catálogo `TEAM`) criada no backlog deste serviço, `not-started`, sem `plan_rev
 
 Story SV-407, subtasks SV-408..411, PR #63 (subtask→feature, fast-forward, CI verde) + PR de
 `feature/SV-407`→`develop` (a fechar). `./init.sh` do serviço e da raiz verdes.
+
+## `feat-019` — Editar aposta já registrada (2026-09-22)
+
+`PUT /api/v1/bets/{id}` implementado, fechando o gap de correção manual (captura via Telegram
+sem forma de corrigir erro de extração, só apagar). Decisões do usuário via `AskUserQuestion`:
+edição permitida em `pending` e já liquidada; stats-service reprocessa `FACT_BET` via evento
+republicado. Plan Reviewer (`REVISE`, 2 BLOCKER corrigidos antes de codificar — ver
+`plan_review` de `feat-019` em `feature_list.json` para o detalhe completo): (1) `betRepository`/
+`betResultRepository` `.save()` não atualiza uma linha já existente (gotcha `Persistable`/`isNew`
+já documentado em `docs/convencoes.md`) — corrigido com `@Modifying @Query` atômico (mesmo padrão
+de `transitionStatus`) tanto pro `Bet` quanto pro `BET_RESULT`; (2) corrida real entre `PUT` e
+`PATCH /status` concorrentes no mesmo `betId` podia gravar `profit` inconsistente com stake/odd —
+corrigido com `UPDATE` condicionado a `status` esperado, `0` linhas = `409
+bet-modified-concurrently` (exceção nova).
+
+Achado real corrigido no caminho, não introduzido por esta feature: `TeamNotFoundException`
+nunca estava registrada em `DomainExceptionHandler` — `team1Id`/`team2Id` inválido em `POST
+/api/v1/bets` (não só no `PUT` novo) respondia `500` em vez de `404`.
+
+Companion cross-service em `stats-service feat-020` (mesma feature, contrato de evento):
+`ProcessBetEventService.processCreated` passou a aceitar reprocessar `FACT_BET` quando a linha
+existente ainda está `pending` (antes ignorava silenciosamente qualquer `BetCreated`
+republicado). Ver `docs/services/bets-service.md` seção "Edição de aposta já registrada" para o
+desenho completo.
+
+Testes: 5 casos novos em `BetServiceTest`, 6 em `BetsControllerIntegrationTest`. `./init.sh`
+verde (179/179 testes). Sem story/branch/PR formal nesta sessão (fluxo direto de pareamento,
+commit único cobrindo bets-service + stats-service + apps/web) — `tools/jira_story.py` fica
+pendente pra quando/se o usuário quiser rastreabilidade retroativa no Jira.
+
+## `feat-020` fechada — reformulação de marca StakeVault -> Arka (2026-09-23)
+
+Continuação do `epic-032` da raiz - 2º dos 4 serviços Java (depois de `auth-service feat-019`,
+mesmo plano base reaproveitado). Único ponto real de marca: `pom.xml` linha 15 (`<description>`)
+- GroupId `com.stakevault.betting` e `.env` (`RABBITMQ_USER=stakevault`, untracked) são
+identificadores técnicos fora de escopo. Plan Reviewer condensado (READY, ver
+`services/auth-service/feature_list.json` feat-019). Delivery Reviewer: PASS. 2 subtasks
+(SV-553/554, story SV-552), PRs #72/#73/#74, CI+SonarCloud verdes.
+
+Achado de processo corrigido antes de abrir o PR: `develop` deste repositório tinha 1 commit local
+nunca publicado (`feat-019`, `PUT /api/v1/bets/{id}`, fechado numa sessão anterior sem PR formal)
+- sincronizado (push direto, fast-forward) antes de ramificar, pra não vazar aquele commit alheio
+no diff desta feature. Mesmo residual de ambiente (processos `java.exe` órfãos travando o
+`repackage` local) já documentado em `services/auth-service/progress.md` - `mvn test` local verde,
+`mvn verify` completo confirmado pelo CI (Linux).

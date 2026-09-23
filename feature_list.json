@@ -1486,6 +1486,97 @@
         }
       ],
       "evidence": "Fechada em 2026-09-15 (story SV-423, subtasks SV-424/SV-425, PRs #67/#68/#69, CI+SonarCloud verdes, merge feature/SV-423 -> develop concluido). Job deploy novo em ci.yml (needs: build-and-push-image, if push em main, permissions: {} explicito) roda kubectl rollout restart deployment/bets-service contra o secret KUBE_CONFIG (ci-deployer ServiceAccount, infra/feat-007, ja confirmado presente neste repositorio via gh secret list). Plan Reviewer (READY WITH CONCERNS) corrigiu 2 MINOR antes de codificar: removida a action de terceiro azure/setup-kubectl (kubectl 1.37.0 ja vem preinstalado no runner ubuntu-latest, confirmado contra actions/runner-images) e adicionado permissions: {} explicito (job nao usa GITHUB_TOKEN, repositorio tem default_workflow_permissions=write que seria herdado sem essa linha). Delivery Reviewer: PASS (sem achados). Test Suite Auditor: PASS/N/A (mudanca isolada a workflow de CI, sem superficie de teste de aplicacao - kubectl rollout restart nao tem oraculo unitario/integracao significativo, a unica prova credivel e a execucao real em CI). Persistence Auditor: N/A (nenhuma superficie de persistencia tocada). ./init.sh verde. Guard se comportou como esperado: job deploy/build-and-push-image corretamente 'skipping' nos eventos de PR (runs 35007759577, 35008325709, 35008820978), provando a condicao if sem tocar o cluster real. **Disparo real do job adiado deliberadamente**: main deste repositorio esta 35 commits atras de develop (inclui feat-016/feat-017, ja done mas nao promovidos) - feat-017 introduziu quebra conhecida e ja documentada do contrato REST sincrono de POST /api/v1/bets pra quem ainda envia team1/team2 como texto livre (apps/web so corrige em feat-021, ainda not-started). Promover develop->main agora forcaria essa quebra em producao so pra provar o job deploy nesta sessao - decisao correta e evitar (nao e responsabilidade desta feature desbloquear a promocao, e o Delivery Reviewer classificou a falta de disparo real como risco residual aceitavel, nao bloqueante). O job vai disparar de verdade e ficar provado no proximo develop->main legitimo deste repositorio (quando apps/web feat-021 destravar essa promocao) - registrar a confirmacao real (log do Actions com o rollout de verdade) em docs/services/infra.md nessa ocasiao. Fecha a parte de bets-service do epic-028 da raiz (5 dos 6 repositorios de aplicacao ainda pendentes: auth-service feat-016, stats-service feat-019, api-gateway feat-014, telegram-integration feat-010, web feat-030)."
+    },
+    {
+      "id": "feat-019",
+      "name": "Editar aposta ja registrada",
+      "description": "Endpoint PUT /api/v1/bets/{id} (via api-gateway) permitindo corrigir campos de uma aposta ja registrada (odd/stake/betDate/bettingHouseId/sportId/leagueId/marketId/status), sem precisar excluir e recriar. Levantado durante teste manual de telegram-integration (feat-009 daquele repositorio) - captura via bot as vezes erra campo extraido (OCR/heuristica sem garantia, ver docs/services/telegram-integration.md) e hoje nao ha forma de corrigir, so apagar. Precisa decisao de plano antes de codificar (Plan Reviewer): (1) editar aposta ja liquidada exige reverter e reaplicar RN01/RN02/RN03 no saldo consolidado da casa, nao so sobrescrever a linha; (2) mudanca de status/resultado apos liquidacao provavelmente precisa republicar BetSettled (contrato compartilhado com stats-service, ver docs/API-CONTRACTS.md) para stats-service reprocessar FACT_BET - nao so mutar o registro local; (3) decidir se edicao e permitida em aposta ja liquidada ou so em pending (mais simples, mas nao cobre o caso real que motivou o pedido - captura via Telegram normalmente ja nasce pending). Nao expandir escopo para o formulario web ainda: e feature deste servico (bets-service), consumida por apps/web depois como feature propria la.",
+      "dependencies": [],
+      "status": "done",
+      "plan_review": "2026-09-22, Plan Reviewer (review-suite:ln-11-plan-reviewer). Decisoes de escopo fechadas com o usuario antes da revisao: editar aposta pending E liquidada (nao so pending); stats-service republica evento pro reprocessamento de FACT_BET. Veredito: REVISE, 2 BLOCKER corrigidos no plano antes de codificar: (1) o plano original chamava betRepository.save()/BetResultJpaEntity save por id ja existente pra 'atualizar' - AbstractJpaEntity (Persistable, isNew=true numa instancia recem-construida) faz isso tentar INSERT com PK ja existente e falhar por constraint violation, gotcha ja documentado em docs/convencoes.md ('Atualizar uma linha ja persistida'); corrigido usando @Modifying @Query atomico (mesmo padrao de transitionStatus) tanto pro Bet quanto pro BET_RESULT, evitando o mecanismo save() de vez. (2) corrida real entre PUT (sem guarda) e PATCH /status (guarda atomica): PUT podia ler status=PENDING, PATCH liquidar concorrentemente com o stake/odd antigo, e PUT gravar por cima stake/odd novos sem nunca ver a liquidacao - profit ficaria inconsistente com stake*odd (RN02/RN03); corrigido com UPDATE atomico condicionado a WHERE id=:id AND status=:expectedStatus (mesmo status lido no inicio da requisicao), 0 linhas afetadas = 409 bet-modified-concurrently (exececao nova). Nenhuma mudanca de schema de evento necessaria (JpaFactBetRepository.save() do stats-service ja fazia findById+applyFrom+save corretamente, mesmo padrao documentado).",
+      "jira": "",
+      "subtasks": [
+        {
+          "id": "feat-019.1",
+          "name": "PUT /api/v1/bets/{id} (bets-service) - edicao de aposta pending/liquidada com guarda atomica",
+          "status": "done",
+          "jira": ""
+        },
+        {
+          "id": "feat-019.2",
+          "name": "stats-service - processCreated aceita reprocessar FACT_BET pending (companion fix, mesma feature)",
+          "status": "done",
+          "jira": ""
+        }
+      ],
+      "evidence": "PUT /api/v1/bets/{id} implementado: UpdateBetRequest/UpdateBetCommand espelham CreateBetRequest + status. BetService.update() - valida referencias/regras de negocio (validateReferences refatorado pra aceitar os campos direto, reusado por create() e update()); transicao via PUT restrita a pending->pending ou liquidada->liquidada (qualquer cruzamento pending<->liquidada e 422 invalid-status-transition, PATCH /status continua exclusivo pra liquidar); BetRepository.updateFields(Bet, BetStatus expectedStatus) - UPDATE atomico condicional (SpEL #updated.campo(), mesmo padrao de findFiltered) retornando linhas afetadas, 0 = 409 bet-modified-concurrently (BetConcurrentlyModifiedException nova, i18n nos 3 locales); correcao pos-liquidacao recalcula profit (reusa computeProfit) e atualiza BET_RESULT via BetResultRepository.updateProfit (@Modifying @Query, preserva settledByUserId/settledAt originais). Republica BetCreated (pending) ou BetSettled (liquidada) reaproveitando os metodos ja existentes do publisher - sem mudanca de payload. Achado real corrigido no caminho: TeamNotFoundException nunca estava registrada em DomainExceptionHandler (500 em vez de 404 pra team1Id/team2Id invalido em POST tambem, nao so no PUT novo) - adicionada. Companion em stats-service feat-020 (mesma feature, contrato de evento - excecao documentada em CLAUDE.md raiz pra tocar 2 servicos): ProcessBetEventService.processCreated aceita reprocessar FACT_BET quando a linha existente ainda esta PENDING (antes so inseria se a linha nao existisse, ignorando silenciosamente qualquer BetCreated republicado); protecao original contra sobrescrever liquidacao por mensagem fora de ordem mantida. Testes: BetServiceTest (5 casos novos - pending->pending atualiza e republica BetCreated, pending->liquidada e liquidada->pending rejeitados, correcao liquidada->liquidada recalcula profit e preserva settledByUserId/settledAt, 0 linhas afetadas lanca BetConcurrentlyModifiedException) + BetsControllerIntegrationTest (6 casos novos, HTTP end-to-end) + ProcessBetEventServiceTest (1 caso novo). ./init.sh de ambos os servicos verde: bets-service 179/179 testes, stats-service 157/157 testes. Sem story/branch/PR formal nesta sessao (fluxo rapido de pareamento, decisao do usuario de so pedir commit direto) - fica pendente rodar tools/jira_story.py numa sessao futura se o usuario quiser rastreabilidade retroativa."
+    },
+    {
+      "id": "feat-020",
+      "name": "Reformulacao de marca: StakeVault -> Arka (pom.xml description)",
+      "description": "Continuacao do epic-032 da raiz (rebranding StakeVault -> Arka) neste harness - 2o dos 4 servicos Java (depois de auth-service feat-019, mesmo plano base reaproveitado - ver services/auth-service/feature_list.json para o levantamento completo). grep -ril 'stakevault' confirma a mesma estrutura: arvore src/main/java|test/java/com/stakevault/betting/** e o GroupId Maven (identificador tecnico ja deferido em docs/DECISIONS-LOG.md raiz 2026-09-23), .env untracked (RABBITMQ_USER=stakevault, mesma classe), CHANGELOG.md/feature_list.json so com links Jira reais/evidence historica. Escopo real: pom.xml linha 15, '<description>Casas de apostas, apostas, bankroll e eventos (StakeVault)</description>' - unico ponto de prosa/metadado com marca, confirmado (grep dedicado, ja feito no plan review de auth-service feat-019 cobrindo os 4 servicos Java de uma vez) que nao existe spring.application.name/info.app/springdoc/swagger expondo a marca a um operador real.",
+      "dependencies": [],
+      "status": "done",
+      "plan_review": "2026-09-23, Plan Reviewer (review-suite:ln-11-plan-reviewer) rodado uma vez cobrindo os 4 servicos Java, ver services/auth-service/feature_list.json feat-019 pro plan review completo (READY, sem achado) - reaproveitado aqui sem nova rodada, mesma estrutura de repositorio/pom.xml/GroupId confirmada identica.",
+      "jira": "SV-552",
+      "subtasks": [
+        {
+          "id": "feat-020.1",
+          "name": "pom.xml: description 'StakeVault' -> 'Arka'",
+          "status": "done",
+          "jira": "SV-553"
+        },
+        {
+          "id": "feat-020.2",
+          "name": "CHANGELOG, verificacao final e revisao do vault",
+          "status": "done",
+          "jira": "SV-554",
+          "detail": "Fecha a parte de bets-service do epic-032 da raiz.",
+          "checklist": [
+            "Entrada em CHANGELOG.md (Unreleased)",
+            "./init.sh do servico e da raiz verdes",
+            "Delivery Reviewer rodado sobre o diff real desta feature",
+            "Vault (docs/) revisado: alguma descoberta desta feature - mecanismo reaproveitavel, gotcha de lib/config, lacuna de especificacao, decisao que diverge do ja documentado - sem nota correspondente? Se sim, atualizar/criar a nota do assunto (nao docs/DECISIONS-LOG.md a menos que divirja do TCC 1) no mesmo commit"
+          ],
+          "validation": "init.sh verde, Delivery Reviewer sem achado real pendente, evidence preenchida.",
+          "owner": "agente"
+        }
+      ],
+      "evidence": "2 subtasks (SV-553/554, story SV-552) done, PR #72 (SV-553) subtask->story com CI verde. Rename StakeVault->Arka em pom.xml linha 15 ('<description>') - unico ponto de prosa/metadado com marca fora do GroupId Maven com.stakevault.betting (identificador tecnico deferido, docs/DECISIONS-LOG.md raiz 2026-09-23). Plan Reviewer (passe proprio, cobrindo os 4 servicos Java de uma vez, ver services/auth-service/feature_list.json feat-019): READY, sem achado. Delivery Reviewer (passe proprio sobre o diff completo, 3 arquivos, 37 linhas): PASS, sem achado. Achado de processo corrigido antes de abrir o PR: develop deste repositorio tinha 1 commit local nunca publicado (feat-019, PUT /api/v1/bets/{id}, fechado numa sessao anterior sem PR formal) - sincronizado (push direto, fast-forward) antes de ramificar, pra nao vazar aquele commit alheio no diff desta feature. Mesmo residuo local do Windows ja registrado em auth-service feat-019.2: 8 processos java.exe orfaos de outro teste do usuario mantinham os jars antigos de target/ abertos, impedindo o repackage do mvn verify localmente - usuario autorizou pular o build local em vez de derrubar os processos. Verificacao alternativa: 'mvn -q -DskipTests=false test' (EXIT=0, todos os testes passando). Gap fechado pelo gate real: o PR story->develop (CI no GitHub Actions, ambiente Linux sem o lock do Windows) roda 'mvn verify' completo incluindo repackage. Fecha a parte de bets-service do epic-032 da raiz."
+    },
+    {
+      "id": "feat-021",
+      "name": "CI: gerar versao (semver + tag + Release + bump de pom.xml + corte de CHANGELOG) ao merge em main",
+      "description": "2o harness do epic-033 da raiz - mesmo mecanismo ja validado e implementado em auth-service feat-020 (ver aquele feature_list.json pro plan review completo, 2 subagentes independentes, pesquisa real). Job novo 'release' no ci.yml, identico ao de auth-service (so troca o nome do repositorio): ietf-tools/semver-action calcula a proxima versao a partir de Conventional Commits, versions-maven-plugin bump o pom.xml, .github/scripts/cut-changelog.py corta o CHANGELOG.md, commit+push de volta pra main via RELEASE_TOKEN (PAT do dono, ja distribuido nos 7 repositorios), ncipollo/release-action cria tag+Release apontando pro commit certo (nao pro commit que disparou o job).",
+      "dependencies": [],
+      "status": "in-progress",
+      "plan_review": "2026-09-23, Plan Reviewer (review-suite:ln-11-plan-reviewer) rodado uma vez em auth-service feat-020 (REVISE, 2 achados corrigidos: commit: explicito no release-action, persist-credentials:false) - reaproveitado aqui sem nova rodada, mesma estrutura de repositorio/pom.xml confirmada identica aos outros 3 servicos Java.",
+      "jira": "SV-564",
+      "subtasks": [
+        {
+          "id": "feat-021.1",
+          "name": "Job 'release' no ci.yml + .github/scripts/cut-changelog.py",
+          "status": "done",
+          "jira": "SV-565"
+        },
+        {
+          "id": "feat-021.2",
+          "name": "CHANGELOG e verificacao final",
+          "status": "not-started",
+          "jira": "SV-566",
+          "detail": "Fecha a parte de bets-service do epic-033 da raiz.",
+          "checklist": [
+            "Entrada em CHANGELOG.md (Unreleased)",
+            "./init.sh do servico e da raiz verdes",
+            "Delivery Reviewer rodado sobre o diff real desta feature",
+            "Verificacao real: push de teste em main confirma job 'release' rodando (tag/Release criados, pom.xml/CHANGELOG.md bumped corretamente, sem loop de CI)",
+            "Vault (docs/) revisado: alguma descoberta desta feature - mecanismo reaproveitavel, gotcha de lib/config, lacuna de especificacao, decisao que diverge do ja documentado - sem nota correspondente? Se sim, atualizar/criar a nota do assunto (nao docs/DECISIONS-LOG.md a menos que divirja do TCC 1) no mesmo commit"
+          ],
+          "validation": "Push real em main confirmado no GitHub Actions (job release verde, tag/Release visiveis no repositorio), init.sh verde, Delivery Reviewer sem achado real pendente, evidence preenchida.",
+          "owner": "agente"
+        }
+      ],
+      "evidence": ""
     }
   ]
 }
