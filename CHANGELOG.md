@@ -7,6 +7,8 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-23
+
 - `feat-019` - PUT /api/v1/bets/{id}: edição de aposta pending ou já liquidada, com guarda
   atômica contra corrida concorrente com `PATCH /status` (sem story própria - fluxo direto).
 - Registro do primeiro disparo real do job `deploy` (`epic-028`) contra produção: falhou por
