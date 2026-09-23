@@ -12,7 +12,7 @@
 	<artifactId>bets-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>bets-service</name>
-	<description>Casas de apostas, apostas, bankroll e eventos (StakeVault)</description>
+	<description>Casas de apostas, apostas, bankroll e eventos (Arka)</description>
 	<properties>
 		<java.version>25</java.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
