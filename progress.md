@@ -536,3 +536,19 @@ Testes: 5 casos novos em `BetServiceTest`, 6 em `BetsControllerIntegrationTest`.
 verde (179/179 testes). Sem story/branch/PR formal nesta sessão (fluxo direto de pareamento,
 commit único cobrindo bets-service + stats-service + apps/web) — `tools/jira_story.py` fica
 pendente pra quando/se o usuário quiser rastreabilidade retroativa no Jira.
+
+## `feat-020` fechada — reformulação de marca StakeVault -> Arka (2026-09-23)
+
+Continuação do `epic-032` da raiz - 2º dos 4 serviços Java (depois de `auth-service feat-019`,
+mesmo plano base reaproveitado). Único ponto real de marca: `pom.xml` linha 15 (`<description>`)
+- GroupId `com.stakevault.betting` e `.env` (`RABBITMQ_USER=stakevault`, untracked) são
+identificadores técnicos fora de escopo. Plan Reviewer condensado (READY, ver
+`services/auth-service/feature_list.json` feat-019). Delivery Reviewer: PASS. 2 subtasks
+(SV-553/554, story SV-552), PRs #72/#73/#74, CI+SonarCloud verdes.
+
+Achado de processo corrigido antes de abrir o PR: `develop` deste repositório tinha 1 commit local
+nunca publicado (`feat-019`, `PUT /api/v1/bets/{id}`, fechado numa sessão anterior sem PR formal)
+- sincronizado (push direto, fast-forward) antes de ramificar, pra não vazar aquele commit alheio
+no diff desta feature. Mesmo residual de ambiente (processos `java.exe` órfãos travando o
+`repackage` local) já documentado em `services/auth-service/progress.md` - `mvn test` local verde,
+`mvn verify` completo confirmado pelo CI (Linux).
