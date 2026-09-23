@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.stakevault.betting.bets.domain.model.Bet;
 import com.stakevault.betting.bets.domain.model.BetFilter;
 import com.stakevault.betting.bets.domain.model.BetStatus;
 
@@ -20,6 +21,26 @@ interface BetSpringDataRepository extends JpaRepository<BetJpaEntity, UUID> {
 	@Modifying
 	@Query("UPDATE BetJpaEntity b SET b.status = :to WHERE b.id = :id AND b.status = :from")
 	int transitionStatus(@Param("id") UUID id, @Param("from") BetStatus from, @Param("to") BetStatus to);
+
+	@Modifying
+	@Query("UPDATE BetJpaEntity b SET "
+			+ "b.bettingHouseId = :#{#updated.bettingHouseId()}, "
+			+ "b.sportId = :#{#updated.sportId()}, "
+			+ "b.leagueId = :#{#updated.leagueId()}, "
+			+ "b.marketId = :#{#updated.marketId()}, "
+			+ "b.tipsterId = :#{#updated.tipsterId()}, "
+			+ "b.ticketNumber = :#{#updated.ticketNumber()}, "
+			+ "b.team1Id = :#{#updated.team1Id()}, "
+			+ "b.team2Id = :#{#updated.team2Id()}, "
+			+ "b.description = :#{#updated.description()}, "
+			+ "b.betType = :#{#updated.betType()}, "
+			+ "b.playType = :#{#updated.playType()}, "
+			+ "b.stake = :#{#updated.stake()}, "
+			+ "b.odd = :#{#updated.odd()}, "
+			+ "b.betDate = :#{#updated.betDate()}, "
+			+ "b.status = :#{#updated.status()} "
+			+ "WHERE b.id = :#{#updated.id()} AND b.status = :expectedStatus")
+	int updateFields(@Param("updated") Bet updated, @Param("expectedStatus") BetStatus expectedStatus);
 
 	// Filtros recebidos como um unico objeto (BetFilter, via SpEL #filter.campo()) para nao
 	// estourar o limite de parametros do java:S107.

@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,6 +21,7 @@ import com.stakevault.betting.bets.domain.model.MissingCallerContextException;
 import com.stakevault.betting.bets.domain.port.in.BetCreationResult;
 import com.stakevault.betting.bets.domain.port.in.BetUseCase;
 import com.stakevault.betting.bets.domain.port.in.CreateBetCommand;
+import com.stakevault.betting.bets.domain.port.in.UpdateBetCommand;
 
 import jakarta.validation.Valid;
 
@@ -82,6 +84,18 @@ public class BetsController {
 			@Valid @RequestBody UpdateBetStatusRequest request) {
 		UUID callerId = parseCallerId(callerIdHeader);
 		return BetResponse.from(bets.updateStatus(id, request.status(), callerId));
+	}
+
+	@PutMapping("/{id}")
+	public BetResponse update(@PathVariable UUID id,
+			@RequestHeader(value = CALLER_HEADER, required = false) String callerIdHeader,
+			@Valid @RequestBody UpdateBetRequest request) {
+		parseCallerId(callerIdHeader);
+		UpdateBetCommand command = new UpdateBetCommand(request.bettingHouseId(), request.sportId(),
+				request.leagueId(), request.marketId(), request.tipsterId(), request.ticketNumber(),
+				request.team1Id(), request.team2Id(), request.description(), request.betType(), request.playType(),
+				request.stake(), request.odd(), request.betDate(), request.status());
+		return BetResponse.from(bets.update(id, command));
 	}
 
 	private UUID parseCallerId(String callerIdHeader) {

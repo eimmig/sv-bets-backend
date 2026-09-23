@@ -3,14 +3,15 @@
 > Estado atual, não histórico. O diário cronológico é o `progress.md` — este arquivo é reescrito
 > a cada sessão para responder "o que a próxima sessão precisa saber agora".
 
-**Última atualização:** 2026-09-15
+**Última atualização:** 2026-09-22
 
 ## Objetivo atual
 
-`feat-001`..`feat-018` `done`. Backlog deste serviço esgotado — nenhuma feature `not-started`
-elegível agora. `main` já promovido (PR #70) — `develop -> main` aconteceu de propósito para
-provar o job `deploy` de `feat-018`, e a prova revelou um problema real de infraestrutura (ver
-abaixo), não um bug de código.
+`feat-001`..`feat-019` `done`. Backlog deste serviço esgotado — nenhuma feature `not-started`
+elegível agora. `feat-019` (`PUT /api/v1/bets/{id}`, edição de aposta já registrada) fechada
+nesta sessão, ver `progress.md`. `main` já promovido (PR #70) — `develop -> main` aconteceu de
+propósito para provar o job `deploy` de `feat-018`, e a prova revelou um problema real de
+infraestrutura (ver abaixo), não um bug de código.
 
 ## Concluído nesta sessão (2026-09-15)
 

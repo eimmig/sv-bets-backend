@@ -7,6 +7,8 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 
 ## [Unreleased]
 
+- `feat-019` - PUT /api/v1/bets/{id}: edição de aposta pending ou já liquidada, com guarda
+  atômica contra corrida concorrente com `PATCH /status` (sem story própria - fluxo direto).
 - Registro do primeiro disparo real do job `deploy` (`epic-028`) contra produção: falhou por
   `KUBE_CONFIG` inatingível, achado documentado em `progress.md` (sem story própria - manutenção).
 - Remoção de blocos de comentário narrativos (histórico de bug/feat-ID) do código Java —

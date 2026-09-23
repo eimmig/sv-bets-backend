@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.stakevault.betting.bets.domain.model.AdminRoleRequiredException;
+import com.stakevault.betting.bets.domain.model.BetConcurrentlyModifiedException;
 import com.stakevault.betting.bets.domain.model.BetNotFoundException;
 import com.stakevault.betting.bets.domain.model.BettingHouseAlreadyRegisteredException;
 import com.stakevault.betting.bets.domain.model.BettingHouseNotFoundException;
@@ -27,6 +28,7 @@ import com.stakevault.betting.bets.domain.model.LocalizedDomainException;
 import com.stakevault.betting.bets.domain.model.MarketNotFoundException;
 import com.stakevault.betting.bets.domain.model.MissingCallerContextException;
 import com.stakevault.betting.bets.domain.model.SportNotFoundException;
+import com.stakevault.betting.bets.domain.model.TeamNotFoundException;
 import com.stakevault.betting.bets.domain.model.TenantAlreadyProvisionedException;
 import com.stakevault.betting.bets.domain.model.TipsterNotFoundException;
 
@@ -46,7 +48,8 @@ public class DomainExceptionHandler {
 			BettingHouseNotFoundException.class, InvalidOddException.class, InvalidStakeException.class,
 			LeagueNotFoundException.class, MarketNotFoundException.class, MissingCallerContextException.class,
 			SportNotFoundException.class, TipsterNotFoundException.class, BetNotFoundException.class,
-			InvalidStatusTransitionException.class, AdminRoleRequiredException.class })
+			InvalidStatusTransitionException.class, AdminRoleRequiredException.class,
+			BetConcurrentlyModifiedException.class, TeamNotFoundException.class })
 	public ProblemDetail handle(LocalizedDomainException exception, Locale locale, HttpServletRequest request) {
 		ProblemDetail problem = ProblemDetail.forStatusAndDetail(
 				HttpStatus.valueOf(exception.httpStatusCode()),
