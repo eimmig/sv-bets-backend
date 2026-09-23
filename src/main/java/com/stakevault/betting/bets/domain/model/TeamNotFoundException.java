@@ -2,13 +2,10 @@ package com.stakevault.betting.bets.domain.model;
 
 import java.util.UUID;
 
-public class TeamNotFoundException extends RuntimeException implements LocalizedDomainException {
-
-	private final UUID teamId;
+public class TeamNotFoundException extends LocalizedRuntimeException {
 
 	public TeamNotFoundException(UUID teamId) {
-		super("team not found: " + teamId);
-		this.teamId = teamId;
+		super("team not found: " + teamId, teamId);
 	}
 
 	@Override
@@ -19,10 +16,5 @@ public class TeamNotFoundException extends RuntimeException implements Localized
 	@Override
 	public int httpStatusCode() {
 		return 404;
-	}
-
-	@Override
-	public Object[] messageArgs() {
-		return new Object[] { teamId };
 	}
 }

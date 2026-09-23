@@ -102,3 +102,6 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 - [SV-564](https://stakevault.atlassian.net/browse/SV-564) - CI: gerar versao (semver + tag + Release + bump de pom.xml + corte de CHANGELOG) ao merge em main
 - [SV-565](https://stakevault.atlassian.net/browse/SV-565) - Job 'release' no ci.yml + .github/scripts/cut-changelog.py
 - [SV-566](https://stakevault.atlassian.net/browse/SV-566) - CHANGELOG e verificacao final
+- [SV-582](https://stakevault.atlassian.net/browse/SV-582) - Extrair LocalizedRuntimeException e eliminar sonar.cpd.exclusions
+- [SV-583](https://stakevault.atlassian.net/browse/SV-583) - Extrair LocalizedRuntimeException e refatorar as 18 excecoes
+- [SV-584](https://stakevault.atlassian.net/browse/SV-584) - Remover sonar.cpd.exclusions, verificacao real e CHANGELOG
