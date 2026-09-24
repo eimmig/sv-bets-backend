@@ -16,8 +16,6 @@ public interface BetRepository {
 
 	Optional<Bet> findByIdempotencyKey(String idempotencyKey);
 
-	// Atomic conditional transition (UPDATE ... WHERE status = :from) - returns false without
-	// writing anything if the current status no longer matches "from" (lost a concurrent race).
 	boolean transitionStatus(UUID id, BetStatus from, BetStatus to);
 
 	int updateFields(Bet updated, BetStatus expectedStatus);

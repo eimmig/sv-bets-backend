@@ -8,7 +8,5 @@ public interface TenantSettingsUseCase {
 
 	TenantSettings get();
 
-	// Caller must already be confirmed admin (adapter/in/web checks X-User-Role) - this layer
-	// only applies the change, same split as BetUseCase.updateStatus trusting its caller param.
 	TenantSettings updateUnitPercent(BigDecimal unitPercent);
 }

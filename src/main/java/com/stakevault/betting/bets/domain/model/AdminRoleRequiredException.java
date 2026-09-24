@@ -1,6 +1,6 @@
 package com.stakevault.betting.bets.domain.model;
 
-public class AdminRoleRequiredException extends RuntimeException implements LocalizedDomainException {
+public class AdminRoleRequiredException extends LocalizedRuntimeException {
 
 	public AdminRoleRequiredException() {
 		super("caller does not have the admin role");

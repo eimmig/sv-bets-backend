@@ -17,10 +17,7 @@ public interface BetResultRepository {
 
 	Optional<BetResult> findByBetId(UUID betId);
 
-	// One query for the whole page, not one per betting house.
 	Map<UUID, BigDecimal> sumProfitByBettingHouseIds(Collection<UUID> bettingHouseIds);
 
-	// Todas as casas do tenant, nao agrupado - "at" e o limite superior exclusivo ja resolvido
-	// (fim do dia civil brasileiro convertido pra Instant/UTC).
 	BigDecimal sumProfitUpTo(Instant at);
 }

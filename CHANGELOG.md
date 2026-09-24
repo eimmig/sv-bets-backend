@@ -7,6 +7,11 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 
 ## [Unreleased]
 
+- Remover todos os comentários restantes do código, testes e configuração (convenção de zero comentário, `docs/convencoes.md`)
+- [SV-582](https://stakevault.atlassian.net/browse/SV-582) - Extrair LocalizedRuntimeException e eliminar sonar.cpd.exclusions
+- [SV-583](https://stakevault.atlassian.net/browse/SV-583) - Extrair LocalizedRuntimeException e refatorar as 18 excecoes
+- [SV-584](https://stakevault.atlassian.net/browse/SV-584) - Remover sonar.cpd.exclusions, verificacao real e CHANGELOG
+
 ## [0.1.0] - 2026-09-23
 
 - `feat-019` - PUT /api/v1/bets/{id}: edição de aposta pending ou já liquidada, com guarda

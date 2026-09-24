@@ -42,11 +42,6 @@ interface BetSpringDataRepository extends JpaRepository<BetJpaEntity, UUID> {
 			+ "WHERE b.id = :#{#updated.id()} AND b.status = :expectedStatus")
 	int updateFields(@Param("updated") Bet updated, @Param("expectedStatus") BetStatus expectedStatus);
 
-	// Filtros recebidos como um unico objeto (BetFilter, via SpEL #filter.campo()) para nao
-	// estourar o limite de parametros do java:S107.
-	// from/to comparados via COALESCE(coluna, campo), nao "(campo IS NULL OR coluna >= campo)":
-	// Postgres nao consegue inferir o tipo de um parametro so usado num "IS NULL" isolado pra
-	// coluna timestamp. Seguro so porque bet_date e NOT NULL - ver docs/CONVENTIONS.md.
 	@Query("SELECT b FROM BetJpaEntity b WHERE "
 			+ "(:#{#filter.bettingHouseId()} IS NULL OR b.bettingHouseId = :#{#filter.bettingHouseId()}) AND "
 			+ "(:#{#filter.sportId()} IS NULL OR b.sportId = :#{#filter.sportId()}) AND "

@@ -119,7 +119,6 @@ class BankrollControllerIntegrationTest extends TenantSchemaIntegrationSupport {
 					BigDecimal.valueOf(15), fixedInstant));
 		}
 
-		// 100 + 50 (initial) + 20 - 10 (transacoes) + 15 (profit) = 175
 		HttpResponse<String> response = getBalance("");
 
 		assertThat(response.statusCode()).isEqualTo(200);
@@ -134,14 +133,9 @@ class BankrollControllerIntegrationTest extends TenantSchemaIntegrationSupport {
 							Instant.now()))
 					.id();
 
-			// 2026-09-11T01:00:00Z = 2026-09-10T22:00:00-03:00 - UTC calendar day is already
-			// 09-11, but the Brazilian civil day is still 09-10 (America/Sao_Paulo = UTC-3).
-			// Naive UTC-day comparison would wrongly exclude this from at=2026-09-10.
 			transactionRepository.save(new Transaction(UUID.randomUUID(), houseId, TransactionType.DEPOSIT,
 					BigDecimal.valueOf(100), Instant.parse("2026-09-11T01:00:00Z")));
 
-			// 2026-09-11T04:00:00Z = 2026-09-11T01:00:00-03:00 - genuinely the next Brazilian
-			// civil day, must be excluded from at=2026-09-10.
 			transactionRepository.save(new Transaction(UUID.randomUUID(), houseId, TransactionType.DEPOSIT,
 					BigDecimal.valueOf(1000), Instant.parse("2026-09-11T04:00:00Z")));
 		}

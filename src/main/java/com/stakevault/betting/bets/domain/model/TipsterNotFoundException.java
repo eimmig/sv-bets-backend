@@ -2,13 +2,10 @@ package com.stakevault.betting.bets.domain.model;
 
 import java.util.UUID;
 
-public class TipsterNotFoundException extends RuntimeException implements LocalizedDomainException {
-
-	private final UUID tipsterId;
+public class TipsterNotFoundException extends LocalizedRuntimeException {
 
 	public TipsterNotFoundException(UUID tipsterId) {
-		super("tipster not found: " + tipsterId);
-		this.tipsterId = tipsterId;
+		super("tipster not found: " + tipsterId, tipsterId);
 	}
 
 	@Override
@@ -19,10 +16,5 @@ public class TipsterNotFoundException extends RuntimeException implements Locali
 	@Override
 	public int httpStatusCode() {
 		return 404;
-	}
-
-	@Override
-	public Object[] messageArgs() {
-		return new Object[] { tipsterId };
 	}
 }

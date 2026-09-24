@@ -126,8 +126,6 @@ class JpaBetRepositoryIntegrationTest extends TenantSchemaIntegrationSupport {
 
 			betRepository.save(bet);
 
-			// BigDecimal round-trip via NUMERIC(19,2) normalizes scale (ver docs/TESTING.md) -
-			// comparar id em vez do record inteiro (equals() de record e sensivel a escala).
 			assertThat(betRepository.findByIdempotencyKey("idem-key-2")).map(Bet::id).contains(bet.id());
 			assertThat(betRepository.findByIdempotencyKey("missing")).isEmpty();
 		}

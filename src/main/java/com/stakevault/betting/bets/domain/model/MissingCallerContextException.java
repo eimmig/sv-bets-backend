@@ -1,6 +1,6 @@
 package com.stakevault.betting.bets.domain.model;
 
-public class MissingCallerContextException extends RuntimeException implements LocalizedDomainException {
+public class MissingCallerContextException extends LocalizedRuntimeException {
 
 	public MissingCallerContextException() {
 		super("missing or invalid X-User-Id");

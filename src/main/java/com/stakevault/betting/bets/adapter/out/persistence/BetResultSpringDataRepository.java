@@ -20,13 +20,10 @@ interface BetResultSpringDataRepository extends JpaRepository<BetResultJpaEntity
 	@Query("UPDATE BetResultJpaEntity r SET r.profit = :profit WHERE r.betId = :betId")
 	int updateProfit(@Param("betId") UUID betId, @Param("profit") BigDecimal profit);
 
-	// bet_result has no betting_house_id column - implicit join to BetJpaEntity by id, same
-	// style as TransactionSpringDataRepository.sumNetAmountByBettingHouseIds.
 	@Query("SELECT b.bettingHouseId, SUM(r.profit) FROM BetResultJpaEntity r, BetJpaEntity b "
 			+ "WHERE r.betId = b.id AND b.bettingHouseId IN :bettingHouseIds GROUP BY b.bettingHouseId")
 	List<Object[]> sumProfitByBettingHouseIds(@Param("bettingHouseIds") Collection<UUID> bettingHouseIds);
 
-	// Todas as casas, nao agrupado - sem join com BetJpaEntity porque bettingHouseId nao entra no filtro.
 	@Query("SELECT SUM(r.profit) FROM BetResultJpaEntity r WHERE r.settledAt < :at")
 	BigDecimal sumProfitUpTo(@Param("at") Instant at);
 }
