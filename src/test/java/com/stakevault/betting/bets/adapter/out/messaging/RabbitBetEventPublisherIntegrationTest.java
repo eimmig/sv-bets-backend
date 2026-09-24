@@ -242,7 +242,9 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 			bets.updateStatus(created.bet().id(), BetStatus.WON, UUID.randomUUID());
 			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000)).isNotNull();
 
-			assertThatThrownBy(() -> bets.updateStatus(created.bet().id(), BetStatus.LOST, UUID.randomUUID()))
+			UUID betId = created.bet().id();
+			UUID settledByUserId = UUID.randomUUID();
+			assertThatThrownBy(() -> bets.updateStatus(betId, BetStatus.LOST, settledByUserId))
 				.isInstanceOf(InvalidStatusTransitionException.class);
 
 			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 1000)).isNull();
