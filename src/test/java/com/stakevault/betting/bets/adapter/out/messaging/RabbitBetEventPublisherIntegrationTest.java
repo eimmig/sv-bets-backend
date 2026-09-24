@@ -1,6 +1,7 @@
 package com.stakevault.betting.bets.adapter.out.messaging;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.InputStream;
 import java.math.BigDecimal;
@@ -241,10 +242,8 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 			bets.updateStatus(created.bet().id(), BetStatus.WON, UUID.randomUUID());
 			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000)).isNotNull();
 
-			try {
-				bets.updateStatus(created.bet().id(), BetStatus.LOST, UUID.randomUUID());
-			} catch (InvalidStatusTransitionException _) {
-			}
+			assertThatThrownBy(() -> bets.updateStatus(created.bet().id(), BetStatus.LOST, UUID.randomUUID()))
+				.isInstanceOf(InvalidStatusTransitionException.class);
 
 			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 1000)).isNull();
 		}
