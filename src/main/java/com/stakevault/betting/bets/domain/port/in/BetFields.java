@@ -6,11 +6,6 @@ import java.util.UUID;
 
 import com.stakevault.betting.bets.domain.model.BetType;
 
-/**
- * Fields shared by every request that describes a bet (create or update) - lets
- * {@link CreateBetCommand} and {@link UpdateBetCommand} build themselves from either request
- * shape without the caller repeating the field list.
- */
 public interface BetFields {
 	UUID bettingHouseId();
 

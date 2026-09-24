@@ -6,11 +6,6 @@ import java.util.UUID;
 
 import com.stakevault.betting.bets.domain.model.BetType;
 
-/**
- * Plain copy of the fields shared by every bet request - extracted from a {@link BetFields}
- * exactly once ({@link #of}), so {@link CreateBetCommand} and {@link UpdateBetCommand} never
- * repeat the field-by-field copy themselves.
- */
 public record BetDetails(UUID bettingHouseId, UUID sportId, UUID leagueId, UUID marketId, UUID tipsterId,
 		String ticketNumber, UUID team1Id, UUID team2Id, String description, BetType betType, String playType,
 		BigDecimal stake, BigDecimal odd, Instant betDate) {

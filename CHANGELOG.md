@@ -7,6 +7,7 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 
 ## [Unreleased]
 
+- Remover todos os comentários restantes do código, testes e configuração (convenção de zero comentário, `docs/convencoes.md`)
 - `feat-019` - PUT /api/v1/bets/{id}: edição de aposta pending ou já liquidada, com guarda
   atômica contra corrida concorrente com `PATCH /status` (sem story própria - fluxo direto).
 - Registro do primeiro disparo real do job `deploy` (`epic-028`) contra produção: falhou por

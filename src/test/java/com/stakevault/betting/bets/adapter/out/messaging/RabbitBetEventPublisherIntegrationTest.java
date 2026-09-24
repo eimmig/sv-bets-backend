@@ -207,7 +207,7 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 		try (var _ = TenantContextScope.open(schema)) {
 			var fixture = newCommand(UUID.randomUUID(), null);
 			var created = bets.create(fixture.command());
-			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000)).isNotNull(); // BetCreated
+			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000)).isNotNull();
 			UUID settledByUserId = UUID.randomUUID();
 
 			bets.updateStatus(created.bet().id(), BetStatus.WON, settledByUserId);
@@ -237,14 +237,13 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 	void shouldNotPublishBetSettledWhenTransitionIsInvalid() {
 		try (var _ = TenantContextScope.open(schema)) {
 			var created = bets.create(newCommand(UUID.randomUUID(), null).command());
-			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000)).isNotNull(); // BetCreated
+			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000)).isNotNull();
 			bets.updateStatus(created.bet().id(), BetStatus.WON, UUID.randomUUID());
-			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000)).isNotNull(); // BetSettled
+			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000)).isNotNull();
 
 			try {
 				bets.updateStatus(created.bet().id(), BetStatus.LOST, UUID.randomUUID());
 			} catch (InvalidStatusTransitionException _) {
-				// already settled - expected
 			}
 
 			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 1000)).isNull();

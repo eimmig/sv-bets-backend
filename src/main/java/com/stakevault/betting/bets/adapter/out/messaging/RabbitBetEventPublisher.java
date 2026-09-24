@@ -24,8 +24,6 @@ public class RabbitBetEventPublisher implements BetEventPublisher {
 
 	private static final Logger log = LoggerFactory.getLogger(RabbitBetEventPublisher.class);
 
-	// Topologia (exchange/routing keys) ja provisionada por infra/rabbitmq/definitions.json -
-	// nunca redeclarada aqui (ver docs/API-CONTRACTS.md).
 	private static final String EXCHANGE = "bets.events";
 	private static final String ROUTING_KEY_BET_CREATED = "bet.created";
 	private static final String ROUTING_KEY_BET_SETTLED = "bet.settled";
@@ -62,8 +60,6 @@ public class RabbitBetEventPublisher implements BetEventPublisher {
 					.build();
 			rabbitTemplate.send(EXCHANGE, routingKey, message);
 		} catch (Exception exception) {
-			// Consistencia eventual e intencional (ver CLAUDE.md raiz) - durabilidade do registro
-			// da aposta pesa mais que o sinal assincrono; sem outbox/retry nesta fase do projeto.
 			log.error("failed to publish {} for bet {}", eventType, betId, exception);
 		}
 	}

@@ -202,7 +202,6 @@ class BettingHousesControllerIntegrationTest extends TenantSchemaIntegrationSupp
 		String voidBetId = newBet(bettingHouseId, "20", "1.5");
 		settleBet(voidBetId, "void");
 
-		// balance = 100 (initial) + 150 (won: 100*2.5-100) - 50 (lost) + 0 (void) = 200
 		HttpResponse<String> listResponse = get("?page=0&size=20", tenantSlug);
 
 		assertThat(listResponse.statusCode()).isEqualTo(200);

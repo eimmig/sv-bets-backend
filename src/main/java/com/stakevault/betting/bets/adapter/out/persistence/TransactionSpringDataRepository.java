@@ -14,9 +14,6 @@ import org.springframework.data.repository.query.Param;
 
 interface TransactionSpringDataRepository extends JpaRepository<TransactionJpaEntity, UUID> {
 
-	// from/to comparados via COALESCE(:param, coluna), nao "(:param IS NULL OR ...)" - Postgres
-	// nao consegue inferir o tipo de um parametro so usado num "IS NULL" isolado pra coluna
-	// timestamp (achado real, ver BetSpringDataRepository.findFiltered/docs/CONVENTIONS.md).
 	@Query("SELECT t FROM TransactionJpaEntity t WHERE "
 			+ "(:bettingHouseId IS NULL OR t.bettingHouseId = :bettingHouseId) AND "
 			+ "t.createdAt >= COALESCE(:from, t.createdAt) AND "
