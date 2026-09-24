@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.stakevault.betting</groupId>
 	<artifactId>bets-service</artifactId>
-	<version>0.1.0</version>
+	<version>0.2.0</version>
 	<name>bets-service</name>
 	<description>Casas de apostas, apostas, bankroll e eventos (Arka)</description>
 	<properties>
