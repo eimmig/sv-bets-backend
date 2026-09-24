@@ -1618,7 +1618,7 @@
           ],
           "validation": "Push real confirmado no GitHub Actions (gate de duplicacao verde sem a exclusao), init.sh verde, Delivery Reviewer sem achado real pendente, evidence preenchida.",
           "owner": "agente",
-          "status": "not-started",
+          "status": "in-progress",
           "jira": "SV-584"
         }
       ],
