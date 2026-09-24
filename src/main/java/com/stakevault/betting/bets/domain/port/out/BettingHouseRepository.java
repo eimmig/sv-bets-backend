@@ -19,6 +19,5 @@ public interface BettingHouseRepository {
 
 	PagedResult<BettingHouse> findAll(int page, int size);
 
-	// Todas as casas do tenant, nao agrupado.
 	BigDecimal sumInitialBalance();
 }

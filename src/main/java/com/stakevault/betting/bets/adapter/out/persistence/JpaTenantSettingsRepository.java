@@ -11,8 +11,6 @@ import com.stakevault.betting.bets.domain.port.out.TenantSettingsRepository;
 @Repository
 public class JpaTenantSettingsRepository implements TenantSettingsRepository {
 
-	// Matches the literal id the seed migration inserts - single row per tenant schema, never
-	// created by the application (see V*__create_tenant_settings_table.sql).
 	static final UUID ROW_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
 	private final TenantSettingsSpringDataRepository jpaRepository;

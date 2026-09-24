@@ -92,7 +92,6 @@ public class BetService implements BetUseCase {
 			betEventPublisher.publishCreated(saved, resolveDimensionNames(saved));
 			return new BetCreationResult(saved, true);
 		} catch (DataIntegrityViolationException _) {
-			// Concurrent replay of the same Idempotency-Key raced us to the unique constraint.
 			return betRepository.findByIdempotencyKey(command.idempotencyKey())
 					.map(found -> new BetCreationResult(found, false))
 					.orElseThrow();

@@ -9,11 +9,6 @@ import com.stakevault.betting.bets.domain.model.BetDimensionNames;
 import com.stakevault.betting.bets.domain.model.BetStatus;
 import com.stakevault.betting.bets.domain.model.BetType;
 
-// team1/team2 (String) mantem o mesmo nome/semantica de antes (nome do time) por compatibilidade
-// com o consumidor ja em producao (stats-service/DimensionResolver.resolveTeam) - so a fonte
-// mudou, de texto livre para Team.name resolvido via team1Id/team2Id. team1Id/team2Id sao
-// aditivos (nullable), sem bump de schemaVersion - ver docs/API-CONTRACTS.md "Nota sobre
-// schemaVersion" e docs/DECISIONS-LOG.md 2026-09-15.
 public record BetCreatedPayload(UUID betId, UUID bettingHouseId, String bettingHouseName, UUID sportId,
 		String sportName, UUID leagueId, String leagueName, UUID marketId, String marketName, UUID tipsterId,
 		String tipsterName, String ticketNumber, UUID team1Id, String team1, UUID team2Id, String team2,
