@@ -72,17 +72,10 @@ jobs:
           if [ "${{ github.event_name == 'push' }}" = "true" ]; then
             WAIT_FLAG=""
           fi
-          # sonar.cpd.exclusions: achado real (epic-033) - cada regra de dominio tem sua propria
-          # classe de excecao (campo + super() + messageKey()/httpStatusCode()/messageArgs()),
-          # ~19 arquivos deste pacote seguindo o MESMO formato de proposito - e o padrao
-          # estabelecido do projeto (uma excecao por regra), nao duplicacao de verdade a
-          # eliminar. Sem isso, toda excecao nova reprova o gate de duplicacao contra as ja
-          # existentes. Ver docs/convencoes.md.
           mvn -B org.sonarsource.scanner.maven:sonar-maven-plugin:5.7.0.6970:sonar \
             -Dsonar.projectKey=eimmig_sv-bets-backend \
             -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }} \
             -Dsonar.host.url=https://sonarcloud.io \
-            -Dsonar.cpd.exclusions=**/domain/model/*Exception.java \
             $WAIT_FLAG
 
       # 6. Gate de issue/hotspot do SonarCloud - pulado em qualquer push direto (mesmo racional do passo 5)
