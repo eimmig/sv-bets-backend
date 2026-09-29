@@ -11,6 +11,8 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 - [SV-582](https://stakevault.atlassian.net/browse/SV-582) - Extrair LocalizedRuntimeException e eliminar sonar.cpd.exclusions
 - [SV-583](https://stakevault.atlassian.net/browse/SV-583) - Extrair LocalizedRuntimeException e refatorar as 18 excecoes
 - [SV-584](https://stakevault.atlassian.net/browse/SV-584) - Remover sonar.cpd.exclusions, verificacao real e CHANGELOG
+- [SV-669](https://stakevault.atlassian.net/browse/SV-669) - Validar SonarCloud tambem em push pra main (nao so pull_request)
+- [SV-670](https://stakevault.atlassian.net/browse/SV-670) - ci.yml: push so pra main habilita os 2 steps de SonarCloud, com continue-on-error
 
 ## [0.1.0] - 2026-09-23
 
