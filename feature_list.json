@@ -1623,6 +1623,36 @@
         }
       ],
       "evidence": "Fechado em 2026-09-23 por feat-022.1/feat-022.2 (2 subtasks, story SV-582). PR #78 (SV-583, subtask->story) - LocalizedRuntimeException (classe base abstrata) extraida, as 19 excecoes de dominio refatoradas para estende-la; comportamento observavel (messageKey/httpStatusCode/messageArgs/status HTTP) confirmado identico linha a linha no diff, mvn verify local (Testcontainers reais) verde. PR #79 (SV-584, subtask->story) - sonar.cpd.exclusions removido de ci.yml. PR #80 (story->develop, gate completo) - CI+SonarCloud verdes, incluindo o proprio 'SonarCloud Code Analysis' do PR confirmando que o gate de New Code Duplication passa sem a exclusao (risco residual do plan review resolvido de verdade, nao so por leitura estatica). Delivery Reviewer/Test Suite Auditor/Persistence Auditor (self-conduzidos): PASS nos 3, sem achado - nenhum consumidor (DomainExceptionHandler/AdminApiKeyFilter/TenantSchemaFilter) tocado, nenhuma superficie de persistencia afetada, decisao de nao adicionar teste novo confirmada segura (comportamento identico, garantia de varargs do Java pro campo transient nunca ser null). Padrao documentado em docs/convencoes.md (raiz) pros outros 3 servicos Java reaproveitarem quando epic-034 chegar la. Fecha a parte de bets-service do epic-034 da raiz. **Achado de processo desta sessao (registrado, nao escondido)**: o commit que marca status:done + preenche esta evidence foi empurrado direto pra develop (bypass do branch protection, 'Required status check pipeline is expected') em vez de via PR - so contem feature_list.json (harness, sem codigo), risco real baixo, mas desvia da regra de 'todo PR passa pela pipeline'. Nao revertido/refeito via PR por desproporcional pra uma edicao de metadado puro; sinalizado aqui pra sessao futura evitar repetir."
+    },
+    {
+      "id": "feat-023",
+      "name": "Validar SonarCloud tambem em push pra main (nao so pull_request)",
+      "goal": "Fechar o mesmo gap de CI ja corrigido em auth-service feat-022: validate-sonar-issues.py e sonar.qualitygate.wait nunca rodavam em push, so em pull_request - nenhum ponto do pipeline revalidava a branch inteira apos merge.",
+      "scope": "ci.yml: push pra main passa a rodar os 2 steps (continue-on-error, nao bloqueia deploy/release); push pra develop continua pulado (API do SonarCloud recusa branch != main com 403).",
+      "description": "Achado real do usuario (2026-09-29), parte do epic-038 da raiz: o mesmo ci.yml deste repositorio tem o gap identico ja corrigido em services/auth-service feat-022 - o passo 'Validar zero issues no SonarCloud' e o WAIT_FLAG do passo SonarCloud pulam TODO evento push (nao so develop), entao nunca existiu nenhum ponto revalidando a branch inteira apos merge - so o diff de cada PR isoladamente. Isso importa porque a analise de Pull Request do SonarCloud escopa 'novo codigo' por linha alterada (blame), entao um efeito cascata (ex.: mudanca numa classe-mae afetando subclasses nao tocadas pelo diff) pode passar pelo gate sem ser visto - exatamente o que aconteceu em auth-service. Correcao identica: habilitar os 2 steps em push so pra main (nunca develop - API do SonarCloud recusa branch != main com 403, confirmado ao vivo em auth-service feat-022), com continue-on-error nesses 2 steps quando push, pra nao quebrar build-and-push-image/deploy/release (que dependem de pipeline via needs:).",
+      "dependencies": [],
+      "status": "in-progress",
+      "plan_review": "2026-09-29, Plan Reviewer reaproveitado condensado de services/auth-service feat-022 (mesma mudanca mecanica, mesmo ci.yml gerado a partir do mesmo template) - veredito daquela revisao (READY apos as correcoes: continue-on-error nos 2 steps quando push, e o push so vale pra main por causa do 403 do plano gratuito do SonarCloud em branch != main) se aplica identico aqui. Confirmado por leitura do ci.yml deste repositorio: mesma estrutura WAIT_FLAG/step 6, mesmos jobs build-and-push-image/deploy/release com needs:pipeline.",
+      "jira": "SV-669",
+      "subtasks": [
+        {
+          "id": "feat-023.1",
+          "name": "ci.yml: push so pra main habilita os 2 steps de SonarCloud, com continue-on-error",
+          "status": "done",
+          "jira": "SV-670",
+          "detail": "Mesma correcao de services/auth-service feat-022.2, aplicada aqui.",
+          "checklist": [
+            "WAIT_FLAG so zera quando push E ref_name==develop (nao mais todo push).",
+            "Step 'Validar zero issues no SonarCloud' pula so quando push E ref_name==develop.",
+            "continue-on-error: true nos 2 steps quando github.event_name == 'push'.",
+            "CHANGELOG.md: entrada em [Unreleased].",
+            "Vault: nenhuma nota nova necessaria - docs/pipeline-ci-cd.md ja documenta o mecanismo (achado original registrado em auth-service feat-022)."
+          ],
+          "validation": "yaml.safe_load no ci.yml; PR subtask->story com CI verde; PR story->develop confirma SonarCloud Code Analysis pass.",
+          "owner": "agente"
+        }
+      ],
+      "evidence": ""
     }
   ]
 }
