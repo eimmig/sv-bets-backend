@@ -1631,7 +1631,7 @@
       "scope": "ci.yml: push pra main passa a rodar os 2 steps (continue-on-error, nao bloqueia deploy/release); push pra develop continua pulado (API do SonarCloud recusa branch != main com 403).",
       "description": "Achado real do usuario (2026-09-29), parte do epic-038 da raiz: o mesmo ci.yml deste repositorio tem o gap identico ja corrigido em services/auth-service feat-022 - o passo 'Validar zero issues no SonarCloud' e o WAIT_FLAG do passo SonarCloud pulam TODO evento push (nao so develop), entao nunca existiu nenhum ponto revalidando a branch inteira apos merge - so o diff de cada PR isoladamente. Isso importa porque a analise de Pull Request do SonarCloud escopa 'novo codigo' por linha alterada (blame), entao um efeito cascata (ex.: mudanca numa classe-mae afetando subclasses nao tocadas pelo diff) pode passar pelo gate sem ser visto - exatamente o que aconteceu em auth-service. Correcao identica: habilitar os 2 steps em push so pra main (nunca develop - API do SonarCloud recusa branch != main com 403, confirmado ao vivo em auth-service feat-022), com continue-on-error nesses 2 steps quando push, pra nao quebrar build-and-push-image/deploy/release (que dependem de pipeline via needs:).",
       "dependencies": [],
-      "status": "in-progress",
+      "status": "done",
       "plan_review": "2026-09-29, Plan Reviewer reaproveitado condensado de services/auth-service feat-022 (mesma mudanca mecanica, mesmo ci.yml gerado a partir do mesmo template) - veredito daquela revisao (READY apos as correcoes: continue-on-error nos 2 steps quando push, e o push so vale pra main por causa do 403 do plano gratuito do SonarCloud em branch != main) se aplica identico aqui. Confirmado por leitura do ci.yml deste repositorio: mesma estrutura WAIT_FLAG/step 6, mesmos jobs build-and-push-image/deploy/release com needs:pipeline.",
       "jira": "SV-669",
       "subtasks": [
@@ -1652,7 +1652,7 @@
           "owner": "agente"
         }
       ],
-      "evidence": ""
+      "evidence": "Fechada em 2026-09-29. 1 subtask (SV-670, story SV-669), PR #84 (subtask->story) + #85 (story->develop). Replica em bets-service a correcao de services/auth-service feat-022 (Oitava armadilha, docs/pipeline-ci-cd.md): validate-sonar-issues.py + sonar.qualitygate.wait passam a rodar tambem em push pra main (nunca develop, API do SonarCloud 403 em branch != main), continue-on-error pra nao afetar build-and-push-image/deploy/release. CI+SonarCloud verdes nos 2 PRs. Verificacao final de verdade (push real pra main) so acontece no proximo develop->main deste repositorio. Fecha a parte bets-service do epic-038 da raiz."
     }
   ]
 }
