@@ -1653,6 +1653,19 @@
         }
       ],
       "evidence": "Fechada em 2026-09-29. 1 subtask (SV-670, story SV-669), PR #84 (subtask->story) + #85 (story->develop). Replica em bets-service a correcao de services/auth-service feat-022 (Oitava armadilha, docs/pipeline-ci-cd.md): validate-sonar-issues.py + sonar.qualitygate.wait passam a rodar tambem em push pra main (nunca develop, API do SonarCloud 403 em branch != main), continue-on-error pra nao afetar build-and-push-image/deploy/release. CI+SonarCloud verdes nos 2 PRs. Verificacao final de verdade (push real pra main) so acontece no proximo develop->main deste repositorio. Fecha a parte bets-service do epic-038 da raiz."
+    },
+    {
+      "id": "feat-024",
+      "name": "Publicacao de eventos sem perda: outbox transacional + publisher confirms",
+      "goal": "Garantir que todo BetCreated/BetSettled de aposta gravada chegue ao broker (fila ou DLQ), como afirma o TCC 1 (3.1.5).",
+      "scope": "A definir pelo Plan Reviewer (esta feature ainda nao passou por ele).",
+      "description": "Achado de 2026-09-30 com 1 milhao de bets no tenant loadtest-1e87952e: bets-service tem 1.000.000 bets (939.600 liquidadas) mas stats-service processou so 772.772 eventos (398.335 fact_bet, ~40%); fila stats.bet-events e DLQ vazias. RabbitBetEventPublisher.publish captura qualquer excecao com log.error e segue, sem publisher confirms, sem mandatory/returns e sem outbox; publicacao e fire-and-forget depois do commit. Decisao do usuario (2026-09-30): o agente decide o mecanismo; direcao esperada: outbox transacional (tabela no schema public do banco bets, gravada na mesma transacao da aposta) + relay com FOR UPDATE SKIP LOCKED (seguro com varias replicas) + publisher confirms. Incluir Testcontainers postgres:18-alpine. plan_review vazio: rodar o Plan Reviewer antes de codificar.",
+      "dependencies": [],
+      "status": "not-started",
+      "plan_review": "",
+      "jira": "",
+      "subtasks": [],
+      "evidence": ""
     }
   ]
 }
