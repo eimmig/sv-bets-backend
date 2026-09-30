@@ -1698,7 +1698,7 @@
         {
           "id": "feat-024.3",
           "name": "OutboxRelay com SKIP LOCKED e publisher confirms",
-          "status": "not-started",
+          "status": "done",
           "jira": "SV-730",
           "detail": "Publicar o outbox no broker de forma confiavel, segura com varias replicas.",
           "checklist": [
