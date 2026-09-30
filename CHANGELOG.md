@@ -13,6 +13,11 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 - [SV-584](https://stakevault.atlassian.net/browse/SV-584) - Remover sonar.cpd.exclusions, verificacao real e CHANGELOG
 - [SV-669](https://stakevault.atlassian.net/browse/SV-669) - Validar SonarCloud tambem em push pra main (nao so pull_request)
 - [SV-670](https://stakevault.atlassian.net/browse/SV-670) - ci.yml: push so pra main habilita os 2 steps de SonarCloud, com continue-on-error
+- [SV-727](https://stakevault.atlassian.net/browse/SV-727) - Publicacao de eventos sem perda: outbox transacional + publisher confirms
+- [SV-728](https://stakevault.atlassian.net/browse/SV-728) - Migration public + entidade + repositorio do outbox
+- [SV-729](https://stakevault.atlassian.net/browse/SV-729) - OutboxBetEventPublisher e BetService.create transacional
+- [SV-730](https://stakevault.atlassian.net/browse/SV-730) - OutboxRelay com SKIP LOCKED e publisher confirms
+- [SV-731](https://stakevault.atlassian.net/browse/SV-731) - Documentacao, CHANGELOG e verificacao final
 
 ## [0.1.0] - 2026-09-23
 

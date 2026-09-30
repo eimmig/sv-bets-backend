@@ -1658,13 +1658,75 @@
       "id": "feat-024",
       "name": "Publicacao de eventos sem perda: outbox transacional + publisher confirms",
       "goal": "Garantir que todo BetCreated/BetSettled de aposta gravada chegue ao broker (fila ou DLQ), como afirma o TCC 1 (3.1.5).",
-      "scope": "A definir pelo Plan Reviewer (esta feature ainda nao passou por ele).",
+      "scope": "Tabela public.outbox_event (migration em classpath:db/migration-public + runner igual ao do auth-service), OutboxBetEventPublisher no lugar do RabbitBetEventPublisher (mesmo port BetEventPublisher), BetService.create em transacao (TransactionTemplate), OutboxRelay com SKIP LOCKED e publisher confirms, Testcontainers postgres:18-alpine. Fora de escopo: alerta/limite de backlog do outbox, mudanca de payload dos eventos, reprocessamento dos eventos ja perdidos.",
       "description": "Achado de 2026-09-30 com 1 milhao de bets no tenant loadtest-1e87952e: bets-service tem 1.000.000 bets (939.600 liquidadas) mas stats-service processou so 772.772 eventos (398.335 fact_bet, ~40%); fila stats.bet-events e DLQ vazias. RabbitBetEventPublisher.publish captura qualquer excecao com log.error e segue, sem publisher confirms, sem mandatory/returns e sem outbox; publicacao e fire-and-forget depois do commit. Decisao do usuario (2026-09-30): o agente decide o mecanismo; direcao esperada: outbox transacional (tabela no schema public do banco bets, gravada na mesma transacao da aposta) + relay com FOR UPDATE SKIP LOCKED (seguro com varias replicas) + publisher confirms. Incluir Testcontainers postgres:18-alpine. plan_review vazio: rodar o Plan Reviewer antes de codificar.",
       "dependencies": [],
       "status": "not-started",
-      "plan_review": "",
-      "jira": "",
-      "subtasks": [],
+      "plan_review": "2026-09-30, Plan Reviewer (review-suite:ln-11-plan-reviewer) rodado contra o plano antes de qualquer codigo. Veredito: READY WITH CONCERNS (nenhum BLOCKER/MAJOR, 7 MINOR absorvidos nas subtasks). Evidencia: TenantIdentifierResolver devolve schema 'public' sem contexto de tenant (o relay, sem thread de requisicao, abre sessao normal); PublicSchemaMigrationRunner do auth-service serve de molde; spring-rabbit 4.1.1 tem CorrelationData.getFuture()/getReturned() e RabbitTemplate.setMandatory/waitForConfirmsOrDie; nao existe @EnableScheduling; TestcontainersConfiguration ja sobe RabbitMQ real com o exchange bets.events. Ajustes: (1) gravar o outbox por entidade JPA com @Table(schema='public') e nao por JdbcTemplate (garante a mesma transacao da aposta; teste prova que o rollback remove a linha); (2) @EnableScheduling + propriedade outbox.relay.enabled (false no perfil de teste) + drain() publico para testes; (3) payload text, nao jsonb (jsonb altera os bytes que o publicador atual envia); (4) relay repete sem espera enquanto o lote vier cheio; (5) mensagem devolvida por mandatory mantem a linha, WARN uma vez por lote + contador; (6) ordem por id so vale por aposta (BetCreated sempre commita antes de BetSettled), entre replicas do relay o stats-service feat-027 ja tolera inversao; (7) tabela no schema public e excecao documentada ao schema-por-tenant (dado transitorio, apagado apos publicar) - registrar em docs/services/bets-service.md. Riscos aceitos: duplicata possivel (consumidor idempotente por eventId estavel); dead-lettering segue at-most-once (DECISIONS-LOG 2026-08-03 item 4); backlog sem limite. Limitacao: rodada independente em contextos isolados nao executada (autoavaliacao), impacto baixo.",
+      "jira": "SV-727",
+      "subtasks": [
+        {
+          "id": "feat-024.1",
+          "name": "Migration public + entidade + repositorio do outbox",
+          "status": "not-started",
+          "jira": "SV-728",
+          "detail": "Base de persistencia do outbox, gravada por JPA para garantir a mesma transacao da aposta.",
+          "checklist": [
+            "db/migration-public/V<timestamp>__create_outbox_event.sql: public.outbox_event(id bigserial pk, routing_key text not null, payload text not null, tenant_slug text not null, bet_id uuid not null, created_at timestamptz not null default now()).",
+            "PublicSchemaMigrationRunner (InitializingBean) copiado do auth-service, location classpath:db/migration-public.",
+            "OutboxEventJpaEntity com @Table(name='outbox_event', schema='public') + SpringData repository + porta/adaptador em adapter/out/persistence.",
+            "TestcontainersConfiguration: postgres:18-alpine."
+          ],
+          "validation": "Teste de integracao: a tabela existe no schema public apos subir o contexto e uma linha gravada e lida de volta.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-024.2",
+          "name": "OutboxBetEventPublisher e BetService.create transacional",
+          "status": "not-started",
+          "jira": "SV-729",
+          "detail": "Trocar o publish fire-and-forget por insercao na mesma transacao da aposta.",
+          "checklist": [
+            "OutboxBetEventPublisher implementa BetEventPublisher: monta o envelope exatamente como hoje (eventId aleatorio, tenantId do TenantContextHolder) e grava a linha; nunca engole excecao.",
+            "BetService.create: save + outbox em TransactionTemplate; o tratamento de DataIntegrityViolationException por idempotency-key fica fora da transacao.",
+            "updateStatus/update continuam @Transactional (outbox entra na tx).",
+            "Remover o RabbitBetEventPublisher antigo e adaptar/renomear o RabbitBetEventPublisherIntegrationTest."
+          ],
+          "validation": "Testes: rollback da aposta remove a linha do outbox; duplicata por idempotency-key nao grava outbox; falha ao gravar o outbox derruba a criacao (nao e engolida); testes de contrato JSON Schema seguem verdes.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-024.3",
+          "name": "OutboxRelay com SKIP LOCKED e publisher confirms",
+          "status": "not-started",
+          "jira": "SV-730",
+          "detail": "Publicar o outbox no broker de forma confiavel, segura com varias replicas.",
+          "checklist": [
+            "@EnableScheduling; OutboxRelay @Scheduled fixedDelay ~200ms; propriedade outbox.relay.enabled (false no perfil de teste); drain() publico.",
+            "Em uma transacao: SELECT ... FROM public.outbox_event ORDER BY id LIMIT 500 FOR UPDATE SKIP LOCKED; publica cada linha com CorrelationData; espera todos os confirms; so entao DELETE; se o lote vier cheio repete sem espera.",
+            "application.yml: spring.rabbitmq.publisher-confirm-type=correlated, publisher-returns=true, template.mandatory=true.",
+            "Mensagem devolvida (getReturned) ou nack/timeout: rollback, linhas permanecem; WARN uma vez por lote + contadores Micrometer published/failures."
+          ],
+          "validation": "Testes de integracao: 2 relays concorrentes drenam N linhas sem duplicar nem perder (Postgres real); confirm ack apaga as linhas (RabbitMQ real); mandatory sem binding mantem a linha.",
+          "owner": "agente"
+        },
+        {
+          "id": "feat-024.4",
+          "name": "Documentacao, CHANGELOG e verificacao final",
+          "status": "not-started",
+          "jira": "SV-731",
+          "detail": "Fecha a feature.",
+          "checklist": [
+            "docs/services/bets-service.md: outbox (tabela de transporte no schema public, excecao ao schema-por-tenant), ordem so por aposta.",
+            "docs/contratos-de-api.md: garantia de entrega at-least-once do bets-service para o stats-service.",
+            "docs/DECISIONS-LOG.md item 4 de 2026-08-03: nota de reavaliacao (perda achada e corrigida; dead-lettering segue at-most-once).",
+            "CHANGELOG.md: entrada em [Unreleased]. ./init.sh verde. Delivery Reviewer, Test Suite Auditor e Persistence Auditor rodados.",
+            "Vault (docs/) revisado: alguma descoberta desta feature - mecanismo reaproveitavel, gotcha de lib/config, lacuna de especificacao, decisao que diverge do ja documentado - sem nota correspondente? Se sim, atualizar/criar a nota do assunto (nao docs/DECISIONS-LOG.md a menos que divirja do TCC 1) no mesmo commit."
+          ],
+          "validation": "./init.sh verde e CI do PR passando; evidence com carga local pequena mostrando eventos publicados = processados no stats.",
+          "owner": "agente"
+        }
+      ],
       "evidence": ""
     }
   ]
