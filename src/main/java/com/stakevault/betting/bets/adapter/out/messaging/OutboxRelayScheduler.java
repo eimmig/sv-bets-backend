@@ -18,6 +18,6 @@ class OutboxRelayScheduler {
 
 	@Scheduled(fixedDelayString = "${outbox.relay.delay-ms:200}")
 	void run() {
-		relay.drain();
+		relay.drainUnlessBackingOff();
 	}
 }

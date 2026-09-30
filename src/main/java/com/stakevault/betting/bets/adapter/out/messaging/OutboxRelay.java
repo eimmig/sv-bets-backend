@@ -3,6 +3,7 @@ package com.stakevault.betting.bets.adapter.out.messaging;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,12 +28,14 @@ public class OutboxRelay {
 	private static final int BATCH_SIZE = 500;
 	private static final int MAX_BATCHES_PER_RUN = 20;
 	private static final long CONFIRM_TIMEOUT_MILLIS = 10_000;
+	private static final long BACKOFF_NANOS = TimeUnit.SECONDS.toNanos(5);
 
 	private final OutboxEventSpringDataRepository repository;
 	private final RabbitTemplate rabbitTemplate;
 	private final TransactionTemplate transactionTemplate;
 	private final Counter published;
 	private final Counter failures;
+	private volatile long backoffUntilNanos = System.nanoTime();
 
 	public OutboxRelay(OutboxEventSpringDataRepository repository, RabbitTemplate rabbitTemplate,
 			TransactionTemplate transactionTemplate, MeterRegistry meterRegistry) {
@@ -41,6 +44,13 @@ public class OutboxRelay {
 		this.transactionTemplate = transactionTemplate;
 		this.published = meterRegistry.counter("bets.outbox.published");
 		this.failures = meterRegistry.counter("bets.outbox.failures");
+	}
+
+	public int drainUnlessBackingOff() {
+		if (System.nanoTime() - backoffUntilNanos < 0) {
+			return 0;
+		}
+		return drain();
 	}
 
 	public int drain() {
@@ -56,6 +66,7 @@ public class OutboxRelay {
 			}
 		} catch (RuntimeException exception) {
 			failures.increment();
+			backoffUntilNanos = System.nanoTime() + BACKOFF_NANOS;
 			log.warn("outbox relay stopped, the remaining rows stay for the next run: {}", exception.getMessage());
 		}
 		return total;
@@ -81,7 +92,7 @@ public class OutboxRelay {
 				throw new AmqpException("outbox row " + correlation.getId() + " was returned as unroutable");
 			}
 		}
-		repository.deleteAllInBatch(batch);
+		repository.deleteAllByIdInBatch(batch.stream().map(OutboxEventJpaEntity::getId).toList());
 		published.increment(batch.size());
 		return batch.size();
 	}
