@@ -12,6 +12,16 @@ spring:
     open-in-view: false
   messages:
     fallback-to-system-locale: false
+  rabbitmq:
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+
+outbox:
+  relay:
+    enabled: true
+    delay-ms: 200
 
 management:
   endpoint:
@@ -51,6 +61,10 @@ spring:
   config:
     activate:
       on-profile: test
+
+outbox:
+  relay:
+    enabled: false
 
 admin:
   api-key: test-admin-api-key
