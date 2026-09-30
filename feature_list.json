@@ -1661,7 +1661,7 @@
       "scope": "Tabela public.outbox_event (migration em classpath:db/migration-public + runner igual ao do auth-service), OutboxBetEventPublisher no lugar do RabbitBetEventPublisher (mesmo port BetEventPublisher), BetService.create em transacao (TransactionTemplate), OutboxRelay com SKIP LOCKED e publisher confirms, Testcontainers postgres:18-alpine. Fora de escopo: alerta/limite de backlog do outbox, mudanca de payload dos eventos, reprocessamento dos eventos ja perdidos.",
       "description": "Achado de 2026-09-30 com 1 milhao de bets no tenant loadtest-1e87952e: bets-service tem 1.000.000 bets (939.600 liquidadas) mas stats-service processou so 772.772 eventos (398.335 fact_bet, ~40%); fila stats.bet-events e DLQ vazias. RabbitBetEventPublisher.publish captura qualquer excecao com log.error e segue, sem publisher confirms, sem mandatory/returns e sem outbox; publicacao e fire-and-forget depois do commit. Decisao do usuario (2026-09-30): o agente decide o mecanismo; direcao esperada: outbox transacional (tabela no schema public do banco bets, gravada na mesma transacao da aposta) + relay com FOR UPDATE SKIP LOCKED (seguro com varias replicas) + publisher confirms. Incluir Testcontainers postgres:18-alpine. plan_review vazio: rodar o Plan Reviewer antes de codificar.",
       "dependencies": [],
-      "status": "in-progress",
+      "status": "done",
       "plan_review": "2026-09-30, Plan Reviewer (review-suite:ln-11-plan-reviewer) rodado contra o plano antes de qualquer codigo. Veredito: READY WITH CONCERNS (nenhum BLOCKER/MAJOR, 7 MINOR absorvidos nas subtasks). Evidencia: TenantIdentifierResolver devolve schema 'public' sem contexto de tenant (o relay, sem thread de requisicao, abre sessao normal); PublicSchemaMigrationRunner do auth-service serve de molde; spring-rabbit 4.1.1 tem CorrelationData.getFuture()/getReturned() e RabbitTemplate.setMandatory/waitForConfirmsOrDie; nao existe @EnableScheduling; TestcontainersConfiguration ja sobe RabbitMQ real com o exchange bets.events. Ajustes: (1) gravar o outbox por entidade JPA com @Table(schema='public') e nao por JdbcTemplate (garante a mesma transacao da aposta; teste prova que o rollback remove a linha); (2) @EnableScheduling + propriedade outbox.relay.enabled (false no perfil de teste) + drain() publico para testes; (3) payload text, nao jsonb (jsonb altera os bytes que o publicador atual envia); (4) relay repete sem espera enquanto o lote vier cheio; (5) mensagem devolvida por mandatory mantem a linha, WARN uma vez por lote + contador; (6) ordem por id so vale por aposta (BetCreated sempre commita antes de BetSettled), entre replicas do relay o stats-service feat-027 ja tolera inversao; (7) tabela no schema public e excecao documentada ao schema-por-tenant (dado transitorio, apagado apos publicar) - registrar em docs/services/bets-service.md. Riscos aceitos: duplicata possivel (consumidor idempotente por eventId estavel); dead-lettering segue at-most-once (DECISIONS-LOG 2026-08-03 item 4); backlog sem limite. Limitacao: rodada independente em contextos isolados nao executada (autoavaliacao), impacto baixo.",
       "jira": "SV-727",
       "subtasks": [
@@ -1727,7 +1727,38 @@
           "owner": "agente"
         }
       ],
-      "evidence": ""
+      "evidence": {
+        "resumo": "Fechada em 2026-09-30. O bets-service deixa de publicar eventos direto no RabbitMQ: BetCreated/BetSettled sao gravados em public.outbox_event na mesma transacao da aposta e publicados por um relay com FOR UPDATE SKIP LOCKED, mandatory e confirms correlacionados; a linha so sai do outbox depois do ack do broker. Falha ao gravar o evento deixa de ser engolida.",
+        "secoes": [
+          {
+            "titulo": "O que foi feito",
+            "itens": [
+              "public.outbox_event por migration em db/migration-public (runner igual ao do auth-service), com autovacuum ajustado na propria tabela; entidade JPA com @Table(schema='public').",
+              "OutboxBetEventPublisher substitui o RabbitBetEventPublisher (mesmo port): grava o envelope na mesma transacao de BetService.create (TransactionTemplate; a idempotency-key duplicada segue tratada fora da transacao) e de updateStatus/update (@Transactional).",
+              "OutboxRelay @Scheduled (200 ms, desligavel, desligado no perfil de teste): lote de 500 com FOR UPDATE SKIP LOCKED, publish com mandatory + confirms correlacionados, DELETE por ids so apos o ack, rollback do lote em nack/devolucao/timeout, backoff de 5 s apos falha, contadores bets.outbox.published e bets.outbox.failures.",
+              "Testcontainers em postgres:18-alpine; docs/services/bets-service.md, docs/contratos-de-api.md e docs/DECISIONS-LOG.md (reavaliacao do item 4 de 2026-08-03) atualizadas."
+            ]
+          },
+          {
+            "titulo": "Como foi verificado",
+            "itens": [
+              "mvn verify completo: 191 testes, 0 falhas, gate de cobertura ok (com -Dspring-boot.repackage.skip=true porque o jar local estava em uso). CI do GitHub verde em todos os PRs de subtask.",
+              "Testes com Postgres 18 e RabbitMQ 4 reais: entrega em ordem e remocao apos ack; mensagem devolvida por mandatory mantem a linha (falharia se a devolucao fosse ignorada); reenvio quando passa a ser roteavel; backoff; 2 relays concorrentes com 1200 linhas sem duplicar nem perder; relay pulando 500 linhas travadas por outra conexao e publicando-as depois do rollback.",
+              "Atomicidade: teste que lanca depois de gravar o outbox espera zero apostas e zero linhas; falha com a mutacao de publicar fora da transacao.",
+              "Medicao em Postgres 18 descartavel: leitura do lote em 1,7 ms com 1M de linhas vivas, 8,1 s com 990 mil linhas mortas sem vacuum (motivo do ajuste de autovacuum) e 0,9 ms depois do vacuum.",
+              "Delivery Reviewer, Test Suite Auditor e Persistence Auditor: todos CONCERNS sem P0/P1; os P2 (backoff do relay, medicao de bloat, atomicidade e SKIP LOCKED sem prova direta) foram corrigidos nesta feature."
+            ]
+          },
+          {
+            "titulo": "O que divergiu do plano",
+            "itens": [
+              "A verificacao final planejada (carga local pequena mostrando eventos publicados = processados no stats) NAO foi executada aqui: rodaria no ambiente local do usuario. Fica como passo da maquina de producao (tools/load_test_bets.py com contagem de bets criados vs fact_bet).",
+              "deleteAllInBatch(entidades) virou deleteAllByIdInBatch (IN) por achado do Delivery Reviewer; OutboxEventPersistenceIntegrationTest foi removido por ser subsumido pelo teste do publicador.",
+              "Risco aceito: duplicata na queda entre o ack e o DELETE (consumidor idempotente por eventId); dead-lettering do broker segue at-most-once (DECISIONS-LOG 2026-08-03 item 4); sem limite/alerta de backlog do outbox."
+            ]
+          }
+        ]
+      }
     }
   ]
 }
