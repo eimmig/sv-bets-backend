@@ -1683,7 +1683,7 @@
         {
           "id": "feat-024.2",
           "name": "OutboxBetEventPublisher e BetService.create transacional",
-          "status": "not-started",
+          "status": "done",
           "jira": "SV-729",
           "detail": "Trocar o publish fire-and-forget por insercao na mesma transacao da aposta.",
           "checklist": [
