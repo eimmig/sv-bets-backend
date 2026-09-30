@@ -1713,7 +1713,7 @@
         {
           "id": "feat-024.4",
           "name": "Documentacao, CHANGELOG e verificacao final",
-          "status": "not-started",
+          "status": "done",
           "jira": "SV-731",
           "detail": "Fecha a feature.",
           "checklist": [

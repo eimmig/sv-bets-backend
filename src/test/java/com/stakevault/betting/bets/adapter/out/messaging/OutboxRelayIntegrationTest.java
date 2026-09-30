@@ -2,6 +2,7 @@ package com.stakevault.betting.bets.adapter.out.messaging;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.sql.Connection;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -11,6 +12,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+
+import javax.sql.DataSource;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,13 +32,16 @@ class OutboxRelayIntegrationTest extends TenantSchemaIntegrationSupport {
 	private final OutboxRelay relay;
 	private final OutboxEventSpringDataRepository repository;
 	private final RabbitTemplate rabbitTemplate;
+	private final DataSource dataSource;
 
 	OutboxRelayIntegrationTest(ProvisionTenantSchemaUseCase provisionTenantSchema, JdbcTemplate jdbcTemplate,
-			OutboxRelay relay, OutboxEventSpringDataRepository repository, RabbitTemplate rabbitTemplate) {
+			OutboxRelay relay, OutboxEventSpringDataRepository repository, RabbitTemplate rabbitTemplate,
+			DataSource dataSource) {
 		super(provisionTenantSchema, jdbcTemplate);
 		this.relay = relay;
 		this.repository = repository;
 		this.rabbitTemplate = rabbitTemplate;
+		this.dataSource = dataSource;
 	}
 
 	@BeforeEach
@@ -113,6 +119,47 @@ class OutboxRelayIntegrationTest extends TenantSchemaIntegrationSupport {
 		assertThat(sent).isEqualTo(1);
 		assertThat(pendingRows()).isZero();
 		assertThat(receiveAll()).hasSize(1);
+	}
+
+	@Test
+	void shouldSkipTheScheduledRunWhileBackingOffAfterAFailure() {
+		store("no.binding.matches", "{\"n\":1}");
+		relay.drain();
+		jdbcTemplate.update("UPDATE public.outbox_event SET routing_key = 'bet.created'");
+
+		int skipped = relay.drainUnlessBackingOff();
+
+		assertThat(skipped).isZero();
+		assertThat(pendingRows()).isEqualTo(1);
+		assertThat(relay.drain()).isEqualTo(1);
+	}
+
+	@Test
+	void shouldSkipRowsLockedByAnotherRelayAndPublishThemAfterTheLockIsReleased() throws Exception {
+		for (int i = 0; i < 1200; i++) {
+			store("bet.created", "{\"n\":" + i + "}");
+		}
+
+		try (Connection other = dataSource.getConnection()) {
+			other.setAutoCommit(false);
+			try (var statement = other.createStatement()) {
+				statement.execute("SELECT id FROM public.outbox_event ORDER BY id LIMIT 500 FOR UPDATE");
+			}
+
+			int whileLocked = relay.drain();
+
+			assertThat(whileLocked).isEqualTo(700);
+			assertThat(pendingRows()).isEqualTo(500);
+			other.rollback();
+		}
+
+		int afterRelease = relay.drain();
+
+		assertThat(afterRelease).isEqualTo(500);
+		assertThat(pendingRows()).isZero();
+		List<String> bodies = receiveAll().stream().map(message -> new String(message.getBody())).toList();
+		assertThat(bodies).hasSize(1200);
+		assertThat(new HashSet<>(bodies)).hasSize(1200);
 	}
 
 	@Test
