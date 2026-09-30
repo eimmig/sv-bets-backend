@@ -3,6 +3,7 @@ package com.stakevault.betting.bets.adapter.out.messaging;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -57,8 +58,7 @@ public class OutboxRelay {
 		int total = 0;
 		try {
 			for (int i = 0; i < MAX_BATCHES_PER_RUN; i++) {
-				Integer sent = transactionTemplate.execute(status -> publishBatch());
-				int count = sent == null ? 0 : sent;
+				int count = Objects.requireNonNull(transactionTemplate.execute(status -> publishBatch()));
 				total += count;
 				if (count < BATCH_SIZE) {
 					break;

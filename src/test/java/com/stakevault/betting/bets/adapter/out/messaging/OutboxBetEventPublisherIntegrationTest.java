@@ -212,7 +212,8 @@ class OutboxBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 				throw new IllegalStateException("failure after the outbox insert");
 			}).when(outboxPublisher).publishCreated(any(), any());
 
-			assertThatThrownBy(() -> bets.create(fixture.command())).isInstanceOf(IllegalStateException.class);
+			CreateBetCommand command = fixture.command();
+			assertThatThrownBy(() -> bets.create(command)).isInstanceOf(IllegalStateException.class);
 
 			assertThat(outboxBodies()).isEmpty();
 			Integer storedBets = jdbcTemplate.queryForObject(
