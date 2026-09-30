@@ -3,12 +3,6 @@ package com.stakevault.betting.bets.adapter.out.messaging;
 import java.time.Instant;
 import java.util.UUID;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.amqp.core.Message;
-import org.springframework.amqp.core.MessageBuilder;
-import org.springframework.amqp.core.MessageDeliveryMode;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
 
 import com.stakevault.betting.bets.config.TenantContextHolder;
@@ -20,19 +14,16 @@ import com.stakevault.betting.bets.domain.port.out.BetEventPublisher;
 import tools.jackson.databind.ObjectMapper;
 
 @Component
-public class RabbitBetEventPublisher implements BetEventPublisher {
+public class OutboxBetEventPublisher implements BetEventPublisher {
 
-	private static final Logger log = LoggerFactory.getLogger(RabbitBetEventPublisher.class);
-
-	private static final String EXCHANGE = "bets.events";
 	private static final String ROUTING_KEY_BET_CREATED = "bet.created";
 	private static final String ROUTING_KEY_BET_SETTLED = "bet.settled";
 
-	private final RabbitTemplate rabbitTemplate;
+	private final OutboxEventSpringDataRepository repository;
 	private final ObjectMapper objectMapper;
 
-	public RabbitBetEventPublisher(RabbitTemplate rabbitTemplate, ObjectMapper objectMapper) {
-		this.rabbitTemplate = rabbitTemplate;
+	public OutboxBetEventPublisher(OutboxEventSpringDataRepository repository, ObjectMapper objectMapper) {
+		this.repository = repository;
 		this.objectMapper = objectMapper;
 	}
 
@@ -41,7 +32,7 @@ public class RabbitBetEventPublisher implements BetEventPublisher {
 		BetEventEnvelope<BetCreatedPayload> envelope = new BetEventEnvelope<>(UUID.randomUUID(), "BetCreated", 1,
 				Instant.now(), TenantContextHolder.current().slug(), bet.createdByUserId(),
 				BetCreatedPayload.from(bet, dimensionNames));
-		publish(ROUTING_KEY_BET_CREATED, envelope, bet.id(), "BetCreated");
+		store(ROUTING_KEY_BET_CREATED, envelope, bet.id());
 	}
 
 	@Override
@@ -49,18 +40,11 @@ public class RabbitBetEventPublisher implements BetEventPublisher {
 		BetEventEnvelope<BetSettledPayload> envelope = new BetEventEnvelope<>(UUID.randomUUID(), "BetSettled", 1,
 				Instant.now(), TenantContextHolder.current().slug(), result.settledByUserId(),
 				BetSettledPayload.from(bet, result, dimensionNames));
-		publish(ROUTING_KEY_BET_SETTLED, envelope, bet.id(), "BetSettled");
+		store(ROUTING_KEY_BET_SETTLED, envelope, bet.id());
 	}
 
-	private void publish(String routingKey, BetEventEnvelope<?> envelope, UUID betId, String eventType) {
-		try {
-			byte[] body = objectMapper.writeValueAsBytes(envelope);
-			Message message = MessageBuilder.withBody(body).setContentType("application/json")
-					.setDeliveryMode(MessageDeliveryMode.PERSISTENT)
-					.build();
-			rabbitTemplate.send(EXCHANGE, routingKey, message);
-		} catch (Exception exception) {
-			log.error("failed to publish {} for bet {}", eventType, betId, exception);
-		}
+	private void store(String routingKey, BetEventEnvelope<?> envelope, UUID betId) {
+		String payload = objectMapper.writeValueAsString(envelope);
+		repository.save(new OutboxEventJpaEntity(routingKey, payload, envelope.tenantId(), betId, envelope.occurredAt()));
 	}
 }

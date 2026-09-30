@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -19,6 +21,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.stakevault.betting.bets.domain.model.Bet;
 import com.stakevault.betting.bets.domain.model.BetDimensionNames;
@@ -69,7 +73,8 @@ class BetServiceTest {
 
 	private BetService service() {
 		return new BetService(betRepository, betResultRepository, bettingHouseRepository, sportRepository,
-				leagueRepository, marketRepository, tipsterRepository, teamRepository, betEventPublisher);
+				leagueRepository, marketRepository, tipsterRepository, teamRepository, betEventPublisher,
+				new TransactionTemplate(mock(PlatformTransactionManager.class)));
 	}
 
 	private Bet pendingBet(BigDecimal stake, BigDecimal odd) {
@@ -148,6 +153,34 @@ class BetServiceTest {
 
 		assertThat(result.created()).isFalse();
 		verify(betEventPublisher, never()).publishCreated(any(), any());
+	}
+
+	@Test
+	void shouldNotSwallowAFailureRecordingTheCreatedEvent() {
+		service = service();
+		UUID bettingHouseId = UUID.randomUUID();
+		UUID sportId = UUID.randomUUID();
+		UUID leagueId = UUID.randomUUID();
+		UUID marketId = UUID.randomUUID();
+		CreateBetCommand command = new CreateBetCommand(UUID.randomUUID(),
+				new BetDetails(bettingHouseId, sportId, leagueId, marketId, null, null, null, null, null, null, null,
+						BigDecimal.TEN, BigDecimal.valueOf(1.5), Instant.now()),
+				null);
+		when(bettingHouseRepository.existsById(any())).thenReturn(true);
+		when(sportRepository.existsById(any())).thenReturn(true);
+		when(leagueRepository.existsById(any())).thenReturn(true);
+		when(marketRepository.existsById(any())).thenReturn(true);
+		when(bettingHouseRepository.findById(bettingHouseId))
+				.thenReturn(Optional.of(new BettingHouse(bettingHouseId, "House", BigDecimal.ZERO, Instant.now())));
+		when(sportRepository.findById(sportId)).thenReturn(Optional.of(new Sport(sportId, "Sport")));
+		when(leagueRepository.findById(leagueId)).thenReturn(Optional.of(new League(leagueId, "League")));
+		when(marketRepository.findById(marketId)).thenReturn(Optional.of(new Market(marketId, "Market")));
+		when(betRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+		doThrow(new IllegalStateException("outbox unavailable")).when(betEventPublisher)
+				.publishCreated(any(), any());
+
+		assertThatThrownBy(() -> service.create(command)).isInstanceOf(IllegalStateException.class)
+				.hasMessage("outbox unavailable");
 	}
 
 	@Test

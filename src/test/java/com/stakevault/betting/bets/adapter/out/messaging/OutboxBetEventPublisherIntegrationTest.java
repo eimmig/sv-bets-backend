@@ -2,23 +2,25 @@ package com.stakevault.betting.bets.adapter.out.messaging;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.amqp.core.Message;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.SpecVersion;
-import com.stakevault.betting.bets.TestcontainersConfiguration;
 import com.stakevault.betting.bets.config.TenantContextScope;
 import com.stakevault.betting.bets.domain.model.BetStatus;
 import com.stakevault.betting.bets.domain.model.BetType;
@@ -39,23 +41,24 @@ import com.stakevault.betting.bets.domain.port.out.SportRepository;
 import com.stakevault.betting.bets.domain.port.out.TeamRepository;
 import com.stakevault.betting.bets.support.TenantSchemaIntegrationSupport;
 
-class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupport {
+class OutboxBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupport {
+
+	@MockitoSpyBean
+	private OutboxBetEventPublisher outboxPublisher;
 
 	private final BetUseCase bets;
-	private final RabbitTemplate rabbitTemplate;
 	private final BettingHouseRepository bettingHouseRepository;
 	private final SportRepository sportRepository;
 	private final LeagueRepository leagueRepository;
 	private final MarketRepository marketRepository;
 	private final TeamRepository teamRepository;
 
-	RabbitBetEventPublisherIntegrationTest(ProvisionTenantSchemaUseCase provisionTenantSchema, JdbcTemplate jdbcTemplate,
-			BetUseCase bets, RabbitTemplate rabbitTemplate, BettingHouseRepository bettingHouseRepository,
+	OutboxBetEventPublisherIntegrationTest(ProvisionTenantSchemaUseCase provisionTenantSchema, JdbcTemplate jdbcTemplate,
+			BetUseCase bets, BettingHouseRepository bettingHouseRepository,
 			SportRepository sportRepository, LeagueRepository leagueRepository, MarketRepository marketRepository,
 			TeamRepository teamRepository) {
 		super(provisionTenantSchema, jdbcTemplate);
 		this.bets = bets;
-		this.rabbitTemplate = rabbitTemplate;
 		this.bettingHouseRepository = bettingHouseRepository;
 		this.sportRepository = sportRepository;
 		this.leagueRepository = leagueRepository;
@@ -110,6 +113,16 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 		return new TeamsFixture(command, team1Name, team2Name);
 	}
 
+	private List<byte[]> outboxBodies() {
+		return jdbcTemplate.queryForList("SELECT payload FROM public.outbox_event WHERE tenant_slug = ? ORDER BY id",
+				String.class, tenantSlug).stream().map(String::getBytes).toList();
+	}
+
+	@AfterEach
+	void clearOutbox() {
+		jdbcTemplate.update("DELETE FROM public.outbox_event WHERE tenant_slug = ?", tenantSlug);
+	}
+
 	private JsonNode validateAgainstSchema(byte[] body, String schemaResourcePath) throws Exception {
 		ObjectMapper objectMapper = new ObjectMapper();
 		JsonNode node = objectMapper.readTree(body);
@@ -123,16 +136,16 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 	}
 
 	@Test
-	void shouldPublishBetCreatedMatchingTheSchema() throws Exception {
+	void shouldRecordBetCreatedMatchingTheSchema() throws Exception {
 		try (var _ = TenantContextScope.open(schema)) {
 			UUID callerId = UUID.randomUUID();
 			var fixture = newCommand(callerId, null);
 
 			var result = bets.create(fixture.command());
 
-			Message message = rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000);
-			assertThat(message).isNotNull();
-			JsonNode event = validateAgainstSchema(message.getBody(), "/contracts/bet-created.schema.json");
+			List<byte[]> bodies = outboxBodies();
+			assertThat(bodies).hasSize(1);
+			JsonNode event = validateAgainstSchema(bodies.get(0), "/contracts/bet-created.schema.json");
 
 			assertThat(event.get("eventType").asText()).isEqualTo("BetCreated");
 			assertThat(event.get("schemaVersion").asInt()).isEqualTo(1);
@@ -151,21 +164,22 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 			assertThat(payload.get("sportName").asText()).isEqualTo(fixture.sportName());
 			assertThat(payload.get("leagueName").asText()).isEqualTo(fixture.leagueName());
 			assertThat(payload.get("marketName").asText()).isEqualTo(fixture.marketName());
-			assertThat(message.getMessageProperties().getReceivedDeliveryMode())
-					.isEqualTo(org.springframework.amqp.core.MessageDeliveryMode.PERSISTENT);
+			assertThat(jdbcTemplate.queryForObject(
+					"SELECT routing_key FROM public.outbox_event WHERE tenant_slug = ?", String.class, tenantSlug))
+					.isEqualTo("bet.created");
 		}
 	}
 
 	@Test
-	void shouldPublishTeamIdsAndNamesWhenBetHasTeams() throws Exception {
+	void shouldRecordTeamIdsAndNamesWhenBetHasTeams() throws Exception {
 		try (var _ = TenantContextScope.open(schema)) {
 			var fixture = newCommandWithTeams(UUID.randomUUID());
 
 			var result = bets.create(fixture.command());
 
-			Message message = rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000);
-			assertThat(message).isNotNull();
-			JsonNode event = validateAgainstSchema(message.getBody(), "/contracts/bet-created.schema.json");
+			List<byte[]> bodies = outboxBodies();
+			assertThat(bodies).hasSize(1);
+			JsonNode event = validateAgainstSchema(bodies.get(0), "/contracts/bet-created.schema.json");
 			JsonNode payload = event.get("payload");
 			assertThat(payload.get("team1Id").asText()).isEqualTo(result.bet().team1Id().toString());
 			assertThat(payload.get("team1").asText()).isEqualTo(fixture.team1Name());
@@ -175,47 +189,65 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 	}
 
 	@Test
-	void shouldPublishBetTypeAsLowercaseEnumValueMatchingTheSchema() throws Exception {
+	void shouldRecordBetTypeAsLowercaseEnumValueMatchingTheSchema() throws Exception {
 		try (var _ = TenantContextScope.open(schema)) {
 			var fixture = newCommand(UUID.randomUUID(), null, BetType.PRE);
 
 			bets.create(fixture.command());
 
-			Message message = rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000);
-			assertThat(message).isNotNull();
-			JsonNode event = validateAgainstSchema(message.getBody(), "/contracts/bet-created.schema.json");
+			List<byte[]> bodies = outboxBodies();
+			assertThat(bodies).hasSize(1);
+			JsonNode event = validateAgainstSchema(bodies.get(0), "/contracts/bet-created.schema.json");
 
 			assertThat(event.get("payload").get("betType").asText()).isEqualTo("pre");
 		}
 	}
 
 	@Test
-	void shouldNotPublishAgainWhenIdempotencyKeyReplays() {
+	void shouldRollBackTheBetAndTheOutboxRowTogetherWhenCreationFailsAfterTheEventIsRecorded() {
 		try (var _ = TenantContextScope.open(schema)) {
-			String idempotencyKey = "idem-" + UUID.randomUUID();
-			var fixture = newCommand(UUID.randomUUID(), idempotencyKey);
-			bets.create(fixture.command());
-			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000)).isNotNull();
+			var fixture = newCommand(UUID.randomUUID(), null);
+			doAnswer(invocation -> {
+				invocation.callRealMethod();
+				throw new IllegalStateException("failure after the outbox insert");
+			}).when(outboxPublisher).publishCreated(any(), any());
 
-			bets.create(fixture.command());
+			CreateBetCommand command = fixture.command();
+			assertThatThrownBy(() -> bets.create(command)).isInstanceOf(IllegalStateException.class);
 
-			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 1000)).isNull();
+			assertThat(outboxBodies()).isEmpty();
+			Integer storedBets = jdbcTemplate.queryForObject(
+					"SELECT count(*) FROM \"" + schema.value() + "\".bet", Integer.class);
+			assertThat(storedBets).isZero();
 		}
 	}
 
 	@Test
-	void shouldPublishBetSettledMatchingTheSchema() throws Exception {
+	void shouldNotRecordAgainWhenIdempotencyKeyReplays() {
+		try (var _ = TenantContextScope.open(schema)) {
+			String idempotencyKey = "idem-" + UUID.randomUUID();
+			var fixture = newCommand(UUID.randomUUID(), idempotencyKey);
+			bets.create(fixture.command());
+			assertThat(outboxBodies()).hasSize(1);
+
+			bets.create(fixture.command());
+
+			assertThat(outboxBodies()).hasSize(1);
+		}
+	}
+
+	@Test
+	void shouldRecordBetSettledMatchingTheSchema() throws Exception {
 		try (var _ = TenantContextScope.open(schema)) {
 			var fixture = newCommand(UUID.randomUUID(), null);
 			var created = bets.create(fixture.command());
-			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000)).isNotNull();
 			UUID settledByUserId = UUID.randomUUID();
 
 			bets.updateStatus(created.bet().id(), BetStatus.WON, settledByUserId);
 
-			Message message = rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000);
-			assertThat(message).isNotNull();
-			JsonNode event = validateAgainstSchema(message.getBody(), "/contracts/bet-settled.schema.json");
+			List<byte[]> bodies = outboxBodies();
+			assertThat(bodies).hasSize(2);
+			JsonNode event = validateAgainstSchema(bodies.get(1), "/contracts/bet-settled.schema.json");
 
 			assertThat(event.get("eventType").asText()).isEqualTo("BetSettled");
 			assertThat(event.get("userId").asText()).isEqualTo(settledByUserId.toString());
@@ -229,25 +261,22 @@ class RabbitBetEventPublisherIntegrationTest extends TenantSchemaIntegrationSupp
 			assertThat(payload.get("sportName").asText()).isEqualTo(fixture.sportName());
 			assertThat(payload.get("leagueName").asText()).isEqualTo(fixture.leagueName());
 			assertThat(payload.get("marketName").asText()).isEqualTo(fixture.marketName());
-			assertThat(message.getMessageProperties().getReceivedDeliveryMode())
-					.isEqualTo(org.springframework.amqp.core.MessageDeliveryMode.PERSISTENT);
 		}
 	}
 
 	@Test
-	void shouldNotPublishBetSettledWhenTransitionIsInvalid() {
+	void shouldNotRecordBetSettledWhenTransitionIsInvalid() {
 		try (var _ = TenantContextScope.open(schema)) {
 			var created = bets.create(newCommand(UUID.randomUUID(), null).command());
-			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000)).isNotNull();
 			bets.updateStatus(created.bet().id(), BetStatus.WON, UUID.randomUUID());
-			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 5000)).isNotNull();
+			assertThat(outboxBodies()).hasSize(2);
 
 			UUID betId = created.bet().id();
 			UUID settledByUserId = UUID.randomUUID();
 			assertThatThrownBy(() -> bets.updateStatus(betId, BetStatus.LOST, settledByUserId))
 				.isInstanceOf(InvalidStatusTransitionException.class);
 
-			assertThat(rabbitTemplate.receive(TestcontainersConfiguration.TEST_QUEUE, 1000)).isNull();
+			assertThat(outboxBodies()).hasSize(2);
 		}
 	}
 }

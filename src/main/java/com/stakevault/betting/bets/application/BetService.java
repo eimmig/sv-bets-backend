@@ -2,10 +2,12 @@ package com.stakevault.betting.bets.application;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.stakevault.betting.bets.domain.model.Bet;
@@ -52,11 +54,13 @@ public class BetService implements BetUseCase {
 	private final TipsterRepository tipsterRepository;
 	private final TeamRepository teamRepository;
 	private final BetEventPublisher betEventPublisher;
+	private final TransactionTemplate transactionTemplate;
 
 	public BetService(BetRepository betRepository, BetResultRepository betResultRepository,
 			BettingHouseRepository bettingHouseRepository, SportRepository sportRepository,
 			LeagueRepository leagueRepository, MarketRepository marketRepository, TipsterRepository tipsterRepository,
-			TeamRepository teamRepository, BetEventPublisher betEventPublisher) {
+			TeamRepository teamRepository, BetEventPublisher betEventPublisher,
+			TransactionTemplate transactionTemplate) {
 		this.betRepository = betRepository;
 		this.betResultRepository = betResultRepository;
 		this.bettingHouseRepository = bettingHouseRepository;
@@ -66,6 +70,7 @@ public class BetService implements BetUseCase {
 		this.tipsterRepository = tipsterRepository;
 		this.teamRepository = teamRepository;
 		this.betEventPublisher = betEventPublisher;
+		this.transactionTemplate = transactionTemplate;
 	}
 
 	@Override
@@ -88,9 +93,11 @@ public class BetService implements BetUseCase {
 				d.betDate() == null ? Instant.now() : d.betDate(), command.idempotencyKey());
 
 		try {
-			Bet saved = betRepository.save(bet);
-			betEventPublisher.publishCreated(saved, resolveDimensionNames(saved));
-			return new BetCreationResult(saved, true);
+			return Objects.requireNonNull(transactionTemplate.execute(status -> {
+				Bet saved = betRepository.save(bet);
+				betEventPublisher.publishCreated(saved, resolveDimensionNames(saved));
+				return new BetCreationResult(saved, true);
+			}));
 		} catch (DataIntegrityViolationException _) {
 			return betRepository.findByIdempotencyKey(command.idempotencyKey())
 					.map(found -> new BetCreationResult(found, false))
