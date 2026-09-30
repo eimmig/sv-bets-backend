@@ -8,10 +8,6 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 ## [Unreleased]
 
 - Publicação de eventos sem perda (`feat-024`): `BetCreated`/`BetSettled` são gravados em `public.outbox_event` na mesma transação da aposta e publicados por um relay com `FOR UPDATE SKIP LOCKED`, `mandatory` e confirms do broker; falha ao gravar o evento deixa de ser engolida; testes de integração em PostgreSQL 18
-- Remover todos os comentários restantes do código, testes e configuração (convenção de zero comentário, `docs/convencoes.md`)
-- [SV-582](https://stakevault.atlassian.net/browse/SV-582) - Extrair LocalizedRuntimeException e eliminar sonar.cpd.exclusions
-- [SV-583](https://stakevault.atlassian.net/browse/SV-583) - Extrair LocalizedRuntimeException e refatorar as 18 excecoes
-- [SV-584](https://stakevault.atlassian.net/browse/SV-584) - Remover sonar.cpd.exclusions, verificacao real e CHANGELOG
 - [SV-669](https://stakevault.atlassian.net/browse/SV-669) - Validar SonarCloud tambem em push pra main (nao so pull_request)
 - [SV-670](https://stakevault.atlassian.net/browse/SV-670) - ci.yml: push so pra main habilita os 2 steps de SonarCloud, com continue-on-error
 - [SV-727](https://stakevault.atlassian.net/browse/SV-727) - Publicacao de eventos sem perda: outbox transacional + publisher confirms
@@ -19,6 +15,13 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 - [SV-729](https://stakevault.atlassian.net/browse/SV-729) - OutboxBetEventPublisher e BetService.create transacional
 - [SV-730](https://stakevault.atlassian.net/browse/SV-730) - OutboxRelay com SKIP LOCKED e publisher confirms
 - [SV-731](https://stakevault.atlassian.net/browse/SV-731) - Documentacao, CHANGELOG e verificacao final
+
+## [0.2.0] - 2026-09-24
+
+- Remover todos os comentários restantes do código, testes e configuração (convenção de zero comentário, `docs/convencoes.md`)
+- [SV-582](https://stakevault.atlassian.net/browse/SV-582) - Extrair LocalizedRuntimeException e eliminar sonar.cpd.exclusions
+- [SV-583](https://stakevault.atlassian.net/browse/SV-583) - Extrair LocalizedRuntimeException e refatorar as 18 excecoes
+- [SV-584](https://stakevault.atlassian.net/browse/SV-584) - Remover sonar.cpd.exclusions, verificacao real e CHANGELOG
 
 ## [0.1.0] - 2026-09-23
 
