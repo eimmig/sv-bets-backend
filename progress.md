@@ -552,3 +552,11 @@ nunca publicado (`feat-019`, `PUT /api/v1/bets/{id}`, fechado numa sessão anter
 no diff desta feature. Mesmo residual de ambiente (processos `java.exe` órfãos travando o
 `repackage` local) já documentado em `services/auth-service/progress.md` - `mvn test` local verde,
 `mvn verify` completo confirmado pelo CI (Linux).
+
+## `feat-025` fechada — testar /actuator/health/liveness (2026-10-06)
+
+Mesma lacuna de `api-gateway feat-020` (achado do Delivery Reviewer de `infra feat-012`): nenhum teste
+cobria `/actuator/health/liveness`, usado pelos probes do Kubernetes. `HealthChecksTest` agora
+parametriza `/actuator/health` e `/actuator/health/liveness`; readiness (db e rabbit) segue separado por assertar
+`db`. Só `src/test`. Plan Reviewer: READY (reaproveitado). Delivery Reviewer e Test Suite Auditor:
+PASS, sem achado. `./init.sh` verde. Vault sem nota nova. Story SV-743, subtasks SV-744/745.
