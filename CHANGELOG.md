@@ -7,6 +7,8 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-06
+
 ## [0.3.0] - 2026-09-30
 
 - Publicação de eventos sem perda (`feat-024`): `BetCreated`/`BetSettled` são gravados em `public.outbox_event` na mesma transação da aposta e publicados por um relay com `FOR UPDATE SKIP LOCKED`, `mandatory` e confirms do broker; falha ao gravar o evento deixa de ser engolida; testes de integração em PostgreSQL 18
