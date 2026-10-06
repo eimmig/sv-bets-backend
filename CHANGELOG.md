@@ -17,6 +17,9 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 - [SV-729](https://stakevault.atlassian.net/browse/SV-729) - OutboxBetEventPublisher e BetService.create transacional
 - [SV-730](https://stakevault.atlassian.net/browse/SV-730) - OutboxRelay com SKIP LOCKED e publisher confirms
 - [SV-731](https://stakevault.atlassian.net/browse/SV-731) - Documentacao, CHANGELOG e verificacao final
+- [SV-743](https://stakevault.atlassian.net/browse/SV-743) - Testar /actuator/health/liveness no HealthChecksTest
+- [SV-744](https://stakevault.atlassian.net/browse/SV-744) - Teste de GET /actuator/health/liveness
+- [SV-745](https://stakevault.atlassian.net/browse/SV-745) - CHANGELOG e verificacao final
 
 ## [0.2.0] - 2026-09-24
 
