@@ -1829,6 +1829,46 @@
           }
         ]
       }
+    },
+    {
+      "id": "feat-026",
+      "name": "SET de schema so quando a conexao muda de organizacao e cache do schema existente",
+      "goal": "Cortar as instrucoes por aposta no postgres-bets (diagnostico de 2026-11-09: 394 mil SET search_path e 394 mil current_schema para 20 mil apostas, e 38,9 mil consultas ao information_schema).",
+      "scope": "config/SchemaMultiTenantConnectionProvider (schema por conexao fisica, SET so quando muda, sem SET public na devolucao), adapter/out/persistence/JdbcFlywayTenantSchemaGateway.exists (atalho para schema ja migrado), teste unitario do provider.",
+      "description": "Ver diagnostico em evidencias/20261109-diagnostico-bancos (pg_stat_statements). Cada emprestimo de conexao fazia SET para a organizacao e SET para public na devolucao.",
+      "plan_review": "2026-11-09, Plan Reviewer em auto-revisao curta, sem subagente (independencia reduzida, declarada). Veredito: READY WITH CONCERNS. Conferido: todo acesso do Hibernate passa por getConnection/getAnyConnection; fora dele so JdbcFlywayTenantSchemaGateway usa o DataSource, com consultas qualificadas, e o Flyway restaura o search_path que encontrou. O SET na conexao fisica (unwrap) nao marca o proxy do Hikari como alterado, entao o pool nao restaura o schema na devolucao. Risco aceito: a conexao volta ao pool com o schema da ultima organizacao; qualquer codigo futuro que use o DataSource direto com nome nao qualificado leria esse schema.",
+      "dependencies": [],
+      "status": "done",
+      "subtasks": [
+        {
+          "id": "feat-026.1",
+          "name": "Implementacao e testes",
+          "status": "done",
+          "detail": "Codigo e testes.",
+          "checklist": [
+            "Provider com schema por conexao fisica.",
+            "Atalho no exists.",
+            "Testes unitarios."
+          ],
+          "validation": "./init.sh verde; CI e SonarCloud verdes.",
+          "owner": "agente",
+          "jira": "SV-842"
+        },
+        {
+          "id": "feat-026.2",
+          "name": "Implantacao e carga de diagnostico repetida",
+          "status": "done",
+          "detail": "Prova no servidor.",
+          "checklist": [
+            "Release, rollout, carga de 20 mil apostas com pg_stat_statements, comparacao."
+          ],
+          "validation": "evidencias/20261109-diagnostico-bancos-pos.",
+          "owner": "agente",
+          "jira": "SV-843"
+        }
+      ],
+      "jira": "SV-841",
+      "evidence": "Entregue em 2026-11-09 (feature/SV-841, PR #95). SET de schema so quando a conexao fisica muda de organizacao; exists sem consulta ao catalogo para schema migrado. ./init.sh verde; comparacao em evidencias/20261109-diagnostico-bancos-pos."
     }
   ]
 }
