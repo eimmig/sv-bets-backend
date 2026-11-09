@@ -6,6 +6,9 @@ formato `- [chave](url) - título` — sem prosa, sem categoria. Escrita automat
 por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de commit, não aqui.
 
 ## [Unreleased]
+- [SV-841](https://stakevault.atlassian.net/browse/SV-841) - SET de schema so quando a conexao muda de organizacao e cache do schema existente
+- [SV-842](https://stakevault.atlassian.net/browse/SV-842) - Implementacao e testes
+- [SV-843](https://stakevault.atlassian.net/browse/SV-843) - Implantacao e carga de diagnostico repetida
 
 ## [0.3.1] - 2026-10-06
 
