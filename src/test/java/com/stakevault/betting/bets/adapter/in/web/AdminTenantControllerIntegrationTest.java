@@ -142,4 +142,51 @@ class AdminTenantControllerIntegrationTest extends TenantSchemaIntegrationSuppor
 
 		assertThat(response.statusCode()).isEqualTo(401);
 	}
+
+
+	private HttpResponse<String> delete(String slug, String... headers) throws Exception {
+		HttpRequest.Builder builder = HttpRequest
+				.newBuilder(URI.create("http://localhost:" + port + "/api/v1/admin/tenants/" + slug)).DELETE();
+		for (int i = 0; i < headers.length; i += 2) {
+			builder.header(headers[i], headers[i + 1]);
+		}
+		return httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+	}
+
+	@Test
+	void shouldDropTheTenantSchemaAndItsPendingOutboxEvents() throws Exception {
+		String slug = "del-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+		assertThat(post("{\"slug\":\"" + slug + "\"}", "X-Admin-Api-Key", "test-admin-api-key").statusCode())
+				.isEqualTo(201);
+		jdbcTemplate.update("INSERT INTO public.outbox_event (routing_key, payload, tenant_slug, bet_id, created_at)"
+				+ " VALUES ('bet.created', '{}', ?, ?, now())", slug, UUID.randomUUID());
+
+		HttpResponse<String> response = delete(slug, "X-Admin-Api-Key", "test-admin-api-key");
+
+		assertThat(response.statusCode()).isEqualTo(204);
+		assertThat(jdbcTemplate.queryForObject(
+				"SELECT count(*) FROM information_schema.schemata WHERE schema_name = ?", Integer.class,
+				"tenant_" + slug)).isZero();
+		assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM public.outbox_event WHERE tenant_slug = ?",
+				Integer.class, slug)).isZero();
+	}
+
+	@Test
+	void shouldAnswer204WhenTheTenantDoesNotExist() throws Exception {
+		assertThat(delete("nao-existe-" + UUID.randomUUID().toString().substring(0, 8), "X-Admin-Api-Key",
+				"test-admin-api-key").statusCode()).isEqualTo(204);
+	}
+
+	@Test
+	void shouldReturn422WhenDeletingAnInvalidSlug() throws Exception {
+		HttpResponse<String> response = delete("1invalid", "X-Admin-Api-Key", "test-admin-api-key");
+
+		assertThat(response.statusCode()).isEqualTo(422);
+		assertThat(response.body()).contains("\"type\":\"https://docs/errors/invalid-tenant-slug\"");
+	}
+
+	@Test
+	void shouldRejectDeletionWithoutTheAdminKey() throws Exception {
+		assertThat(delete(tenantSlug).statusCode()).isEqualTo(401);
+	}
 }
