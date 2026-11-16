@@ -9,6 +9,7 @@ import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.configuration.FluentConfiguration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.stakevault.betting.bets.domain.model.TenantSchemaName;
 import com.stakevault.betting.bets.domain.port.out.TenantSchemaGateway;
@@ -52,6 +53,15 @@ public class JdbcFlywayTenantSchemaGateway implements TenantSchemaGateway {
 		}
 		flywayFor(schema, false).migrate();
 		migratedSchemas.add(schema.value());
+	}
+
+	@Override
+	@Transactional
+	public void drop(TenantSchemaName schema, String tenantSlug) {
+		jdbcTemplate.update("DELETE FROM public.outbox_event WHERE tenant_slug = ?", tenantSlug);
+		// o nome ja foi validado por TenantSchemaName (letras, digitos e hifen), e vai entre aspas
+		jdbcTemplate.execute("DROP SCHEMA IF EXISTS \"" + schema.value() + "\" CASCADE");
+		migratedSchemas.remove(schema.value());
 	}
 
 	private Flyway flywayFor(TenantSchemaName schema, boolean createSchemas) {
