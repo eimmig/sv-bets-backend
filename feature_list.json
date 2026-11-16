@@ -1869,6 +1869,36 @@
       ],
       "jira": "SV-841",
       "evidence": "Entregue em 2026-11-09 (feature/SV-841, PR #95). SET de schema so quando a conexao fisica muda de organizacao; exists sem consulta ao catalogo para schema migrado. ./init.sh verde; comparacao em evidencias/20261109-diagnostico-bancos-pos."
+    },
+    {
+      "id": "feat-027",
+      "name": "Rota admin para apagar o schema de uma organizacao",
+      "goal": "DELETE /api/v1/admin/tenants/{slug} apaga o schema tenant_<slug> e os eventos pendentes da outbox da organizacao, para a exclusao de organizacao pedida pelo admin (epic-065).",
+      "scope": "TenantSchemaGateway.drop (DROP SCHEMA IF EXISTS ... CASCADE e DELETE de public.outbox_event por tenant_slug, mesma transacao) e remocao do cache de schemas migrados; AdminProvisionTenantUseCase.deleteTenant; controller com 204 idempotente e 422 para slug invalido; teste de integracao.",
+      "description": "",
+      "dependencies": [],
+      "plan_review": "2026-11-16, Plan Reviewer em auto-revisao curta (independencia reduzida, declarada), plano cross-service do epic-065 (exclusao da organizacao a pedido do admin, LGPD art. 18 VI, devolutiva de 2026-11-16). Veredito: READY WITH CONCERNS. Fluxo sincrono igual ao da criacao: auth valida admin, chama DELETE /api/v1/admin/tenants/{slug} no bets e no stats (X-Admin-Api-Key, idempotente, 204 mesmo sem schema) e so entao apaga o proprio schema e os vinculos do Telegram; falha em servico abaixo devolve 502 sem apagar nada no auth, e repetir e seguro. Riscos aceitos: (1) o cache de schema existente por instancia (feat-038 do bets) faz outras replicas responderem 500 a tokens antigos da organizacao ate reiniciar; nenhum dado volta, porque o schema so e criado pela rota admin. (2) Eventos em voo para o stats caem na DLQ por schema inexistente. (3) Historico de execucoes do n8n (ate 14 dias) nao e apagado.",
+      "status": "in-progress",
+      "subtasks": [
+        {
+          "id": "feat-027.1",
+          "name": "Rota DELETE e teste",
+          "status": "in-progress",
+          "detail": "Rota DELETE e teste",
+          "checklist": [
+            "Teste vermelho antes.",
+            "DROP SCHEMA e outbox na mesma transacao.",
+            "204 idempotente; 422 slug invalido; 401 sem chave.",
+            "CHANGELOG em [Unreleased].",
+            "Vault (docs/) revisado: services/bets-service.md e contratos-de-api."
+          ],
+          "validation": "./init.sh verde; CI e SonarCloud verdes.",
+          "owner": "agente",
+          "jira": "SV-865"
+        }
+      ],
+      "jira": "SV-864",
+      "evidence": ""
     }
   ]
 }
