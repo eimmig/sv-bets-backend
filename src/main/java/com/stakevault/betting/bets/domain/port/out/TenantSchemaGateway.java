@@ -9,4 +9,10 @@ public interface TenantSchemaGateway {
 	void createAndMigrate(TenantSchemaName schema);
 
 	void migrateExistingOnly(TenantSchemaName schema);
+
+	/**
+	 * Apaga o schema da organizacao e os eventos dela ainda pendentes na outbox (epic-065). Nao falha
+	 * quando o schema nao existe.
+	 */
+	void drop(TenantSchemaName schema, String tenantSlug);
 }
