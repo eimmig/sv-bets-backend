@@ -7,6 +7,8 @@ por serviço"). O "porquê" de cada mudança vive na issue e na mensagem de comm
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-16
+
 ## [0.3.2] - 2026-11-09
 - [SV-841](https://stakevault.atlassian.net/browse/SV-841) - SET de schema so quando a conexao muda de organizacao e cache do schema existente
 - [SV-842](https://stakevault.atlassian.net/browse/SV-842) - Implementacao e testes
